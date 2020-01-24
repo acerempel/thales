@@ -31,7 +31,7 @@ instance Show1 DataF where
     String  t -> showsPrec prec t
     Boolean b -> showsPrec prec b
     Record  h -> Map.foldrWithKey (\k v s -> showsPrec prec k . (':':) . showsPrecA prec v . s) id h
-    Array   a -> Vec.foldr (\v s -> showsPrecA prec v . (',':) . s) id a
+    Array   a -> showListA (Vec.toList a)
 
 type Data = Fix DataF
 

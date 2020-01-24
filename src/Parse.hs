@@ -10,7 +10,6 @@ import Text.Megaparsec.Char
 
 import NonEmptyText
 import Syntax
-import Value
 
 data Delimiters = Delimiters
   { begin :: NonEmptyText
@@ -24,10 +23,9 @@ deriving instance MonadParsec Void Text Parser
 
 defaultDelimiters = Delimiters "{" "}"
 
-parse :: Text -> IO ()
+parse :: Text -> Either String [Syntax]
 parse =
-  putStrLn .
-  either errorBundlePretty show .
+  first errorBundlePretty .
   runParser defaultDelimiters templateP "goof"
 
 runParser :: Delimiters -> Parser a -> FilePath -> Text -> Either (ParseErrorBundle Text Void) a
@@ -57,10 +55,10 @@ syntaxP inBlock = do
       beginD <- getBeginDelim
       Builder.fromText <$> takeWhileP Nothing (/= Text.head beginD)
     endP =
-      if inBlock then withinDelims (keywordP "end") else eof
+      if inBlock then try (withinDelims (keywordP "end") <?> "end of block") else eof
 
 statementP :: Parser Statement
-statementP = do
+statementP = label "statement" $ do
   statem <- withinDelims $
     forP <|> (StandaloneS . ExprS) <$> exprP <|> emptyP
   case statem of
@@ -87,7 +85,7 @@ keywordP ident = do
   space
 
 nameP :: Parser Name
-nameP =
+nameP = label "name" $
   -- TODO: fail if is keyword.
   takeWhile1P (Just "identifier character") isIdChar <* space
 
