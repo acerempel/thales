@@ -3,13 +3,16 @@ module Parse where
 
 import Prelude hiding (many)
 import Data.Char
+import Data.Functor.Foldable
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy.Builder as Builder
 import Text.Megaparsec hiding (parse, runParser)
 import Text.Megaparsec.Char
+import Text.Megaparsec.Char.Lexer (scientific)
 
 import NonEmptyText
 import Syntax
+import Value
 
 data Delimiters = Delimiters
   { begin :: NonEmptyText
@@ -53,7 +56,7 @@ syntaxP inBlock = do
   where
     verbatimP = do
       beginD <- getBeginDelim
-      Builder.fromText <$> takeWhileP Nothing (/= Text.head beginD)
+      Builder.fromText <$> takeWhileP (Just "any non-delimiter character") (/= Text.head beginD)
     endP =
       if inBlock then try (withinDelims (keywordP "end") <?> "end of block") else eof
 
@@ -102,5 +105,25 @@ emptyP =
   return (StandaloneS EmptyS) <?> "an empty statement"
 
 exprP :: Parser Expr
-exprP = NameE <$> nameP
+exprP = do
+  expr <-
+    parensP exprP
+    <|> LiteralE <$> numberP
+    <|> NameE <$> nameP
+  fields <- many (dotP *> nameP)
+  return (case fields of [] -> expr; f -> FieldAccessE f expr)
+
+numberP :: Parser Data
+numberP = Fix . Number <$> scientific <* space
+
 -- TODO: parse other kinds of exprs!
+
+dotP :: Parser ()
+dotP = single '.' >> space
+
+parensP :: Parser a -> Parser a
+parensP innerP = do
+  single '(' >> space
+  inner <- innerP
+  single ')' >> space
+  return inner

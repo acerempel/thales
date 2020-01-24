@@ -23,6 +23,7 @@ data Statement
 data Expr
   = LiteralE Data
   | ApplyE Expr Expr
+  | FieldAccessE [Name] Expr
   | NameE Name
   deriving Show
 
