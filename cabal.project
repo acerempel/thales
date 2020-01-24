@@ -1,0 +1,4 @@
+packages: .
+
+package thales
+  ghc-options: -fhide-source-paths -ferror-spans -Wall -Wcompat -Wincomplete-uni-patterns
