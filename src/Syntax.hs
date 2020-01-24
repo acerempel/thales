@@ -6,6 +6,7 @@ import Value
 data Syntax
   = VerbatimS Verbatim
   | StatementS Statement
+  deriving Show
 
 data PartialStatement
   = BlockS ([Syntax] -> Statement)
@@ -17,10 +18,12 @@ data Statement
   | ForS Name Expr [Syntax]
   | Optional Expr
   | Optionally Expr [Syntax]
+  deriving Show
 
 data Expr
   = LiteralE Data
   | ApplyE Expr Expr
   | NameE Name
+  deriving Show
 
 type Name = Text

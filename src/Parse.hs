@@ -5,7 +5,7 @@ import Prelude hiding (many)
 import Data.Char
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy.Builder as Builder
-import Text.Megaparsec
+import Text.Megaparsec hiding (parse, runParser)
 import Text.Megaparsec.Char
 
 import NonEmptyText
@@ -22,6 +22,19 @@ newtype Parser a = Parser
 
 deriving instance MonadParsec Void Text Parser
 
+defaultDelimiters = Delimiters "{" "}"
+
+parse :: Text -> IO ()
+parse =
+  putStrLn .
+  either errorBundlePretty show .
+  runParser defaultDelimiters templateP "goof"
+
+runParser :: Delimiters -> Parser a -> FilePath -> Text -> Either (ParseErrorBundle Text Void) a
+runParser delims (Parser parser) name input =
+  let r = runParserT parser name input
+  in runReader r delims
+
 getBeginDelim :: Parser Text
 getBeginDelim =
   Parser (asks (fromNonEmptyText . begin))
@@ -35,21 +48,16 @@ blockP = syntaxP True
 templateP = syntaxP False
 
 syntaxP :: Bool -> Parser [Syntax]
-syntaxP inBlock =
-  let endP =
-        return EmptyS <*
-        if inBlock then withinDelims (keywordP "end") else eof
-  in many (VerbatimS  <$> verbatimP
-       <|> StatementS <$> endP
-       <|> StatementS <$> statementP)
-
-verbatimP :: Parser Verbatim
-verbatimP = do
-  beginD <- getBeginDelim
-  verbatim1 <-
-    Builder.fromText <$> takeWhileP Nothing (/= Text.head beginD)
-  (lookAhead (chunk beginD) >> return verbatim1)
-    <|> fmap (verbatim1 <>) ((<>) <$> (fmap Builder.singleton anySingle) <*> verbatimP)
+syntaxP inBlock = do
+  return [] <* endP
+    <|> ((:) <$> fmap StatementS statementP <*> syntaxP inBlock)
+    <|> ((:) <$> fmap VerbatimS ((<>) <$> (fmap Builder.singleton anySingle) <*> verbatimP) <*> syntaxP inBlock)
+  where
+    verbatimP = do
+      beginD <- getBeginDelim
+      Builder.fromText <$> takeWhileP Nothing (/= Text.head beginD)
+    endP =
+      if inBlock then withinDelims (keywordP "end") else eof
 
 statementP :: Parser Statement
 statementP = do

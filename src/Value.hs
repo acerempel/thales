@@ -1,10 +1,14 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Value where
 
+import Data.Functor.Classes
 import Data.Functor.Foldable
+import qualified Data.HashMap.Strict as Map
 import Data.Scientific
 import Data.Text.Lazy.Builder as Text
 import Data.Vector
+import qualified Data.Vector as Vec
+import Text.Show
 
 data Value f
   = Verbatim !Verbatim
@@ -20,6 +24,14 @@ data DataF a
   | Record !(HashMap Text a)
   | Array !(Vector a)
   deriving ( Functor, Eq )
+
+instance Show1 DataF where
+  liftShowsPrec showsPrecA showListA prec = \case
+    Number  s -> showsPrec prec s
+    String  t -> showsPrec prec t
+    Boolean b -> showsPrec prec b
+    Record  h -> Map.foldrWithKey (\k v s -> showsPrec prec k . (':':) . showsPrecA prec v . s) id h
+    Array   a -> Vec.foldr (\v s -> showsPrecA prec v . (',':) . s) id a
 
 type Data = Fix DataF
 
