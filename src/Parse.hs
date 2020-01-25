@@ -111,7 +111,7 @@ exprP = do
     <|> LiteralE <$> numberP
     <|> NameE <$> nameP
   fields <- many (dotP *> nameP)
-  return (case fields of [] -> expr; f -> FieldAccessE f expr)
+  return (foldl' (\e f -> FieldAccessE f e) expr fields)
 
 numberP :: Parser Data
 numberP = Fix . Number <$> scientific <* space
