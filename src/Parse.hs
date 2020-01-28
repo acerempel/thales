@@ -110,8 +110,6 @@ emptyP :: Parser PartialStatement
 emptyP =
   return (StandaloneS EmptyS) <?> "an empty statement"
 
--- newtype Expr ExprF = Expr (ExprF (Expr ExprF))
-
 exprP :: Parser Expr
 exprP = do
   (a1 :| atoms) <- NE.some atomicExprP
@@ -121,22 +119,19 @@ atomicExprP :: Parser Expr
 atomicExprP = do
   expr <-
     parensP exprP
+    <|> Expr . ArrayE <$> bracketsP (sepEndBy exprP (specialCharP ','))
     <|> Expr . LiteralE <$> numberP
     <|> Expr . NameE <$> nameP
-  fields <- many (dotP *> nameP)
+  fields <- many (specialCharP '.' *> nameP)
   return (foldl' (\e f -> Expr (FieldAccessE f e)) expr fields)
+ where
+  parensP = between (specialCharP '(') (specialCharP ')')
+  bracketsP = between (specialCharP '[') (specialCharP ']')
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space
 
 -- TODO: parse other kinds of exprs!
 
-dotP :: Parser ()
-dotP = single '.' >> space
-
-parensP :: Parser a -> Parser a
-parensP innerP = do
-  single '(' >> space
-  inner <- innerP
-  single ')' >> space
-  return inner
+specialCharP :: Char -> Parser ()
+specialCharP c = single c >> space
