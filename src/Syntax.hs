@@ -53,6 +53,9 @@ instance Show1 ExprF where
     NameE n ->
       showsPrec prec n
 
+instance Show a => Show (ExprF a) where
+  showsPrec prec = showsPrec1 prec
+
 type Expr = Fix ExprF
 
 data Literal

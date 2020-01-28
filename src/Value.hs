@@ -29,6 +29,16 @@ data ValueType f t where
 data SomeValueType f where
   SomeValueType :: ValueType f t -> SomeValueType f
 
+instance Show (SomeValueType f) where
+  showsPrec _prec (SomeValueType vt) = case vt of
+    NumberT -> s "number"
+    StringT -> s "text"
+    BooleanT -> s "bool"
+    ArrayT -> s "array"
+    RecordT -> s "record"
+    FunctionT _t -> s "function"
+    where s = (Prelude.++)
+
 instance Show (Value f) where
   showsPrec prec = \case
     Number  s -> showsPrec prec s

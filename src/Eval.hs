@@ -11,8 +11,11 @@ import Value
 type Context m = HashMap Name (Value m)
 
 newtype EvalT m a = EvalT
-  { runEvalT :: ExceptT (Problematic m) (ReaderT (Context m) m) a }
+  { unEvalT :: ExceptT (Problematic m) (ReaderT (Context m) m) a }
   deriving ( Monad, Functor, Applicative )
+
+runEvalT :: EvalT m a -> Context m -> m (Either (Problematic m) a)
+runEvalT (EvalT m) = runReaderT (runExceptT m)
 
 zutAlors :: Monad m => Problem m -> EvalT m a
 zutAlors prob = EvalT (throwE (ProblemHere prob))
@@ -69,13 +72,16 @@ evalExpr (Fix expr) = case expr of
           (BooleanT, Boolean b) -> liftEval (f b)
           (ArrayT,   Array   a) -> liftEval (f a)
           (RecordT,  Record  r) -> liftEval (f r)
-          _ -> zutAlors (TypeMismatch (SomeValueType typ) funcExpr arg argExpr)
+          _ ->
+            -- Application of higher-order functions is not yet supported!
+            zutAlors (TypeMismatch (SomeValueType typ) funcExpr arg argExpr)
       _ ->
         zutAlors (NotAFunction func funcExpr argExpr)
 
 data Problematic f
   = ProblemHere (Problem f)
   | ProblemWithin (ExprF (Either (Problematic f) Expr))
+  deriving Show
 
 data Problem f
   = NameNotFound Name
@@ -83,3 +89,7 @@ data Problem f
   | NotARecord (Value f) Expr
   | NotAFunction (Value f) Expr Expr
   | TypeMismatch (SomeValueType f) Expr (Value f) Expr
+  deriving Show
+
+evalStatement :: Monad m => Statement -> EvalT m (Value m)
+evalStatement _ = return undefined

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
 module NonEmptyText
   ( NonEmptyText, nonEmptyText, fromNonEmptyText
   , head, tail )
