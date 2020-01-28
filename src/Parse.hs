@@ -64,6 +64,7 @@ syntaxP inBlock = do
       beginD <- getBeginDelim
       Builder.fromText <$> takeWhileP (Just "any non-delimiter character") (/= Text.head beginD)
     endP =
+      -- TODO: I do not like this 'try'. Would be nice to remove it.
       if inBlock then try (withinDelims (keywordP "end") <?> "end of block") else eof
 
 statementP :: Parser Statement
