@@ -1,6 +1,11 @@
 {-# LANGUAGE StrictData #-}
 module Syntax where
 
+import Data.Functor.Classes
+import Data.Functor.Foldable
+import Data.Scientific
+import Text.Show
+
 import Value
 
 data Syntax
@@ -20,11 +25,44 @@ data Statement
   | Optionally Expr [Syntax]
   deriving Show
 
-data Expr
-  = LiteralE Data
-  | ApplyE Expr Expr
-  | FieldAccessE Name Expr
+data ExprF a
+  = LiteralE Literal
+  | ArrayE [a]
+  | ApplyE a a
+  | FieldAccessE Name a
   | NameE Name
+
+instance Show1 ExprF where
+  liftShowsPrec showsPrecA showsListA prec = \case
+    LiteralE l ->
+      showsPrec prec l
+    ArrayE a ->
+      showsListA a
+    ApplyE f z ->
+      ('(' :)
+      . showsPrecA prec f
+      . (' ' :)
+      . showsPrecA prec z
+      . (')' :)
+    FieldAccessE n a ->
+      ('(' :)
+      . showsPrecA prec a
+      . (')' :)
+      . ('.' :)
+      . showsPrec prec n
+    NameE n ->
+      showsPrec prec n
+
+type Expr = Fix ExprF
+
+data Literal
+  = NumberL Scientific
+  | StringL Text
+  | BooleanL Bool
   deriving Show
 
-type Name = Text
+literalToValue :: Literal -> Value f
+literalToValue = \case
+  NumberL  n -> Number n
+  StringL  s -> String s
+  BooleanL b -> Boolean b

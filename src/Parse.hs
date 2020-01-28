@@ -104,17 +104,19 @@ emptyP :: Parser PartialStatement
 emptyP =
   return (StandaloneS EmptyS) <?> "an empty statement"
 
+-- newtype Fix ExprF = Fix (ExprF (Fix ExprF))
+
 exprP :: Parser Expr
 exprP = do
   expr <-
     parensP exprP
-    <|> LiteralE <$> numberP
-    <|> NameE <$> nameP
+    <|> Fix . LiteralE <$> numberP
+    <|> Fix . NameE <$> nameP
   fields <- many (dotP *> nameP)
-  return (foldl' (\e f -> FieldAccessE f e) expr fields)
+  return (foldl' (\e f -> Fix (FieldAccessE f e)) expr fields)
 
-numberP :: Parser Data
-numberP = Fix . Number <$> scientific <* space
+numberP :: Parser Literal
+numberP = NumberL <$> scientific <* space
 
 -- TODO: parse other kinds of exprs!
 
