@@ -1,8 +1,6 @@
 {-# LANGUAGE StrictData #-}
 module Syntax where
 
-import Data.Functor.Classes
-import Data.Functor.Foldable
 import Data.Scientific
 import Text.Show
 
@@ -10,6 +8,8 @@ import Value
 
 {- TODO: This ADT will have to have to have all constructors tagged
 with 'SourcePos' for error reporting. -}
+{- TODO: Replace 'Expr' with a type variable, so that it can be replaced
+with the result of evaluating the expression.-}
 data Statement
   = EmptyS
   | VerbatimS Verbatim
@@ -25,37 +25,19 @@ data ExprF a
   | ApplyE a a
   | FieldAccessE Name a
   | NameE Name
+  deriving Show
 
-{- TODO: Make this 'Show' instance behave like a derived one, and add a
-'display' family of functions for displaying expressions and statements
-like they appear in source templates. Those functions should return
-some kind of terminal-prettyprinting datatype so we can bold stuff.
--}
-instance Show1 ExprF where
-  liftShowsPrec showsPrecA showsListA prec = \case
-    LiteralE l ->
-      showsPrec prec l
-    ArrayE a ->
-      showsListA a
-    ApplyE f z ->
-      ('(' :)
-      . showsPrecA prec f
-      . (' ' :)
-      . showsPrecA prec z
-      . (')' :)
-    FieldAccessE n a ->
-      ('(' :)
-      . showsPrecA prec a
-      . (')' :)
-      . ('.' :)
-      . showsPrec prec n
-    NameE n ->
-      showsPrec prec n
+newtype Expr = Expr { getExpr :: ExprF Expr }
 
-instance Show a => Show (ExprF a) where
-  showsPrec prec = showsPrec1 prec
+-- | Just wrap the derived 'Show' instance for
+-- 'ExprF', but don't show the outer 'Expr' constructor, for brevity.
+instance Show Expr where
+  showsPrec prec (Expr e) =
+    showsPrec prec e
 
-type Expr = Fix ExprF
+-- TODO: some kind of nice 'display' family of functions for Expr
+-- and Statement. Should return 'Doc' from some kind of pretty-printing
+-- library.
 
 data Literal
   = NumberL Scientific

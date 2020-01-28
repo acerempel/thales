@@ -1,7 +1,6 @@
 module Eval where
 
 import Control.Monad.Trans.Except
-import Data.Functor.Foldable
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Vector as Vec
 
@@ -36,7 +35,7 @@ liftEval :: Monad m => m a -> EvalT m a
 liftEval m = (EvalT (lift (lift m)))
 
 evalExpr :: Monad m => Expr -> EvalT m (Value m)
-evalExpr (Fix expr) = case expr of
+evalExpr (Expr expr) = case expr of
 
   NameE name -> do
     mVal <- lookup name

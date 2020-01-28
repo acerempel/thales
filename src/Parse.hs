@@ -4,7 +4,6 @@ module Parse where
 import Prelude hiding (many)
 import Control.Monad.Combinators.NonEmpty as NE
 import Data.Char
-import Data.Functor.Foldable
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy.Builder as Builder
 import Text.Megaparsec hiding (parse, runParser)
@@ -32,6 +31,7 @@ deriving instance MonadParsec Void Text Parser
 defaultDelimiters :: Delimiters
 defaultDelimiters = Delimiters "{" "}"
 
+-- TODO: put this somewhere else.
 parse :: Text -> Either String [Statement]
 parse =
   first errorBundlePretty .
@@ -110,21 +110,21 @@ emptyP :: Parser PartialStatement
 emptyP =
   return (StandaloneS EmptyS) <?> "an empty statement"
 
--- newtype Fix ExprF = Fix (ExprF (Fix ExprF))
+-- newtype Expr ExprF = Expr (ExprF (Expr ExprF))
 
 exprP :: Parser Expr
 exprP = do
   (a1 :| atoms) <- NE.some atomicExprP
-  return (foldl' (\e a -> Fix (ApplyE e a)) a1 atoms)
+  return (foldl' (\e a -> Expr (ApplyE e a)) a1 atoms)
 
 atomicExprP :: Parser Expr
 atomicExprP = do
   expr <-
     parensP exprP
-    <|> Fix . LiteralE <$> numberP
-    <|> Fix . NameE <$> nameP
+    <|> Expr . LiteralE <$> numberP
+    <|> Expr . NameE <$> nameP
   fields <- many (dotP *> nameP)
-  return (foldl' (\e f -> Fix (FieldAccessE f e)) expr fields)
+  return (foldl' (\e f -> Expr (FieldAccessE f e)) expr fields)
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space
