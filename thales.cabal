@@ -19,6 +19,7 @@ library
   build-depends:
       base >= 4.8 && < 4.14
     , megaparsec >= 8.0 && < 9.0
+    , parser-combinators >= 0.4
     , recursion-schemes >= 5 && < 6
     , relude >= 0.6 && < 0.7
     , scientific >= 0.3.5.2 && < 0.4

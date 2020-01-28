@@ -2,6 +2,7 @@
 module Parse where
 
 import Prelude hiding (many)
+import Control.Monad.Combinators.NonEmpty as NE
 import Data.Char
 import Data.Functor.Foldable
 import qualified Data.Text as Text
@@ -113,6 +114,11 @@ emptyP =
 
 exprP :: Parser Expr
 exprP = do
+  (a1 :| atoms) <- NE.some atomicExprP
+  return (foldl' (\e a -> Fix (ApplyE e a)) a1 atoms)
+
+atomicExprP :: Parser Expr
+atomicExprP = do
   expr <-
     parensP exprP
     <|> Fix . LiteralE <$> numberP
