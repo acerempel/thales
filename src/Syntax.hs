@@ -17,6 +17,8 @@ data PartialStatement
   = BlockS ([Syntax] -> Statement)
   | StandaloneS Statement
 
+{- TODO: This ADT will have to have to have all constructors tagged
+with 'SourcePos' for error reporting. -}
 data Statement
   = EmptyS
   | ExprS Expr
@@ -32,6 +34,11 @@ data ExprF a
   | FieldAccessE Name a
   | NameE Name
 
+{- TODO: Make this 'Show' instance behave like a derived one, and add a
+'display' family of functions for displaying expressions and statements
+like they appear in source templates. Those functions should return
+some kind of terminal-prettyprinting datatype so we can bold stuff.
+-}
 instance Show1 ExprF where
   liftShowsPrec showsPrecA showsListA prec = \case
     LiteralE l ->

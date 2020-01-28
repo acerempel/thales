@@ -91,5 +91,8 @@ data Problem f
   | TypeMismatch (SomeValueType f) Expr (Value f) Expr
   deriving Show
 
+{- TODO: how to write this? We will have to do the same thing with Statement 
+that we did with Expr, namely, make it a functor, so that it may contain
+either a source Expr or an (Either Problematic Value). -}
 evalStatement :: Monad m => Statement -> EvalT m (Value m)
 evalStatement _ = return undefined
