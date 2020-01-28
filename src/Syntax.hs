@@ -13,10 +13,6 @@ data Syntax
   | StatementS Statement
   deriving Show
 
-data PartialStatement
-  = BlockS ([Syntax] -> Statement)
-  | StandaloneS Statement
-
 {- TODO: This ADT will have to have to have all constructors tagged
 with 'SourcePos' for error reporting. -}
 data Statement

@@ -18,6 +18,10 @@ data Delimiters = Delimiters
   { begin :: NonEmptyText
   , end :: NonEmptyText }
 
+data PartialStatement
+  = BlockS ([Syntax] -> Statement)
+  | StandaloneS Statement
+
 newtype Parser a = Parser
   { unParser :: ParsecT Void Text (Reader Delimiters) a }
   deriving ( Monad, Applicative, Functor, Alternative, MonadPlus )
