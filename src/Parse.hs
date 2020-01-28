@@ -24,6 +24,7 @@ newtype Parser a = Parser
 
 deriving instance MonadParsec Void Text Parser
 
+defaultDelimiters :: Delimiters
 defaultDelimiters = Delimiters "{" "}"
 
 parse :: Text -> Either String [Syntax]
