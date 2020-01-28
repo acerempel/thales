@@ -11,8 +11,7 @@ with 'SourcePos' for error reporting. -}
 {- TODO: Replace 'Expr' with a type variable, so that it can be replaced
 with the result of evaluating the expression.-}
 data Statement
-  = EmptyS
-  | VerbatimS Verbatim
+  = VerbatimS Verbatim
   | ExprS Expr
   | ForS Name Expr [Statement]
   | Optional Expr

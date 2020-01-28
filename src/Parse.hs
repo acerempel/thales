@@ -69,7 +69,7 @@ syntaxP inBlock = do
 statementP :: Parser Statement
 statementP = label "statement" $ do
   statem <- withinDelims $
-    forP <|> (StandaloneS . ExprS) <$> exprP <|> emptyP
+    forP <|> (StandaloneS . ExprS) <$> exprP
   case statem of
     BlockS continuation ->
       continuation <$> blockP
@@ -105,10 +105,6 @@ forP = do
   keywordP "in"
   array <- exprP
   return (BlockS $ ForS itemName array)
-
-emptyP :: Parser PartialStatement
-emptyP =
-  return (StandaloneS EmptyS) <?> "an empty statement"
 
 exprP :: Parser Expr
 exprP = do
