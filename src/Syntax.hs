@@ -8,19 +8,15 @@ import Text.Show
 
 import Value
 
-data Syntax
-  = VerbatimS Verbatim
-  | StatementS Statement
-  deriving Show
-
 {- TODO: This ADT will have to have to have all constructors tagged
 with 'SourcePos' for error reporting. -}
 data Statement
   = EmptyS
+  | VerbatimS Verbatim
   | ExprS Expr
-  | ForS Name Expr [Syntax]
+  | ForS Name Expr [Statement]
   | Optional Expr
-  | Optionally Expr [Syntax]
+  | Optionally Expr [Statement]
   deriving Show
 
 data ExprF a

@@ -20,7 +20,7 @@ data Delimiters = Delimiters
   , end :: NonEmptyText }
 
 data PartialStatement
-  = BlockS ([Syntax] -> Statement)
+  = BlockS ([Statement] -> Statement)
   | StandaloneS Statement
 
 newtype Parser a = Parser
@@ -32,7 +32,7 @@ deriving instance MonadParsec Void Text Parser
 defaultDelimiters :: Delimiters
 defaultDelimiters = Delimiters "{" "}"
 
-parse :: Text -> Either String [Syntax]
+parse :: Text -> Either String [Statement]
 parse =
   first errorBundlePretty .
   runParser defaultDelimiters templateP "goof"
@@ -50,14 +50,14 @@ getEndDelim :: Parser Text
 getEndDelim =
   Parser (asks (fromNonEmptyText . end))
 
-blockP, templateP :: Parser [Syntax]
+blockP, templateP :: Parser [Statement]
 blockP = syntaxP True
 templateP = syntaxP False
 
-syntaxP :: Bool -> Parser [Syntax]
+syntaxP :: Bool -> Parser [Statement]
 syntaxP inBlock = do
   return [] <* endP
-    <|> ((:) <$> fmap StatementS statementP <*> syntaxP inBlock)
+    <|> ((:) <$> statementP <*> syntaxP inBlock)
     <|> ((:) <$> fmap VerbatimS ((<>) <$> (fmap Builder.singleton anySingle) <*> verbatimP) <*> syntaxP inBlock)
   where
     verbatimP = do
