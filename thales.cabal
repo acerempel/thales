@@ -58,3 +58,4 @@ test-suite parsing
     , hspec >= 2.5 && < 3
     , hspec-megaparsec >= 2.1 && < 3
     , megaparsec
+    , text
