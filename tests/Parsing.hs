@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
-import Data.Text.Lazy.Builder
 import Test.Hspec
 import Test.Hspec.Megaparsec
 
 import NonEmptyText
 import Parse
 import Syntax
+import Verbatim
 
 parseTestStmt =
   parseTest templateP
@@ -60,7 +60,7 @@ testStmtParser delims =
             <> p2 <> within delims "end")
           `shouldParse`
             [ ForS "potato" (Expr (NameE "potatoes"))
-              [ VerbatimS (fromText p1)
+              [ VerbatimS (preEscaped p1)
               , ExprS (Expr (NameE "potato"))
-              , VerbatimS (fromText p2) ]
+              , VerbatimS (preEscaped p2) ]
             ]

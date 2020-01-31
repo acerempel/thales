@@ -3,9 +3,10 @@ module Value where
 
 import qualified Data.HashMap.Strict as Map
 import Data.Scientific
-import Data.Text.Lazy.Builder as Text
 import Data.Vector as Vec
 import Text.Show
+
+import Verbatim
 
 type Name = Text
 
@@ -52,5 +53,3 @@ instance Show (Value f) where
     Array   a -> showList (Vec.toList a)
     Verbatim _v -> ("..." <>)
     Function _ _ -> ("<function>" <>)
-
-type Verbatim = Text.Builder

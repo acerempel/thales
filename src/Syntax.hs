@@ -4,6 +4,7 @@ module Syntax where
 import Data.Scientific
 
 import Value
+import Verbatim
 
 {- TODO: This ADT will have to have to have all constructors tagged
 with 'SourcePos' for error reporting. -}

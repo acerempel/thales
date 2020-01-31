@@ -10,7 +10,6 @@ import Prelude hiding (many)
 import Control.Monad.Combinators.NonEmpty as NE
 import Data.Char
 import qualified Data.Text as Text
-import qualified Data.Text.Lazy.Builder as Builder
 import Text.Megaparsec hiding (parse, runParser)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (scientific)
@@ -18,6 +17,7 @@ import Text.Megaparsec.Char.Lexer (scientific)
 import NonEmptyText
 import Syntax
 import Value
+import Verbatim
 
 data Delimiters = Delimiters
   { begin :: NonEmptyText
@@ -68,11 +68,11 @@ syntaxP :: Bool -> Parser [Statement]
 syntaxP inBlock = do
   return [] <* endP
     <|> ((:) <$> statementP <*> syntaxP inBlock)
-    <|> ((:) <$> fmap VerbatimS ((<>) <$> (fmap Builder.singleton anySingle) <*> verbatimP) <*> syntaxP inBlock)
+    <|> ((:) <$> fmap VerbatimS ((<>) <$> (fmap preEscapedSingleton anySingle) <*> verbatimP) <*> syntaxP inBlock)
   where
     verbatimP = do
       beginD <- getBeginDelim
-      Builder.fromText <$> takeWhileP (Just "any non-delimiter character") (/= Text.head beginD)
+      preEscaped <$> takeWhileP (Just "any non-delimiter character") (/= Text.head beginD)
     endP =
       -- TODO: I do not like this 'try'. Would be nice to remove it.
       if inBlock then try (withinDelims (keywordP "end") <?> "end of block") else eof
