@@ -8,16 +8,16 @@ import qualified Data.Vector as Vec
 import Syntax
 import Value
 
--- | A 'Context' provides the bindings that are available at the top level
+-- | A 'Bindings' provides the bindings that are available at the top level
 -- in a template. At the moment it is just a type synonym, but this will
 -- probably change.
-type Context m = HashMap Name (Value m)
+type Bindings m = HashMap Name (Value m)
 
 newtype EvalT m a = EvalT
-  { unEvalT :: ExceptT (Problematic m) (ReaderT (Context m) m) a }
+  { unEvalT :: ExceptT (Problematic m) (ReaderT (Bindings m) m) a }
   deriving ( Monad, Functor, Applicative )
 
-runEvalT :: EvalT m a -> Context m -> m (Either (Problematic m) a)
+runEvalT :: EvalT m a -> Bindings m -> m (Either (Problematic m) a)
 runEvalT (EvalT m) = runReaderT (runExceptT m)
 
 -- | Abort this evaluation with the given problem.
@@ -34,11 +34,11 @@ mapZut (AddProblemContext f) (EvalT m) =
 lookup :: Monad m => Name -> EvalT m (Maybe (Value m))
 lookup n = EvalT (asks (Map.lookup n))
 
-getContext :: Monad m => EvalT m (Context m)
-getContext = EvalT ask
+getBindings :: Monad m => EvalT m (Bindings m)
+getBindings = EvalT ask
 
-localContext :: Monad m => (Context m -> Context m) -> EvalT m a -> EvalT m a
-localContext f (EvalT r) = EvalT (local f r)
+localBindings :: Monad m => (Bindings m -> Bindings m) -> EvalT m a -> EvalT m a
+localBindings f (EvalT r) = EvalT (local f r)
 
 liftEval :: Monad m => m a -> EvalT m a
 liftEval m = EvalT (lift (lift m))
