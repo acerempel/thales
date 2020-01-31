@@ -2,7 +2,6 @@
 module Syntax where
 
 import Data.Scientific
-import Text.Show
 
 import Value
 
@@ -16,7 +15,7 @@ data Statement
   | ForS Name Expr [Statement]
   | Optional Expr
   | Optionally Expr [Statement]
-  deriving Show
+  deriving ( Show, Eq )
 
 data ExprF a
   = LiteralE Literal
@@ -24,15 +23,11 @@ data ExprF a
   | ApplyE a a
   | FieldAccessE Name a
   | NameE Name
-  deriving Show
+  deriving ( Show, Eq )
 
-newtype Expr = Expr { getExpr :: ExprF Expr }
-
--- | Just wrap the derived 'Show' instance for
--- 'ExprF', but don't show the outer 'Expr' constructor, for brevity.
-instance Show Expr where
-  showsPrec prec (Expr e) =
-    showsPrec prec e
+newtype Expr = Expr
+  { getExpr :: ExprF Expr }
+  deriving newtype ( Show, Eq )
 
 -- TODO: some kind of nice 'display' family of functions for Expr
 -- and Statement. Should return 'Doc' from some kind of pretty-printing
@@ -42,7 +37,7 @@ data Literal
   = NumberL Scientific
   | StringL Text
   | BooleanL Bool
-  deriving Show
+  deriving ( Show, Eq )
 
 literalToValue :: Literal -> Value f
 literalToValue = \case

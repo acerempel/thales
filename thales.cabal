@@ -8,24 +8,10 @@ maintainer:          alan.rempel@gmail.com
 build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
-library
-  hs-source-dirs:  src
-  exposed-modules:
-      Parse
-    , Eval
-    , NonEmptyText
-    , Syntax
-    , Value
+common stuff
   build-depends:
       base >= 4.8 && < 4.14
-    , megaparsec >= 8.0 && < 9.0
-    , parser-combinators >= 0.4
     , relude >= 0.6 && < 0.7
-    , scientific >= 0.3.5.2 && < 0.4
-    , text >= 1.2.2 && < 1.3
-    , transformers >= 0.5 && < 0.6
-    , unordered-containers
-    , vector >= 0.12 && < 0.13
   mixins:
       relude (Relude as Prelude)
     , base hiding (Prelude)
@@ -40,5 +26,35 @@ library
     , RankNTypes
     , LambdaCase
     , GADTs
+    , RecordWildCards
+
+library
+  import:          stuff
+  hs-source-dirs:  src
+  exposed-modules:
+      Parse
+    , Eval
+    , NonEmptyText
+    , Syntax
+    , Value
+  build-depends:
+      megaparsec >= 8.0 && < 9.0
+    , parser-combinators >= 0.4
+    , scientific >= 0.3.5.2 && < 0.4
+    , text >= 1.2.2 && < 1.3
+    , transformers >= 0.5 && < 0.6
+    , unordered-containers
+    , vector >= 0.12 && < 0.13
   other-extensions:
       StrictData
+
+test-suite parsing
+  import:         stuff
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: tests
+  main-is:        Parsing.hs
+  build-depends:
+      thales
+    , hspec >= 2.5 && < 3
+    , hspec-megaparsec >= 2.1 && < 3
+    , megaparsec

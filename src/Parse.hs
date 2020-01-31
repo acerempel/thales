@@ -1,5 +1,10 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
-module Parse where
+module Parse
+  ( Parser, runParser, parse, parseTemplate
+  , templateP, exprP
+  , Delimiters(..), defaultDelimiters
+  )
+where
 
 import Prelude hiding (many)
 import Control.Monad.Combinators.NonEmpty as NE
@@ -17,6 +22,7 @@ import Value
 data Delimiters = Delimiters
   { begin :: NonEmptyText
   , end :: NonEmptyText }
+  deriving Show
 
 data PartialStatement
   = BlockS ([Statement] -> Statement)
@@ -35,11 +41,15 @@ defaultDelimiters = Delimiters "{" "}"
 parse :: Text -> Either String [Statement]
 parse =
   first errorBundlePretty .
-  runParser defaultDelimiters templateP "goof"
+  runParser templateP defaultDelimiters "goof"
 
-runParser :: Delimiters -> Parser a -> FilePath -> Text -> Either (ParseErrorBundle Text Void) a
-runParser delims (Parser parser) name input =
-  let r = runParserT parser name input
+parseTemplate :: Delimiters -> FilePath -> Text -> Either (ParseErrorBundle Text Void) [Statement]
+parseTemplate =
+  runParser templateP
+
+runParser :: Parser a -> Delimiters -> FilePath -> Text -> Either (ParseErrorBundle Text Void) a
+runParser parser delims name input =
+  let r = runParserT (unParser parser) name input
   in runReader r delims
 
 getBeginDelim :: Parser Text
