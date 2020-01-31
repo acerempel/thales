@@ -7,6 +7,9 @@ import qualified Data.Vector as Vec
 import Syntax
 import Value
 
+-- | A 'Context' provides the bindings that are available at the top level
+-- in a template. At the moment it is just a type synonym, but this will
+-- probably change.
 type Context m = HashMap Name (Value m)
 
 newtype EvalT m a = EvalT
@@ -16,11 +19,15 @@ newtype EvalT m a = EvalT
 runEvalT :: EvalT m a -> Context m -> m (Either (Problematic m) a)
 runEvalT (EvalT m) = runReaderT (runExceptT m)
 
+-- | Abort this evaluation with the given error.
 zutAlors :: Monad m => Problem m -> EvalT m a
 zutAlors prob = EvalT (throwE (ProblemHere prob))
 
-mapZut :: Monad m => (forall a. a -> ExprF (Either a Expr)) -> EvalT m b -> EvalT m b
-mapZut f (EvalT m) = EvalT $ withExceptT (ProblemWithin . f) m
+-- | Wrap any errors that subexpressions may abort with in the given expression
+-- constructor.
+mapZut :: Monad m => AddProblemContext -> EvalT m b -> EvalT m b
+mapZut (AddProblemContext f) (EvalT m) =
+  EvalT $ withExceptT (ProblemWithin . f) m
 
 lookup :: Monad m => Name -> EvalT m (Maybe (Value m))
 lookup n = EvalT (asks (Map.lookup n))
@@ -34,8 +41,17 @@ localContext f (EvalT r) = EvalT (local f r)
 liftEval :: Monad m => m a -> EvalT m a
 liftEval m = (EvalT (lift (lift m)))
 
-evalExpr :: Monad m => Expr -> EvalT m (Value m)
-evalExpr (Expr expr) = case expr of
+newtype AddProblemContext = AddProblemContext (forall a. a -> ExprF (Either a Expr))
+
+evalSubExpr :: Monad m => (forall a. a -> ExprF (Either a Expr)) -> Expr -> EvalT m (Value m)
+evalSubExpr f = evalExpr (Just (AddProblemContext f))
+
+evalTopExpr :: Monad m => Expr -> EvalT m (Value m)
+evalTopExpr = evalExpr Nothing
+
+evalExpr :: Monad m => Maybe AddProblemContext -> Expr -> EvalT m (Value m)
+evalExpr mContext (Expr expr) =
+ maybe id mapZut mContext $ case expr of
 
   NameE name -> do
     mVal <- lookup name
@@ -44,7 +60,7 @@ evalExpr (Expr expr) = case expr of
       Nothing -> zutAlors (NameNotFound name)
 
   FieldAccessE name subExpr -> do
-    subVal <- mapZut (FieldAccessE name . Left) $ evalExpr subExpr
+    subVal <- evalSubExpr (FieldAccessE name . Left) subExpr
     case subVal of
       Record rec ->
         let ohNo = zutAlors (FieldNotFound name subVal subExpr)
@@ -57,14 +73,14 @@ evalExpr (Expr expr) = case expr of
 
   ArrayE arr -> do
     -- TODO: mapZut!
-    vals <- traverse evalExpr arr
+    vals <- traverse (evalExpr Nothing) arr
     return (Array (Vec.fromList vals))
 
   ApplyE funcExpr argExpr -> do
-    func <- mapZut (\z -> ApplyE (Left z) (Right argExpr)) $ evalExpr funcExpr
+    func <- evalSubExpr (\z -> ApplyE (Left z) (Right argExpr)) funcExpr
     case func of
       Function typ f -> do
-        arg <- mapZut (\z -> ApplyE (Right funcExpr) (Left z)) $ evalExpr argExpr
+        arg <- evalSubExpr (\z -> ApplyE (Right funcExpr) (Left z)) argExpr
         case (typ, arg) of
           (NumberT,  Number  n) -> liftEval (f n)
           (StringT,  String  s) -> liftEval (f s)
