@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonoLocalBinds #-}
 module Eval where
 
 import Control.Monad.Trans.Except
@@ -19,12 +20,13 @@ newtype EvalT m a = EvalT
 runEvalT :: EvalT m a -> Context m -> m (Either (Problematic m) a)
 runEvalT (EvalT m) = runReaderT (runExceptT m)
 
--- | Abort this evaluation with the given error.
+-- | Abort this evaluation with the given problem.
 zutAlors :: Monad m => Problem m -> EvalT m a
 zutAlors prob = EvalT (throwE (ProblemHere prob))
 
--- | Wrap any errors that subexpressions may abort with in the given expression
--- constructor.
+-- | If the second argument aborts with a problem, wrap the problem
+-- with the first argument, which should represent
+-- the expression that the caller of 'mapZut' is evaluating.
 mapZut :: Monad m => AddProblemContext -> EvalT m b -> EvalT m b
 mapZut (AddProblemContext f) (EvalT m) =
   EvalT $ withExceptT (ProblemWithin . f) m
@@ -39,9 +41,10 @@ localContext :: Monad m => (Context m -> Context m) -> EvalT m a -> EvalT m a
 localContext f (EvalT r) = EvalT (local f r)
 
 liftEval :: Monad m => m a -> EvalT m a
-liftEval m = (EvalT (lift (lift m)))
+liftEval m = EvalT (lift (lift m))
 
-newtype AddProblemContext = AddProblemContext (forall a. a -> ExprF (Either a Expr))
+newtype AddProblemContext =
+  AddProblemContext (forall a. a -> ExprF (Either a Expr))
 
 evalSubExpr :: Monad m => (forall a. a -> ExprF (Either a Expr)) -> Expr -> EvalT m (Value m)
 evalSubExpr f = evalExpr (Just (AddProblemContext f))
@@ -72,9 +75,16 @@ evalExpr mContext (Expr expr) =
     return (literalToValue lit)
 
   ArrayE arr -> do
-    -- TODO: mapZut!
-    vals <- traverse (evalExpr Nothing) arr
-    return (Array (Vec.fromList vals))
+    let {- NoMonoLocalBinds above is needed so because addArrayProblemContext needs
+           to be polymorphic in 'zut', because of the type of 'evalSubExpr'.
+           MonoLocalBinds is implied by GADTs (from default-extensions). Of course adding
+           a type annotation would make this work as well, and that one line instead of
+           these five ;) -}
+        addArrayProblemContext index = \zut ->
+          ArrayE (Vec.map Right arr `Vec.unsafeUpd` [(index, (Left zut))])
+        evalArrayElement index subExpr =
+          evalSubExpr (addArrayProblemContext index) subExpr
+    Array <$> Vec.imapM evalArrayElement arr
 
   ApplyE funcExpr argExpr -> do
     func <- evalSubExpr (\z -> ApplyE (Left z) (Right argExpr)) funcExpr

@@ -2,6 +2,7 @@
 module Syntax where
 
 import Data.Scientific
+import Data.Vector
 
 import Value
 import Verbatim
@@ -20,7 +21,7 @@ data Statement
 
 data ExprF a
   = LiteralE Literal
-  | ArrayE [a]
+  | ArrayE (Vector a)
   | ApplyE a a
   | FieldAccessE Name a
   | NameE Name

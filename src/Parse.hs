@@ -10,6 +10,7 @@ import Prelude hiding (many)
 import Control.Monad.Combinators.NonEmpty as NE
 import Data.Char
 import qualified Data.Text as Text
+import qualified Data.Vector as Vec
 import Text.Megaparsec hiding (parse, runParser)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (scientific)
@@ -126,7 +127,7 @@ atomicExprP :: Parser Expr
 atomicExprP = do
   expr <-
     parensP exprP
-    <|> Expr . ArrayE <$> bracketsP (sepEndBy exprP (specialCharP ','))
+    <|> Expr . ArrayE . Vec.fromList <$> bracketsP (sepEndBy exprP (specialCharP ','))
     <|> Expr . LiteralE <$> numberP
     <|> Expr . NameE <$> nameP
   fields <- many (specialCharP '.' *> nameP)
