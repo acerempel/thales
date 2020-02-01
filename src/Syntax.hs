@@ -31,10 +31,6 @@ newtype Expr = Expr
   { getExpr :: ExprF Expr }
   deriving newtype ( Show, Eq )
 
--- TODO: some kind of nice 'display' family of functions for Expr
--- and Statement. Should return 'Doc' from some kind of pretty-printing
--- library.
-
 data Literal
   = NumberL Scientific
   | StringL Text
