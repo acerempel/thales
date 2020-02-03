@@ -27,6 +27,8 @@ common stuff
     , LambdaCase
     , GADTs
     , RecordWildCards
+    , DefaultSignatures
+    , KindSignatures
 
 library
   import:          stuff
