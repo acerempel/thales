@@ -45,6 +45,10 @@ instance DisplayH ExprH where
     NameE n ->
       pretty n
 
+instance Display1 Id where
+  liftDisplay displayA prec (Id a) =
+    displayA prec a
+
 instance Display Literal where
   display _prec = \case
     NumberL n -> unsafeViaShow n
