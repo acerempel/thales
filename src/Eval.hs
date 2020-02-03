@@ -14,10 +14,10 @@ import Value
 type Bindings m = HashMap Name (Value m)
 
 newtype EvalT m a = EvalT
-  { unEvalT :: ExceptT (Problematic m) (ReaderT (Bindings m) m) a }
+  { unEvalT :: ExceptT (Problematic m (ExprH (Problematic m))) (ReaderT (Bindings m) m) a }
   deriving ( Monad, Functor, Applicative )
 
-runEvalT :: EvalT m a -> Bindings m -> m (Either (Problematic m) a)
+runEvalT :: EvalT m a -> Bindings m -> m (Either (Problematic m (ExprH (Problematic m))) a)
 runEvalT (EvalT m) = runReaderT (runExceptT m)
 
 -- | Abort this evaluation with the given problem.
@@ -27,8 +27,8 @@ zutAlors prob = EvalT (throwE (ProblemHere prob))
 -- | If the second argument aborts with a problem, wrap the problem
 -- with the first argument, which should represent
 -- the expression that the caller of 'mapZut' is evaluating.
-mapZut :: Monad m => AddProblemContext -> EvalT m b -> EvalT m b
-mapZut (AddProblemContext f) (EvalT m) =
+mapZut :: Monad m => AddProblemContext m -> EvalT m b -> EvalT m b
+mapZut f (EvalT m) =
   EvalT $ withExceptT (ProblemWithin . f) m
 
 lookup :: Monad m => Name -> EvalT m (Maybe (Value m))
@@ -43,17 +43,17 @@ localBindings f (EvalT r) = EvalT (local f r)
 liftEval :: Monad m => m a -> EvalT m a
 liftEval m = EvalT (lift (lift m))
 
-newtype AddProblemContext =
-  AddProblemContext (forall a. a -> ExprF (Either a Expr))
+type AddProblemContext m =
+  Problematic m (ExprH (Problematic m)) -> ExprH (Problematic m)
 
-evalSubExpr :: Monad m => (forall a. a -> ExprF (Either a Expr)) -> Expr -> EvalT m (Value m)
-evalSubExpr f = evalExpr (Just (AddProblemContext f))
+evalSubExpr :: Monad m => AddProblemContext m -> Expr -> EvalT m (Value m)
+evalSubExpr f = evalExpr (Just f)
 
 evalTopExpr :: Monad m => Expr -> EvalT m (Value m)
 evalTopExpr = evalExpr Nothing
 
-evalExpr :: Monad m => Maybe AddProblemContext -> Expr -> EvalT m (Value m)
-evalExpr mContext (Expr expr) =
+evalExpr :: Monad m => Maybe (AddProblemContext m) -> Expr -> EvalT m (Value m)
+evalExpr mContext expr =
  maybe id mapZut mContext $ case expr of
 
   NameE name -> do
@@ -62,8 +62,8 @@ evalExpr mContext (Expr expr) =
       Just val -> return val
       Nothing -> zutAlors (NameNotFound name)
 
-  FieldAccessE name subExpr -> do
-    subVal <- evalSubExpr (FieldAccessE name . Left) subExpr
+  FieldAccessE name (Id subExpr) -> do
+    subVal <- evalSubExpr (FieldAccessE name) subExpr
     case subVal of
       Record rec ->
         let ohNo = zutAlors (FieldNotFound name subVal subExpr)
@@ -81,16 +81,16 @@ evalExpr mContext (Expr expr) =
            a type annotation would make this work as well, and that one line instead of
            these five ;) -}
         addArrayProblemContext index = \zut ->
-          ArrayE (Vec.map Right arr `Vec.unsafeUpd` [(index, (Left zut))])
-        evalArrayElement index subExpr =
+          ArrayE (Vec.map (NoProblem . getId) arr `Vec.unsafeUpd` [(index, zut)])
+        evalArrayElement index (Id subExpr) =
           evalSubExpr (addArrayProblemContext index) subExpr
     Array <$> Vec.imapM evalArrayElement arr
 
-  ApplyE funcExpr argExpr -> do
-    func <- evalSubExpr (\z -> ApplyE (Left z) (Right argExpr)) funcExpr
+  ApplyE (Id funcExpr) (Id argExpr) -> do
+    func <- evalSubExpr (\z -> ApplyE z (NoProblem argExpr)) funcExpr
     case func of
       Function typ f -> do
-        arg <- evalSubExpr (\z -> ApplyE (Right funcExpr) (Left z)) argExpr
+        arg <- evalSubExpr (\z -> ApplyE (NoProblem funcExpr) z) argExpr
         case (typ, arg) of
           (NumberT,  Number  n) -> liftEval (f n)
           (StringT,  String  s) -> liftEval (f s)
@@ -103,9 +103,10 @@ evalExpr mContext (Expr expr) =
       _ ->
         zutAlors (NotAFunction func funcExpr argExpr)
 
-data Problematic f
+data Problematic f a
   = ProblemHere (Problem f)
-  | ProblemWithin (ExprF (Either (Problematic f) Expr))
+  | ProblemWithin a
+  | NoProblem Expr
   deriving Show
 
 data Problem f

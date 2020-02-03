@@ -36,16 +36,16 @@ testExprParser =
     describe "number literals" $ do
       it "parses decimal literals" $ do
         parseTestExpr "12.3"
-        `shouldParse` Expr (LiteralE (NumberL 12.3))
+        `shouldParse` LiteralE (NumberL 12.3)
       it "parses integer literals" $ do
         parseTestExpr "10"
-        `shouldParse` Expr (LiteralE (NumberL 10))
+        `shouldParse` LiteralE (NumberL 10)
     it "parses field accesses" $ do
       parseTestExpr "grim.zim.zam"
       `shouldParse`
-      Expr (FieldAccessE "zam"
-            (Expr (FieldAccessE "zim"
-                   (Expr (NameE "grim")))))
+      FieldAccessE "zam"
+        (Id (FieldAccessE "zim"
+          (Id (NameE "grim"))))
 
 testStmtParser delims =
   describe ("with delimiters " <> show delims) $ do
@@ -59,8 +59,8 @@ testStmtParser delims =
             <> p1 <> within delims "potato"
             <> p2 <> within delims "end")
           `shouldParse`
-            [ ForS "potato" (Expr (NameE "potatoes"))
+            [ ForS "potato" (NameE "potatoes")
               [ VerbatimS (preEscaped p1)
-              , ExprS (Expr (NameE "potato"))
+              , ExprS (NameE "potato")
               , VerbatimS (preEscaped p2) ]
             ]

@@ -121,17 +121,18 @@ forP = do
 exprP :: Parser Expr
 exprP = do
   (a1 :| atoms) <- NE.some atomicExprP
-  return (foldl' (\e a -> Expr (ApplyE e a)) a1 atoms)
+  return (foldl' (\e a -> ApplyE (Id e) (Id a)) a1 atoms)
 
 atomicExprP :: Parser Expr
 atomicExprP = do
   expr <-
     parensP exprP
-    <|> Expr . ArrayE . Vec.fromList <$> bracketsP (sepEndBy exprP (specialCharP ','))
-    <|> Expr . LiteralE <$> numberP
-    <|> Expr . NameE <$> nameP
+    <|> ArrayE . Vec.map Id . Vec.fromList
+        <$> bracketsP (sepEndBy exprP (specialCharP ','))
+    <|> LiteralE <$> numberP
+    <|> NameE <$> nameP
   fields <- many (specialCharP '.' *> nameP)
-  return (foldl' (\e f -> Expr (FieldAccessE f e)) expr fields)
+  return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
  where
   parensP = between (specialCharP '(') (specialCharP ')')
   bracketsP = between (specialCharP '[') (specialCharP ']')
