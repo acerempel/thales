@@ -24,13 +24,6 @@ runEvalT (EvalT m) = runReaderT (runExceptT m)
 zutAlors :: Monad m => ProblemDescription m -> EvalT m a
 zutAlors prob = EvalT (throwE (Problem Nowhere prob))
 
--- | If the second argument aborts with a problem, wrap the problem
--- with the first argument, which should represent
--- the expression that the caller of 'mapZut' is evaluating.
-mapZut :: Monad m => Expr -> AddProblemContext -> EvalT m b -> EvalT m b
-mapZut expr f (EvalT m) =
-  EvalT $ withExceptT (problemAddContext f . problemSetSource expr) m
-
 lookup :: Monad m => Name -> EvalT m (Maybe (Value m))
 lookup n = EvalT (asks (Map.lookup n))
 
@@ -102,6 +95,9 @@ evalExpr mContext expr =
             zutAlors (TypeMismatch (SomeValueType typ) arg)
       _ ->
         zutAlors (NotAFunction func)
+ where
+  mapZut source f (EvalT m) =
+    EvalT $ withExceptT (problemAddContext f . problemSetSource source) m
 
 data ProblemWhere a
   = ProblemHere Expr
