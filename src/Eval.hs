@@ -14,22 +14,22 @@ import Value
 type Bindings m = HashMap Name (Value m)
 
 newtype EvalT m a = EvalT
-  { unEvalT :: ExceptT (Problematic m (ExprH (Problematic m))) (ReaderT (Bindings m) m) a }
+  { unEvalT :: ExceptT (Problem m) (ReaderT (Bindings m) m) a }
   deriving ( Monad, Functor, Applicative )
 
-runEvalT :: EvalT m a -> Bindings m -> m (Either (Problematic m (ExprH (Problematic m))) a)
+runEvalT :: EvalT m a -> Bindings m -> m (Either (Problem m) a)
 runEvalT (EvalT m) = runReaderT (runExceptT m)
 
 -- | Abort this evaluation with the given problem.
-zutAlors :: Monad m => Problem m -> EvalT m a
-zutAlors prob = EvalT (throwE (ProblemHere prob))
+zutAlors :: Monad m => ProblemDescription m -> EvalT m a
+zutAlors prob = EvalT (throwE (Problem Nowhere prob))
 
 -- | If the second argument aborts with a problem, wrap the problem
 -- with the first argument, which should represent
 -- the expression that the caller of 'mapZut' is evaluating.
-mapZut :: Monad m => AddProblemContext m -> EvalT m b -> EvalT m b
-mapZut f (EvalT m) =
-  EvalT $ withExceptT (ProblemWithin . f) m
+mapZut :: Monad m => Expr -> AddProblemContext -> EvalT m b -> EvalT m b
+mapZut expr f (EvalT m) =
+  EvalT $ withExceptT (problemAddContext f . problemSetSource expr) m
 
 lookup :: Monad m => Name -> EvalT m (Maybe (Value m))
 lookup n = EvalT (asks (Map.lookup n))
@@ -43,18 +43,18 @@ localBindings f (EvalT r) = EvalT (local f r)
 liftEval :: Monad m => m a -> EvalT m a
 liftEval m = EvalT (lift (lift m))
 
-type AddProblemContext m =
-  Problematic m (ExprH (Problematic m)) -> ExprH (Problematic m)
+type AddProblemContext =
+  ProblemWhere (ExprH ProblemWhere) -> ExprH ProblemWhere
 
-evalSubExpr :: Monad m => AddProblemContext m -> Expr -> EvalT m (Value m)
+evalSubExpr :: Monad m => AddProblemContext -> Expr -> EvalT m (Value m)
 evalSubExpr f = evalExpr (Just f)
 
 evalTopExpr :: Monad m => Expr -> EvalT m (Value m)
 evalTopExpr = evalExpr Nothing
 
-evalExpr :: Monad m => Maybe (AddProblemContext m) -> Expr -> EvalT m (Value m)
+evalExpr :: Monad m => Maybe AddProblemContext -> Expr -> EvalT m (Value m)
 evalExpr mContext expr =
- maybe id mapZut mContext $ case expr of
+ maybe id (mapZut expr) mContext $ case expr of
 
   NameE name -> do
     mVal <- lookup name
@@ -66,10 +66,10 @@ evalExpr mContext expr =
     subVal <- evalSubExpr (FieldAccessE name) subExpr
     case subVal of
       Record rec ->
-        let ohNo = zutAlors (FieldNotFound name subVal subExpr)
+        let ohNo = zutAlors (FieldNotFound name subVal)
         in maybe ohNo return (Map.lookup name rec)
       _ ->
-        zutAlors (NotARecord subVal subExpr)
+        zutAlors (NotARecord subVal)
 
   LiteralE lit ->
     return (literalToValue lit)
@@ -99,26 +99,43 @@ evalExpr mContext expr =
           (RecordT,  Record  r) -> liftEval (f r)
           _ ->
             -- Application of higher-order functions is not yet supported!
-            zutAlors (TypeMismatch (SomeValueType typ) funcExpr arg argExpr)
+            zutAlors (TypeMismatch (SomeValueType typ) arg)
       _ ->
-        zutAlors (NotAFunction func funcExpr argExpr)
+        zutAlors (NotAFunction func)
 
-data Problematic f a
-  = ProblemHere (Problem f)
+data ProblemWhere a
+  = ProblemHere Expr
   | ProblemWithin a
   | NoProblem Expr
+  | Nowhere
   deriving Show
 
-data Problem f
+data ProblemDescription f
   = NameNotFound Name
-  | FieldNotFound Name (Value f) Expr
-  | NotARecord (Value f) Expr
-  | NotAFunction (Value f) Expr Expr
-  | TypeMismatch (SomeValueType f) Expr (Value f) Expr
+  | FieldNotFound Name (Value f)
+  | NotARecord (Value f)
+  | NotAFunction (Value f)
+  | TypeMismatch (SomeValueType f) (Value f)
   deriving Show
 
-{- TODO: how to write this? We will have to do the same thing with Statement 
-that we did with Expr, namely, make it a functor, so that it may contain
-either a source Expr or an (Either Problematic Value). -}
+data Problem f = Problem
+  { problemWhere :: ProblemWhere (ExprH ProblemWhere)
+  , problemDescription :: ProblemDescription f }
+
+problemAddContext :: AddProblemContext -> Problem f -> Problem f
+problemAddContext add Problem{..} =
+  Problem{problemWhere = ProblemWithin (add problemWhere), ..}
+
+problemSetSource :: Expr -> Problem f -> Problem f
+problemSetSource expr Problem{..} =
+  Problem{problemWhere =
+    case problemWhere of
+      Nowhere -> ProblemHere expr
+      _ -> problemWhere
+  , .. }
+
+{- TODO: how to write this? We will have to do the same thing with Statement
+that we did with Expr, namely, make it a functor, so that it may contain either
+a source Expr or an (Either ProblemWhere Value). -}
 evalStatement :: Monad m => Statement -> EvalT m (Value m)
 evalStatement _ = return undefined
