@@ -45,9 +45,9 @@ instance Show1 f => Show (ExprH f) where
       . liftShowsPrec showsPrec showList prec ae
       . (')' :)
     FieldAccessE n e ->
-      ("FieldAccessE" <>)
+      ("FieldAccessE " <>)
       . showsPrec prec n
-      . ('(' :)
+      . (" (" <>)
       . liftShowsPrec showsPrec showList prec e
       . (')' :)
     NameE n ->
