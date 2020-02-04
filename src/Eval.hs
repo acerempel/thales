@@ -55,7 +55,7 @@ evalTopExpr = evalExpr Nothing
 
 evalExpr :: Maybe AddProblemContext -> Expr -> EvalM Value
 evalExpr mContext expr =
- maybe id (mapZut expr) mContext $ case expr of
+ maybe id mapZut mContext . addSource expr $ case expr of
 
   NameE name -> do
     mVal <- lookup name
@@ -104,8 +104,10 @@ evalExpr mContext expr =
       _ ->
         zutAlors (NotAFunction func)
  where
-  mapZut source f (EvalM m) =
-    EvalM $ withExceptT (problemAddContext f . problemSetSource source) m
+  mapZut f (EvalM m) =
+    EvalM $ withExceptT (problemAddContext f) m
+  addSource source (EvalM m) =
+    EvalM $ withExceptT (problemSetSource source) m
 
 data ProblemWhere a
   = ProblemHere Expr
