@@ -36,10 +36,9 @@ instance DisplayH ExprH where
       <+> rbracket
     ApplyE f a ->
       let parenthesizeMaybe =
-            case prec of
-              Tight -> parens
-              Loose -> id
-      in parenthesizeMaybe $ sep [ liftDisplay display Loose f, liftDisplay display Tight a ]
+            case prec of Tight -> parens; Loose -> id
+      in parenthesizeMaybe $
+          sep [ liftDisplay display Loose f, liftDisplay display Tight a ]
     FieldAccessE n a ->
       group $ liftDisplay display Tight a <> line' <> dot <> pretty n
     NameE n ->
