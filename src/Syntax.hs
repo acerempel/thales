@@ -87,7 +87,7 @@ data Literal
   | BooleanL Bool
   deriving ( Show, Eq )
 
-literalToValue :: Literal -> Value f
+literalToValue :: Literal -> Value
 literalToValue = \case
   NumberL  n -> Number n
   StringL  s -> String s

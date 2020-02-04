@@ -41,6 +41,8 @@ library
     , Syntax
     , Value
     , Verbatim
+  signatures:
+      BaseMonad
   build-depends:
       megaparsec >= 8.0 && < 9.0
     , parser-combinators >= 0.4
@@ -53,6 +55,12 @@ library
   other-extensions:
       StrictData
 
+library basemonad-io
+  hs-source-dirs: basemonad-io
+  build-depends:  base
+  exposed-modules: BaseMonad
+  default-language: Haskell2010
+
 test-suite parsing
   import:         stuff
   type:           exitcode-stdio-1.0
@@ -60,6 +68,7 @@ test-suite parsing
   main-is:        Parsing.hs
   build-depends:
       thales
+    , basemonad-io
     , hspec >= 2.5 && < 3
     , hspec-megaparsec >= 2.1 && < 3
     , megaparsec
@@ -72,5 +81,6 @@ test-suite evaluation
   main-is:        Evaluation.hs
   build-depends:
       thales
+    , basemonad-io
     , hspec >= 2.5 && < 3
     , unordered-containers

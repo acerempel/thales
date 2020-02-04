@@ -6,31 +6,58 @@ import Data.Scientific
 import Data.Vector as Vec
 import Text.Show
 
+import BaseMonad
 import Verbatim
 
 type Name = Text
 
-data Value f where
-  Number :: Scientific -> Value f
-  String :: Text -> Value f
-  Verbatim :: Verbatim -> Value f
-  Boolean :: Bool -> Value f
-  Array :: (Vector (Value f)) -> Value f
-  Record :: HashMap Name (Value f) -> Value f
-  Function :: ValueType f a -> (a -> f (Value f)) -> Value f
+data Value where
+  Number :: Scientific -> Value
+  String :: Text -> Value
+  Verbatim :: Verbatim -> Value
+  Boolean :: Bool -> Value
+  Array :: (Vector Value) -> Value
+  Record :: HashMap Name Value -> Value
+  Function :: ValueType a -> (a -> M Value) -> Value
 
-data ValueType f t where
-  NumberT :: ValueType f Scientific
-  StringT :: ValueType f Text
-  BooleanT :: ValueType f Bool
-  ArrayT :: ValueType f (Vector (Value f))
-  RecordT :: ValueType f (HashMap Name (Value f))
-  FunctionT :: ValueType f a -> ValueType f (a -> f (Value f))
+instance Eq Value where
+  (Number a1) == (Number a2) =
+    a1 == a2
+  (String a1) == (String a2) =
+    a1 == a2
+  (Verbatim a1) == (Verbatim a2) =
+    a1 == a2
+  (Array a1) == (Array a2) =
+    a1 == a2
+  (Record a1) == (Record a2) =
+    a1 == a2
+  (Function {}) == (Function {}) =
+    error "Cannot equate functions!"
+  _ == _ =
+    False
 
-data SomeValueType f where
-  SomeValueType :: ValueType f t -> SomeValueType f
+data ValueType t where
+  NumberT :: ValueType Scientific
+  StringT :: ValueType Text
+  BooleanT :: ValueType Bool
+  ArrayT :: ValueType (Vector Value)
+  RecordT :: ValueType (HashMap Name Value)
+  FunctionT :: ValueType a -> ValueType (a -> M Value)
 
-instance Show (SomeValueType f) where
+data SomeValueType where
+  SomeValueType :: ValueType t -> SomeValueType
+
+instance Eq SomeValueType where
+  (SomeValueType NumberT) == (SomeValueType NumberT) = True
+  (SomeValueType StringT) == (SomeValueType StringT) = True
+  (SomeValueType BooleanT) == (SomeValueType BooleanT) = True
+  (SomeValueType ArrayT) == (SomeValueType ArrayT) = True
+  (SomeValueType RecordT) == (SomeValueType RecordT) = True
+  (SomeValueType (FunctionT t1)) == (SomeValueType (FunctionT t2)) =
+    SomeValueType t1 == SomeValueType t2
+  _ == _ = False
+
+instance Show SomeValueType where
   showsPrec _prec (SomeValueType vt) = case vt of
     NumberT -> s "number"
     StringT -> s "text"
@@ -40,7 +67,7 @@ instance Show (SomeValueType f) where
     FunctionT _t -> s "function"
     where s = (Prelude.++)
 
-instance Show (Value f) where
+instance Show Value where
   showsPrec prec = \case
     Number  s -> showsPrec prec s
     String  t -> showsPrec prec t
