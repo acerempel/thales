@@ -2,13 +2,15 @@
 module Eval
   ( EvalT, Bindings
   , Problem(..), ProblemWhere(..), ProblemDescription(..)
-  , evalTopExpr, evalStatement
+  , evalTopExpr, evalStatement, runEvalT
   )
 where
 
 import Control.Monad.Trans.Except
+import Data.Functor.Classes
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Vector as Vec
+import Text.Show
 
 import Syntax
 import Value
@@ -110,6 +112,24 @@ data ProblemWhere a
   | NoProblem Expr
   | Nowhere
   deriving Show
+
+instance Show1 ProblemWhere where
+  liftShowsPrec showsPrecA _showListA prec = \case
+    ProblemWithin nested ->
+      -- TODO: use prec correctly!
+      ("ProblemWithin (" <>)
+      . showsPrecA prec nested
+      . (')' :)
+    ProblemHere expr ->
+      ("ProblemHere (" <>)
+      . showsPrec prec expr
+      . (')' :)
+    NoProblem expr ->
+      ("NoProblem (" <>)
+      . showsPrec prec expr
+      . (')' :)
+    Nowhere ->
+      ("Nowhere" <>)
 
 data ProblemDescription f
   = NameNotFound Name

@@ -56,7 +56,7 @@ library
 test-suite parsing
   import:         stuff
   type:           exitcode-stdio-1.0
-  hs-source-dirs: tests
+  hs-source-dirs: tests-p
   main-is:        Parsing.hs
   build-depends:
       thales
@@ -64,3 +64,13 @@ test-suite parsing
     , hspec-megaparsec >= 2.1 && < 3
     , megaparsec
     , text
+
+test-suite evaluation
+  import:         stuff
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: tests-e
+  main-is:        Evaluation.hs
+  build-depends:
+      thales
+    , hspec >= 2.5 && < 3
+    , unordered-containers
