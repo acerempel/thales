@@ -1,5 +1,10 @@
 {-# LANGUAGE NoMonoLocalBinds #-}
-module Eval where
+module Eval
+  ( EvalT, Bindings
+  , Problem(..), ProblemWhere(..), ProblemDescription(..)
+  , evalTopExpr, evalStatement
+  )
+where
 
 import Control.Monad.Trans.Except
 import qualified Data.HashMap.Strict as Map
