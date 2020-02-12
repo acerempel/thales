@@ -1,7 +1,9 @@
 cradle:
   cabal:
-    - path: "./src"
-      component: "lib:thales"
+    - path: "./syntax"
+      component: "lib:syntax"
+    - path: "./semantics"
+      component: "lib:semantics"
     - path: "./tests-p"
       component: "test:parsing"
     - path: "./tests-e"
