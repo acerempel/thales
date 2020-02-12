@@ -7,8 +7,9 @@ import Data.Vector
 import Text.Megaparsec
 import Text.Show
 
-import Value
 import Verbatim
+
+type Name = Text
 
 {- TODO: This ADT will have to have to have all constructors tagged
 with 'SourcePos' for error reporting. -}
@@ -87,9 +88,3 @@ data Literal
   | StringL Text
   | BooleanL Bool
   deriving ( Show, Eq )
-
-literalToValue :: Literal -> Value
-literalToValue = \case
-  NumberL  n -> Number n
-  StringL  s -> String s
-  BooleanL b -> Boolean b

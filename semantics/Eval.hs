@@ -173,6 +173,12 @@ problemSetSource expr Problem{..} =
       _ -> problemWhere
   , .. }
 
+literalToValue :: Literal -> Value
+literalToValue = \case
+  NumberL  n -> Number n
+  StringL  s -> String s
+  BooleanL b -> Boolean b
+
 {- TODO: how to write this? We will have to do the same thing with Statement
 that we did with Expr, namely, make it a functor, so that it may contain either
 a source Expr or an (Either ProblemWhere Value). -}

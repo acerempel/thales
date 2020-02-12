@@ -32,28 +32,52 @@ common stuff
 
 library
   import:          stuff
-  hs-source-dirs:  src
-  exposed-modules:
+  build-depends:
+      syntax
+    , semantics
+  reexported-modules:
       Parse
-    , Display
-    , Eval
-    , NonEmptyText
     , Syntax
     , Value
+    , Eval
+    , NonEmptyText
     , Verbatim
-  signatures:
-      BaseMonad
+    , Display
+
+library syntax
+  import:          stuff
+  hs-source-dirs:  syntax
+  exposed-modules:
+      Parse
+    , NonEmptyText
+    , Syntax
+    , Verbatim
   build-depends:
       megaparsec >= 8.0 && < 9.0
     , parser-combinators >= 0.4
-    , prettyprinter >= 1.3 && < 1.7
     , scientific >= 0.3.5.2 && < 0.4
     , text >= 1.2.2 && < 1.3
-    , transformers >= 0.5 && < 0.6
-    , unordered-containers
     , vector >= 0.12 && < 0.13
   other-extensions:
       StrictData
+
+library semantics
+  import:         stuff
+  hs-source-dirs: semantics
+  exposed-modules:
+      Display
+    , Eval
+    , Value
+  signatures:
+      BaseMonad
+  build-depends:
+      syntax
+    , megaparsec >= 8.0 && < 9.0
+    , prettyprinter >= 1.3 && < 1.7
+    , scientific >= 0.3.5.2 && < 0.4
+    , transformers >= 0.5 && < 0.6
+    , unordered-containers
+    , vector >= 0.12 && < 0.13
 
 library basemonad-io
   hs-source-dirs: basemonad-io
@@ -67,7 +91,7 @@ test-suite parsing
   hs-source-dirs: tests-p
   main-is:        Parsing.hs
   build-depends:
-      thales
+      syntax
     , basemonad-io
     , hspec >= 2.5 && < 3
     , hspec-megaparsec >= 2.1 && < 3
@@ -80,7 +104,8 @@ test-suite evaluation
   hs-source-dirs: tests-e
   main-is:        Evaluation.hs
   build-depends:
-      thales
+      semantics
+    , syntax
     , basemonad-io
     , hspec >= 2.5 && < 3
     , unordered-containers

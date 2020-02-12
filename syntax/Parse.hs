@@ -17,7 +17,6 @@ import Text.Megaparsec.Char.Lexer (scientific)
 
 import NonEmptyText
 import Syntax
-import Value
 import Verbatim
 
 data Delimiters = Delimiters

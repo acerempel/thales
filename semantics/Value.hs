@@ -7,9 +7,8 @@ import Data.Vector as Vec
 import Text.Show
 
 import BaseMonad
+import Syntax
 import Verbatim
-
-type Name = Text
 
 data Value where
   Number :: Scientific -> Value
