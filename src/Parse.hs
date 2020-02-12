@@ -80,8 +80,9 @@ syntaxP inBlock = do
 
 statementP :: Parser Statement
 statementP = label "statement" $ do
-  statem <- withinDelims $
-    forP <|> (StandaloneS . ExprS) <$> exprP
+  statem <- withinDelims $ do
+    sp <- getSourcePos
+    forP sp <|> (StandaloneS . ExprS sp) <$> exprP
   case statem of
     BlockS continuation ->
       continuation <$> blockP
@@ -110,13 +111,13 @@ nameP = label "name" $
   -- TODO: fail if is keyword.
   takeWhile1P (Just "identifier character") isIdChar <* space
 
-forP :: Parser PartialStatement
-forP = do
+forP :: SourcePos -> Parser PartialStatement
+forP sp = do
   keywordP "for"
   itemName <- nameP
   keywordP "in"
   array <- exprP
-  return (BlockS $ ForS itemName array)
+  return (BlockS $ ForS sp itemName array)
 
 exprP :: Parser Expr
 exprP = do

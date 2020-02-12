@@ -4,6 +4,7 @@ module Syntax where
 import Data.Functor.Classes
 import Data.Scientific
 import Data.Vector
+import Text.Megaparsec
 import Text.Show
 
 import Value
@@ -15,10 +16,10 @@ with 'SourcePos' for error reporting. -}
 with the result of evaluating the expression.-}
 data Statement
   = VerbatimS Verbatim
-  | ExprS Expr
-  | ForS Name Expr [Statement]
-  | Optional Expr
-  | Optionally Expr [Statement]
+  | ExprS SourcePos Expr
+  | ForS SourcePos Name Expr [Statement]
+  | Optional SourcePos Expr
+  | Optionally SourcePos Expr [Statement]
   deriving ( Show, Eq )
 
 data ExprH f

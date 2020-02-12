@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 import Test.Hspec
 import Test.Hspec.Megaparsec
+import qualified Data.Text as Text
+import Text.Megaparsec (SourcePos(..), mkPos)
 
 import NonEmptyText
 import Parse
@@ -49,6 +51,11 @@ testExprParser =
 
 testStmtParser delims =
   describe ("with delimiters " <> show delims) $ do
+    let mkSP l c = SourcePos "tests/Parsing.hs" (mkPos l) (mkPos c)
+        beginDelimLength =
+          (Text.length . fromNonEmptyText) (begin delims)
+        endDelimLength =
+          (Text.length . fromNonEmptyText) (end delims)
     describe "statement parser" $ do
       it "parses 'for' blocks" $
         let p1 = "<p>I am this potato: "
@@ -59,8 +66,12 @@ testStmtParser delims =
             <> p1 <> within delims "potato"
             <> p2 <> within delims "end")
           `shouldParse`
-            [ ForS "potato" (NameE "potatoes")
+            -- TODO: these SourcePos's are just from the output of the failing
+            -- test. Should really make these correct by construction, or just
+            -- ignore them somehow. In fact, maybe the Eq instance *should*
+            -- ignore them.
+            [ ForS (mkSP 1 (1 + beginDelimLength)) "potato" (NameE "potatoes")
               [ VerbatimS (preEscaped p1)
-              , ExprS (NameE "potato")
+              , ExprS (mkSP 1 (44 + beginDelimLength + endDelimLength + beginDelimLength)) (NameE "potato")
               , VerbatimS (preEscaped p2) ]
             ]
