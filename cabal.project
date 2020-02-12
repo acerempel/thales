@@ -1,4 +1,4 @@
 packages: .
 
 package thales
-  ghc-options: -fhide-source-paths -ferror-spans -Wall -Wcompat -Wincomplete-uni-patterns
+  ghc-options: -fhide-source-paths -ferror-spans -freverse-errors -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints -Widentities
