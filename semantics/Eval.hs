@@ -153,7 +153,7 @@ data ProblemDescription
   | FieldNotFound Name Value
   | NotARecord Value
   | NotAFunction Value
-  | TypeMismatch (SomeValueType) Value
+  | TypeMismatch SomeValueType Value
   deriving ( Show, Eq )
 
 data Problem = Problem
