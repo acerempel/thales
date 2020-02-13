@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonoLocalBinds #-}
+{-# LANGUAGE NoMonoLocalBinds, StrictData #-}
 module Eval
   ( EvalM, Bindings
   , Problem(..), ProblemWhere(..), ProblemDescription(..)

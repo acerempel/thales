@@ -127,7 +127,7 @@ atomicExprP :: Parser Expr
 atomicExprP = do
   expr <-
     parensP exprP
-    <|> ArrayE . Vec.map Id . Vec.fromList
+    <|> ArrayE . coerce . Vec.fromList
         <$> bracketsP (sepEndBy exprP (specialCharP ','))
     <|> LiteralE <$> numberP
     <|> NameE <$> nameP
