@@ -8,6 +8,7 @@ where
 
 import Control.Monad.Trans.Except
 import Data.Functor.Classes
+import Data.Traversable
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Vector as Vec
 import Text.Show
@@ -40,6 +41,9 @@ getBindings = EvalM ask
 
 localBindings :: (Bindings -> Bindings) -> EvalM a -> EvalM a
 localBindings f (EvalM r) = EvalM (local f r)
+
+handleZut :: (Problem -> EvalM a) -> EvalM a -> EvalM a
+handleZut handler (EvalM m) = EvalM (catchE m (unEvalM . handler))
 
 liftEval :: M a -> EvalM a
 liftEval m = EvalM (lift (lift m))
@@ -179,8 +183,30 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-{- TODO: how to write this? We will have to do the same thing with Statement
-that we did with Expr, namely, make it a functor, so that it may contain either
-a source Expr or an (Either ProblemWhere Value). -}
 evalStatement :: Statement -> EvalM Value
-evalStatement _ = return undefined
+evalStatement = \case
+  VerbatimS verb ->
+    return (Verbatim verb)
+  ExprS sp expr ->
+    evalTopExpr expr
+  ForS sp var expr body -> do
+    val <- evalTopExpr expr
+    case val of
+      Array vec ->
+        Array <$> for vec (\item ->
+          localBindings
+          (Map.insert var item)
+          (Array . Vec.fromList <$> for body evalStatement))
+      _ ->
+        zutAlors (TypeMismatch (SomeValueType ArrayT) val)
+  Optionally sp var expr body -> do
+    val <- handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr)
+    case val of
+      Nothing -> return $ Array Vec.empty
+      Just v ->
+        localBindings
+        (Map.insert var v)
+        (Array . Vec.fromList <$> for body evalStatement)
+  Optional sp expr ->
+    let dummyName = "____" in
+    evalStatement (Optionally sp dummyName expr [ExprS sp (NameE dummyName)])

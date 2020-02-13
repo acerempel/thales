@@ -20,7 +20,7 @@ data Statement
   | ExprS SourcePos Expr
   | ForS SourcePos Name Expr [Statement]
   | Optional SourcePos Expr
-  | Optionally SourcePos Expr [Statement]
+  | Optionally SourcePos Name Expr [Statement]
   deriving ( Show, Eq )
 
 data ExprH f
