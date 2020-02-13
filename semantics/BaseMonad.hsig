@@ -1,7 +1,5 @@
 signature BaseMonad ( M ) where
 
-import Data.Kind
-
 data M :: Type -> Type
 
 instance Functor M

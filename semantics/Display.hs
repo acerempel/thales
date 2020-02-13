@@ -2,7 +2,6 @@ module Display where
 
 import Prelude hiding (group)
 
-import Data.Kind
 import Data.Text.Prettyprint.Doc
 import qualified Data.Vector as Vec
 
