@@ -53,11 +53,11 @@ library syntax
     , Syntax
     , Verbatim
   build-depends:
-      megaparsec >= 8.0 && < 9.0
+      list-sig
+    , megaparsec >= 8.0 && < 9.0
     , parser-combinators >= 0.4
     , scientific >= 0.3.5.2 && < 0.4
     , text >= 1.2.2 && < 1.3
-    , vector >= 0.12 && < 0.13
   other-extensions:
       StrictData
 
@@ -70,15 +70,20 @@ library semantics
     , Value
   signatures:
       BaseMonad
-    , List
   build-depends:
-      syntax
+      list-sig
+    , syntax
     , megaparsec >= 8.0 && < 9.0
     , prettyprinter >= 1.3 && < 1.7
     , scientific >= 0.3.5.2 && < 0.4
     , transformers >= 0.5 && < 0.6
     , unordered-containers
-    , vector >= 0.12 && < 0.13
+
+library list-sig
+  hs-source-dirs:   list-sig
+  signatures:       List
+  build-depends:    base >= 4.9 && < 4.13
+  default-language: Haskell2010
 
 library basemonad-io
   hs-source-dirs: basemonad-io
@@ -87,11 +92,17 @@ library basemonad-io
   default-language: Haskell2010
 
 library list-seq
+  import:         stuff
   hs-source-dirs: list-seq
-  build-depends:  containers >= 0.6 && < 0.7
+  build-depends:
+      containers >= 0.6 && < 0.7
+  exposed-modules: List
+
+library list-vector
+  hs-source-dirs:  list-vector
+  build-depends:   base, vector >= 0.12 && < 0.13
   exposed-modules: List
   default-language: Haskell2010
-  default-extensions: NoImplicitPrelude
 
 test-suite parsing
   import:         stuff
@@ -100,6 +111,7 @@ test-suite parsing
   main-is:        Parsing.hs
   build-depends:
       syntax
+    , list-vector
     , hspec >= 2.5 && < 3
     , hspec-megaparsec >= 2.1 && < 3
     , megaparsec
@@ -114,6 +126,6 @@ test-suite evaluation
       semantics
     , syntax
     , basemonad-io
-    , list-seq
+    , list-vector
     , hspec >= 2.5 && < 3
     , unordered-containers

@@ -3,19 +3,25 @@ module Value where
 
 import qualified Data.HashMap.Strict as Map
 import Data.Scientific
-import Data.Vector as Vec
 import Text.Show
 
 import BaseMonad
+import List (List)
 import Syntax
 import Verbatim
 
+{-| A 'Value' is a thing that may be the value of a name in a template.
+Effectively, templates are dynamically typed. There is some support
+for dynamic type-checking of function arguments: the type of the
+function's argument, represented by a 'ValueType', may be specified.
+Aside from functions, this is basically equivalent to Aeson's @Value@
+type.-}
 data Value where
   Number :: Scientific -> Value
   String :: Text -> Value
   Verbatim :: Verbatim -> Value
   Boolean :: Bool -> Value
-  Array :: (Vector Value) -> Value
+  Array :: (List Value) -> Value
   Record :: HashMap Name Value -> Value
   Function :: ValueType a -> (a -> M Value) -> Value
 
@@ -35,14 +41,20 @@ instance Eq Value where
   _ == _ =
     False
 
+{-| A representation of the type that a 'Value' may have. This is
+used primarily for checking of the type of function arguments. The
+type variable 't' is a type index corresponding to the underlying
+type contained in the relevant 'Value' data constructor.-}
 data ValueType t where
   NumberT :: ValueType Scientific
   StringT :: ValueType Text
   BooleanT :: ValueType Bool
-  ArrayT :: ValueType (Vector Value)
+  ArrayT :: ValueType (List Value)
   RecordT :: ValueType (HashMap Name Value)
   FunctionT :: ValueType a -> ValueType (a -> M Value)
 
+{-| An existentialized 'ValueType', so you can compare them
+for equality, have a list of them, etc.-}
 data SomeValueType where
   SomeValueType :: ValueType t -> SomeValueType
 
@@ -76,6 +88,6 @@ instance Show Value where
       . Map.foldrWithKey
         (\k v s -> showsPrec prec k . (':':) . showsPrec prec v . s) id h
       . ('}' :)
-    Array   a -> showList (Vec.toList a)
+    Array   a -> showList (toList a)
     Verbatim _v -> ("..." <>)
     Function _ _ -> ("<function>" <>)

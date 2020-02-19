@@ -10,7 +10,6 @@ import Control.Monad.Trans.Except
 import Data.Functor.Classes
 import Data.Traversable
 import qualified Data.HashMap.Strict as Map
-import qualified Data.Vector as Vec
 import Text.Show
 
 import BaseMonad
@@ -88,10 +87,12 @@ evalExpr mContext expr =
            a type annotation would make this work as well, and that one line instead of
            these five ;) -}
         addArrayProblemContext index = \zut ->
-          ArrayE (Vec.map (NoProblem . getId) arr `Vec.unsafeUpd` [(index, zut)])
+          ArrayE
+            ( List.unsafeUpdate index zut
+            $ List.map (NoProblem . getId) arr)
         evalArrayElement index (Id subExpr) =
           evalSubExpr (addArrayProblemContext index) subExpr
-    Array <$> List.imapM evalArrayElement arr
+    Array <$> List.imapA evalArrayElement arr
 
   ApplyE (Id funcExpr) (Id argExpr) -> do
     func <- evalSubExpr (\z -> ApplyE z (NoProblem argExpr)) funcExpr
@@ -195,7 +196,7 @@ evalStatement = \case
     val <- evalTopExpr expr
     case val of
       Array vec ->
-        fmap (List.concat . List.fromList . Vec.toList) $
+        fmap List.concat $
         for vec (\item ->
           localBindings
           (Map.insert var item)

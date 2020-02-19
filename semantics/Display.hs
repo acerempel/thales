@@ -3,8 +3,8 @@ module Display where
 import Prelude hiding (group)
 
 import Data.Text.Prettyprint.Doc
-import qualified Data.Vector as Vec
 
+import qualified List
 import Syntax
 
 data Markup = Important | Emphasized
@@ -31,7 +31,7 @@ instance DisplayH ExprH where
     ArrayE vec ->
           lbracket
       <+> (align . group . vsep . punctuate comma)
-          ((map (liftDisplay display Loose)) vec)
+          ((toList . List.map (liftDisplay display Loose)) vec)
       <+> rbracket
     ApplyE f a ->
       let parenthesizeMaybe =

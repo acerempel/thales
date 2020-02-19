@@ -1,0 +1,28 @@
+{-# LANGUAGE KindSignatures, RoleAnnotations #-}
+signature List where
+
+import Data.Functor.Classes
+import Data.Kind
+
+data List :: Type -> Type
+type role List representational
+
+instance Semigroup (List a)
+instance Monoid (List a)
+instance Foldable List
+instance Traversable List
+instance Functor List
+instance Eq a => Eq (List a)
+instance Show a => Show (List a)
+instance Eq1 List
+instance Show1 List
+
+empty :: List a
+singleton :: a -> List a
+map :: (a -> b) -> List a -> List b
+concat :: List (List a) -> List a
+concatMap :: (a -> List b) -> List a -> List b
+fromList :: [a] -> List a
+imapA :: Monad m => (Int -> a -> m b) -> List a -> m (List b)
+update :: Int -> a -> List a -> List a
+unsafeUpdate :: Int -> a -> List a -> List a

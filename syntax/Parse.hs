@@ -14,10 +14,14 @@ import Text.Megaparsec hiding (parse, runParser)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (scientific)
 
+import qualified List
 import NonEmptyText
 import Syntax
 import Verbatim
 
+{-| The strings that delimit bits of code, or directives, or whatever
+you want to call them, in a template. E.g. @Delimiters "{{" "}}"@,
+or @Delimiters { begin = "$(", end = ")" }@. -}
 data Delimiters = Delimiters
   { begin :: NonEmptyText
   , end :: NonEmptyText }
@@ -27,6 +31,7 @@ data PartialStatement
   = BlockS ([Statement] -> Statement)
   | StandaloneS Statement
 
+{-| Our parser monad. This is a newtype over Megaparsec's 'ParsecT' type. -}
 newtype Parser a = Parser
   { unParser :: ParsecT Void Text (Reader Delimiters) a }
   deriving ( Monad, Applicative, Functor, Alternative, MonadPlus )
@@ -126,7 +131,7 @@ atomicExprP :: Parser Expr
 atomicExprP = do
   expr <-
     parensP exprP
-    <|> ArrayE . coerce
+    <|> ArrayE . coerce . List.fromList
         <$> bracketsP (sepEndBy exprP (specialCharP ','))
     <|> LiteralE <$> numberP
     <|> NameE <$> nameP

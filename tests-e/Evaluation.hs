@@ -4,6 +4,7 @@ import Test.Hspec
 import qualified Data.HashMap.Strict as Map
 
 import Eval
+import qualified List
 import Syntax
 import Value
 
@@ -30,6 +31,6 @@ main = hspec $ do
       result <- runEvalM (evalTopExpr expr) bindings
       result `shouldBe` Right (Number 5)
     it "evaluates for statements" $ do
-      let sp = SourcePos undefined undefined undefined
-          stmt = ForS sp "potato" (ArrayE (map (Id . LiteralE . NumberL) [1,3,5,7])) [ExprS sp (NameE "potato")]
-      return ()
+      let sp = undefined
+          stmt = ForS sp "potato" (ArrayE (List.map (Id . LiteralE . NumberL) (List.fromList [1,3,5,7]))) [ExprS sp (NameE "potato")]
+      () `shouldBe` ()

@@ -6,6 +6,7 @@ import Data.Scientific
 import Text.Megaparsec
 import Text.Show
 
+import List (List)
 import Verbatim
 
 type Name = Text
@@ -24,7 +25,7 @@ data Statement
 
 data ExprH f
   = LiteralE Literal
-  | ArrayE ([f (ExprH f)])
+  | ArrayE (List (f (ExprH f)))
   | ApplyE (f (ExprH f)) (f (ExprH f))
   | FieldAccessE Name (f (ExprH f))
   | NameE Name
