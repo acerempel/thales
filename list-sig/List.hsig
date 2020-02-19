@@ -3,6 +3,7 @@ signature List where
 
 import Data.Functor.Classes
 import Data.Kind
+import GHC.Exts (IsList(..))
 
 data List :: Type -> Type
 type role List representational
@@ -16,6 +17,7 @@ instance Eq a => Eq (List a)
 instance Show a => Show (List a)
 instance Eq1 List
 instance Show1 List
+instance IsList (List a)
 
 empty :: List a
 singleton :: a -> List a

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 import Test.Hspec
 
@@ -32,5 +33,5 @@ main = hspec $ do
       result `shouldBe` Right (Number 5)
     it "evaluates for statements" $ do
       let sp = undefined
-          stmt = ForS sp "potato" (ArrayE (List.map (Id . LiteralE . NumberL) (List.fromList [1,3,5,7]))) [ExprS sp (NameE "potato")]
+          stmt = ForS sp "potato" (ArrayE (List.map (Id . LiteralE . NumberL) ([1,3,5,7]))) [ExprS sp (NameE "potato")]
       () `shouldBe` ()
