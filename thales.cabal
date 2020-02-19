@@ -127,5 +127,6 @@ test-suite evaluation
     , syntax
     , basemonad-io
     , list-vector
+    , megaparsec
     , hspec >= 2.5 && < 3
     , unordered-containers

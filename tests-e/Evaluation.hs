@@ -3,6 +3,7 @@
 import Test.Hspec
 
 import qualified Data.HashMap.Strict as Map
+import Text.Megaparsec (SourcePos(..), mkPos)
 
 import Eval
 import qualified List
@@ -32,6 +33,10 @@ main = hspec $ do
       result <- runEvalM (evalTopExpr expr) bindings
       result `shouldBe` Right (Number 5)
     it "evaluates for statements" $ do
-      let sp = undefined
-          stmt = ForS sp "potato" (ArrayE (List.map (Id . LiteralE . NumberL) ([1,3,5,7]))) [ExprS sp (NameE "potato")]
-      () `shouldBe` ()
+      let sp = SourcePos "tests-e/Evaluation.hs" (mkPos 1) (mkPos 1)
+          stmt =
+            ForS sp "potato"
+              (ArrayE (List.map (Id . LiteralE . NumberL) [1,3,5,7]))
+              [ExprS sp (NameE "potato")]
+      result <- runEvalM (evalStatement stmt) Map.empty
+      result `shouldBe` Right (List.map Number [1,3,5,7])
