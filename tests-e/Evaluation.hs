@@ -29,3 +29,7 @@ main = hspec $ do
             (Function NumberT (return . Number . (+1)))
       result <- runEvalM (evalTopExpr expr) bindings
       result `shouldBe` Right (Number 5)
+    it "evaluates for statements" $ do
+      let sp = SourcePos undefined undefined undefined
+          stmt = ForS sp "potato" (ArrayE (map (Id . LiteralE . NumberL) [1,3,5,7])) [ExprS sp (NameE "potato")]
+      return ()

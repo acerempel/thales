@@ -3,7 +3,6 @@ module Syntax where
 
 import Data.Functor.Classes
 import Data.Scientific
-import Data.Vector
 import Text.Megaparsec
 import Text.Show
 
@@ -25,7 +24,7 @@ data Statement
 
 data ExprH f
   = LiteralE Literal
-  | ArrayE (Vector (f (ExprH f)))
+  | ArrayE ([f (ExprH f)])
   | ApplyE (f (ExprH f)) (f (ExprH f))
   | FieldAccessE Name (f (ExprH f))
   | NameE Name

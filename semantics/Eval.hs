@@ -14,6 +14,8 @@ import qualified Data.Vector as Vec
 import Text.Show
 
 import BaseMonad
+import List (List)
+import qualified List
 import Syntax
 import Value
 
@@ -89,7 +91,7 @@ evalExpr mContext expr =
           ArrayE (Vec.map (NoProblem . getId) arr `Vec.unsafeUpd` [(index, zut)])
         evalArrayElement index (Id subExpr) =
           evalSubExpr (addArrayProblemContext index) subExpr
-    Array <$> Vec.imapM evalArrayElement arr
+    Array <$> List.imapM evalArrayElement arr
 
   ApplyE (Id funcExpr) (Id argExpr) -> do
     func <- evalSubExpr (\z -> ApplyE z (NoProblem argExpr)) funcExpr
@@ -183,30 +185,31 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-evalStatement :: Statement -> EvalM Value
+evalStatement :: Statement -> EvalM (List Value)
 evalStatement = \case
   VerbatimS verb ->
-    return (Verbatim verb)
+    return $ List.singleton (Verbatim verb)
   ExprS sp expr ->
-    evalTopExpr expr
+    List.singleton <$> evalTopExpr expr
   ForS sp var expr body -> do
     val <- evalTopExpr expr
     case val of
       Array vec ->
-        Array <$> for vec (\item ->
+        fmap (List.concat . List.fromList . Vec.toList) $
+        for vec (\item ->
           localBindings
           (Map.insert var item)
-          (Array . Vec.fromList <$> for body evalStatement))
+          (List.concat <$> for (List.fromList body) evalStatement))
       _ ->
         zutAlors (TypeMismatch (SomeValueType ArrayT) val)
   Optionally sp var expr body -> do
     val <- handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr)
     case val of
-      Nothing -> return $ Array Vec.empty
+      Nothing -> return List.empty
       Just v ->
         localBindings
         (Map.insert var v)
-        (Array . Vec.fromList <$> for body evalStatement)
+        (List.concat <$> for (List.fromList body) evalStatement)
   Optional sp expr ->
     let dummyName = "____" in
     evalStatement (Optionally sp dummyName expr [ExprS sp (NameE dummyName)])

@@ -31,7 +31,7 @@ instance DisplayH ExprH where
     ArrayE vec ->
           lbracket
       <+> (align . group . vsep . punctuate comma)
-          ((Vec.toList . Vec.map (liftDisplay display Loose)) vec)
+          ((map (liftDisplay display Loose)) vec)
       <+> rbracket
     ApplyE f a ->
       let parenthesizeMaybe =
