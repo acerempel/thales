@@ -13,6 +13,7 @@ import qualified Data.HashMap.Strict as Map
 import Text.Show
 
 import BaseMonad
+import Function
 import List (List)
 import qualified List
 import Syntax
@@ -22,26 +23,28 @@ import Value
 -- in a template. At the moment it is just a type synonym, but this will
 -- probably change.
 type Bindings = HashMap Name Value
+type Functions = HashMap Name Function
 
 newtype EvalM a = EvalM
-  { unEvalM :: ExceptT Problem (ReaderT Bindings M) a }
+  { unEvalM :: ExceptT Problem (ReaderT (Functions, Bindings) M) a }
   deriving ( Monad, Functor, Applicative )
 
-runEvalM :: EvalM a -> Bindings -> M (Either Problem a)
-runEvalM (EvalM m) = runReaderT (runExceptT m)
+runEvalM :: EvalM a -> Functions -> Bindings -> M (Either Problem a)
+runEvalM (EvalM m) functions bindings =
+  runReaderT (runExceptT m) (functions, bindings)
 
 -- | Abort this evaluation with the given problem.
 zutAlors :: ProblemDescription -> EvalM a
 zutAlors prob = EvalM (throwE (Problem Nowhere prob))
 
 lookup :: Name -> EvalM (Maybe Value)
-lookup n = EvalM (asks (Map.lookup n))
+lookup n = EvalM (asks (Map.lookup n . snd))
 
-getBindings :: EvalM Bindings
-getBindings = EvalM ask
+lookupFunction :: Name -> EvalM (Maybe Function)
+lookupFunction n = EvalM (asks (Map.lookup n . fst))
 
 localBindings :: (Bindings -> Bindings) -> EvalM a -> EvalM a
-localBindings f (EvalM r) = EvalM (local f r)
+localBindings f (EvalM r) = EvalM (local (fmap f) r)
 
 handleZut :: (Problem -> EvalM a) -> EvalM a -> EvalM a
 handleZut handler (EvalM m) = EvalM (catchE m (unEvalM . handler))
@@ -94,22 +97,28 @@ evalExpr mContext expr =
           evalSubExpr (addArrayProblemContext index) subExpr
     Array <$> List.imapA evalArrayElement arr
 
-  ApplyE (Id funcExpr) (Id argExpr) -> do
-    func <- evalSubExpr (\z -> ApplyE z (NoProblem argExpr)) funcExpr
-    case func of
-      Function typ f -> do
-        arg <- evalSubExpr (\z -> ApplyE (NoProblem funcExpr) z) argExpr
-        case (typ, arg) of
-          (NumberT,  Number  n) -> liftEval (f n)
-          (StringT,  String  s) -> liftEval (f s)
-          (BooleanT, Boolean b) -> liftEval (f b)
-          (ArrayT,   Array   a) -> liftEval (f a)
-          (RecordT,  Record  r) -> liftEval (f r)
-          _ ->
-            -- Application of higher-order functions is not yet supported!
-            zutAlors (TypeMismatch (SomeValueType typ) arg)
+  ApplyE (Id funcExpr) (Id argExpr) ->
+    case funcExpr of
+      NameE funcName -> do
+        func <- lookupFunction funcName
+        case func of
+          Just (Function typ f) -> do
+            arg <- evalSubExpr (\z -> ApplyE (NoProblem funcExpr) z) argExpr
+            case (typ, arg) of
+              (NumberT,  Number  n) -> liftEval (f n)
+              (StringT,  String  s) -> liftEval (f s)
+              (BooleanT, Boolean b) -> liftEval (f b)
+              (ArrayT,   Array   a) -> liftEval (f a)
+              (RecordT,  Record  r) -> liftEval (f r)
+              _ ->
+                -- Application of higher-order functions is not yet supported!
+                zutAlors (TypeMismatch (SomeValueType typ) arg)
+          Just _ ->
+            zutAlors (NotAFunction funcName)
+          Nothing ->
+            zutAlors (NameNotFound funcName)
       _ ->
-        zutAlors (NotAFunction func)
+        zutAlors (NotAFunction (error "Oh no!"))
  where
   mapZut f (EvalM m) =
     EvalM $ withExceptT (problemAddContext f) m
@@ -159,7 +168,7 @@ data ProblemDescription
   = NameNotFound Name
   | FieldNotFound Name Value
   | NotARecord Value
-  | NotAFunction Value
+  | NotAFunction Name
   | TypeMismatch SomeValueType Value
   deriving ( Show, Eq )
 
@@ -190,20 +199,20 @@ evalStatement :: Statement -> EvalM (List Value)
 evalStatement = \case
   VerbatimS verb ->
     return $ List.singleton (Verbatim verb)
-  ExprS sp expr ->
+  ExprS _sp expr ->
     List.singleton <$> evalTopExpr expr
-  ForS sp var expr body -> do
+  ForS _sp var expr body -> do
     val <- evalTopExpr expr
     case val of
       Array vec ->
-        fmap List.concat $
+        List.concat <$>
         for vec (\item ->
           localBindings
           (Map.insert var item)
           (List.concat <$> for (List.fromList body) evalStatement))
       _ ->
         zutAlors (TypeMismatch (SomeValueType ArrayT) val)
-  Optionally sp var expr body -> do
+  Optionally _sp var expr body -> do
     val <- handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr)
     case val of
       Nothing -> return List.empty

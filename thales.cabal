@@ -67,6 +67,7 @@ library semantics
   exposed-modules:
       Display
     , Eval
+    , Function
     , Value
   signatures:
       BaseMonad

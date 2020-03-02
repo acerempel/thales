@@ -21,9 +21,8 @@ data Value where
   String :: Text -> Value
   Verbatim :: Verbatim -> Value
   Boolean :: Bool -> Value
-  Array :: (List Value) -> Value
+  Array :: List Value -> Value
   Record :: HashMap Name Value -> Value
-  Function :: ValueType a -> (a -> M Value) -> Value
 
 instance Eq Value where
   (Number a1) == (Number a2) =
@@ -36,8 +35,6 @@ instance Eq Value where
     a1 == a2
   (Record a1) == (Record a2) =
     a1 == a2
-  (Function {}) == (Function {}) =
-    error "Cannot equate functions!"
   _ == _ =
     False
 
@@ -90,4 +87,3 @@ instance Show Value where
       . ('}' :)
     Array   a -> showList (toList a)
     Verbatim _v -> ("..." <>)
-    Function _ _ -> ("<function>" <>)
