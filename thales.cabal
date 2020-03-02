@@ -108,7 +108,7 @@ library list-vector
 test-suite parsing
   import:         stuff
   type:           exitcode-stdio-1.0
-  hs-source-dirs: tests-p
+  hs-source-dirs: tests/parse
   main-is:        Parsing.hs
   build-depends:
       syntax
@@ -121,7 +121,7 @@ test-suite parsing
 test-suite evaluation
   import:         stuff
   type:           exitcode-stdio-1.0
-  hs-source-dirs: tests-e
+  hs-source-dirs: tests/eval
   main-is:        Evaluation.hs
   build-depends:
       semantics
