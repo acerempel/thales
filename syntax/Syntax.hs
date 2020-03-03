@@ -26,7 +26,6 @@ data Statement
 data ExprH f
   = LiteralE Literal
   | ArrayE (List (f (ExprH f)))
-  | ApplyE (f (ExprH f)) (f (ExprH f))
   | FieldAccessE Name (f (ExprH f))
   | NameE Name
 
@@ -40,12 +39,6 @@ instance Show1 f => Show (ExprH f) where
       (liftShowsPrec showsPrec showList)
       (liftShowList showsPrec showList)
       prec arr
-    ApplyE fe ae ->
-      ("ApplyE (" <>)
-      . liftShowsPrec showsPrec showList prec fe
-      . (") (" <>)
-      . liftShowsPrec showsPrec showList prec ae
-      . (')' :)
     FieldAccessE n e ->
       ("FieldAccessE " <>)
       . showsPrec prec n
@@ -60,8 +53,6 @@ instance Eq1 f => Eq (ExprH f) where
     l1 == l2
   (ArrayE v1) == (ArrayE v2) =
     liftEq (liftEq (==)) v1 v2
-  (ApplyE fe1 ae1) == (ApplyE fe2 ae2) =
-    liftEq (==) fe1 ae1 && liftEq (==) fe2 ae2
   (FieldAccessE n1 e1) == (FieldAccessE n2 e2) =
     n1 == n2 && liftEq (==) e1 e2
   (NameE n1) == (NameE n2) =

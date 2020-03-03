@@ -7,7 +7,6 @@ module Parse
 where
 
 import Prelude hiding (many)
-import Control.Monad.Combinators.NonEmpty as NE
 import Data.Char
 import qualified Data.Text as Text
 import Text.Megaparsec hiding (parse, runParser)
@@ -69,10 +68,10 @@ blockP = syntaxP True
 templateP = syntaxP False
 
 syntaxP :: Bool -> Parser [Statement]
-syntaxP inBlock = do
+syntaxP inBlock =
   return [] <* endP
     <|> ((:) <$> statementP <*> syntaxP inBlock)
-    <|> ((:) <$> fmap VerbatimS ((<>) <$> (fmap preEscapedSingleton anySingle) <*> verbatimP) <*> syntaxP inBlock)
+    <|> ((:) <$> fmap VerbatimS ((<>) <$> fmap preEscapedSingleton anySingle <*> verbatimP) <*> syntaxP inBlock)
   where
     verbatimP = do
       beginD <- getBeginDelim
@@ -124,11 +123,6 @@ forP sp = do
 
 exprP :: Parser Expr
 exprP = do
-  (a1 :| atoms) <- NE.some atomicExprP
-  return (foldl' (\e a -> ApplyE (Id e) (Id a)) a1 atoms)
-
-atomicExprP :: Parser Expr
-atomicExprP = do
   expr <-
     parensP exprP
     <|> ArrayE . coerce . List.fromList

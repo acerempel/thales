@@ -48,7 +48,6 @@ data ValueType t where
   BooleanT :: ValueType Bool
   ArrayT :: ValueType (List Value)
   RecordT :: ValueType (HashMap Name Value)
-  FunctionT :: ValueType a -> ValueType (a -> M Value)
 
 {-| An existentialized 'ValueType', so you can compare them
 for equality, have a list of them, etc.-}
@@ -61,8 +60,6 @@ instance Eq SomeValueType where
   (SomeValueType BooleanT) == (SomeValueType BooleanT) = True
   (SomeValueType ArrayT) == (SomeValueType ArrayT) = True
   (SomeValueType RecordT) == (SomeValueType RecordT) = True
-  (SomeValueType (FunctionT t1)) == (SomeValueType (FunctionT t2)) =
-    SomeValueType t1 == SomeValueType t2
   _ == _ = False
 
 instance Show SomeValueType where
@@ -72,7 +69,6 @@ instance Show SomeValueType where
     BooleanT -> s "bool"
     ArrayT -> s "array"
     RecordT -> s "record"
-    FunctionT _t -> s "function"
     where s = (Prelude.++)
 
 instance Show Value where
