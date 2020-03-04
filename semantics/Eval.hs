@@ -1,7 +1,7 @@
 module Eval
-  ( EvalM, Bindings
+  ( ExprM, Bindings
   , Problem(..), ProblemWhere(..), ProblemDescription(..)
-  , evalTopExpr, evalStatement, runEvalM
+  , evalTopExpr, evalStatement, runExprM
   )
 where
 
@@ -14,13 +14,13 @@ import qualified List
 import Syntax
 import Value
 
-evalSubExpr :: AddProblemContext -> Expr -> EvalM Value
+evalSubExpr :: AddProblemContext -> Expr -> ExprM Value
 evalSubExpr f = evalExpr (Just f)
 
-evalTopExpr :: Expr -> EvalM Value
+evalTopExpr :: Expr -> ExprM Value
 evalTopExpr = evalExpr Nothing
 
-evalExpr :: Maybe AddProblemContext -> Expr -> EvalM Value
+evalExpr :: Maybe AddProblemContext -> Expr -> ExprM Value
 evalExpr mContext expr =
  maybe id mapZut mContext . addProblemSource expr $ case expr of
 
@@ -57,7 +57,7 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-evalStatement :: Statement -> EvalM (List Value)
+evalStatement :: Statement -> ExprM (List Value)
 evalStatement = \case
   VerbatimS verb ->
     return $ List.singleton (Verbatim verb)

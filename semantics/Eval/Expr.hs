@@ -1,5 +1,5 @@
 module Eval.Expr
-  ( EvalM, Bindings, runEvalM
+  ( ExprM, Bindings, runExprM
   , Problem(..), ProblemWhere(..)
   , ProblemDescription(..), AddProblemContext
   , zutAlors, handleZut, mapZut, addProblemSource
@@ -21,37 +21,37 @@ import Value
 -- probably change.
 type Bindings = HashMap Name Value
 
-newtype EvalM a = EvalM
-  { unEvalM :: ExceptT Problem (ReaderT Bindings M) a }
+newtype ExprM a = ExprM
+  { unExprM :: ExceptT Problem (ReaderT Bindings M) a }
   deriving ( Monad, Functor, Applicative )
 
-runEvalM :: EvalM a -> Bindings -> M (Either Problem a)
-runEvalM (EvalM m) bindings =
+runExprM :: ExprM a -> Bindings -> M (Either Problem a)
+runExprM (ExprM m) bindings =
   runReaderT (runExceptT m) bindings
 
 -- | Abort this evaluation with the given problem.
-zutAlors :: ProblemDescription -> EvalM a
-zutAlors prob = EvalM (throwE (Problem Nowhere prob))
+zutAlors :: ProblemDescription -> ExprM a
+zutAlors prob = ExprM (throwE (Problem Nowhere prob))
 
-lookup :: Name -> EvalM (Maybe Value)
-lookup n = EvalM (asks (Map.lookup n))
+lookup :: Name -> ExprM (Maybe Value)
+lookup n = ExprM (asks (Map.lookup n))
 
-localBindings :: (Bindings -> Bindings) -> EvalM a -> EvalM a
-localBindings f (EvalM r) = EvalM (local f r)
+localBindings :: (Bindings -> Bindings) -> ExprM a -> ExprM a
+localBindings f (ExprM r) = ExprM (local f r)
 
-handleZut :: (Problem -> EvalM a) -> EvalM a -> EvalM a
-handleZut handler (EvalM m) = EvalM (catchE m (unEvalM . handler))
+handleZut :: (Problem -> ExprM a) -> ExprM a -> ExprM a
+handleZut handler (ExprM m) = ExprM (catchE m (unExprM . handler))
 
-mapZut :: AddProblemContext -> EvalM a -> EvalM a
-mapZut f (EvalM m) =
-  EvalM $ withExceptT (problemAddContext f) m
+mapZut :: AddProblemContext -> ExprM a -> ExprM a
+mapZut f (ExprM m) =
+  ExprM $ withExceptT (problemAddContext f) m
 
-addProblemSource :: Expr -> EvalM a -> EvalM a
-addProblemSource source (EvalM m) =
-  EvalM $ withExceptT (problemSetSource source) m
+addProblemSource :: Expr -> ExprM a -> ExprM a
+addProblemSource source (ExprM m) =
+  ExprM $ withExceptT (problemSetSource source) m
 
-liftEval :: M a -> EvalM a
-liftEval m = EvalM (lift (lift m))
+liftEval :: M a -> ExprM a
+liftEval m = ExprM (lift (lift m))
 
 data ProblemDescription
   = NameNotFound Name

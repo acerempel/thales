@@ -15,14 +15,14 @@ main = hspec $
     it "evaluates names to their bindings" $ do
       let expr = NameE "potato"
           bindings = Map.singleton "potato" (Number 3)
-      result <- runEvalM (evalTopExpr expr) bindings
+      result <- runExprM (evalTopExpr expr) bindings
       result `shouldBe` Right (Number 3)
     it "evaluates field accesses" $ do
       let expr = FieldAccessE "potato" (Id (NameE "vegetables"))
           bindings =
             Map.singleton "vegetables"
             (Record (Map.singleton "potato" (Number 7)))
-      result <- runEvalM (evalTopExpr expr) bindings
+      result <- runExprM (evalTopExpr expr) bindings
       result `shouldBe` Right (Number 7)
     it "evaluates for statements" $ do
       let sp = SourcePos "tests-e/Evaluation.hs" (mkPos 1) (mkPos 1)
@@ -30,5 +30,5 @@ main = hspec $
             ForS sp "potato"
               (ArrayE (List.map (Id . LiteralE . NumberL) [1,3,5,7]))
               [ExprS sp (NameE "potato")]
-      result <- runEvalM (evalStatement stmt) Map.empty
+      result <- runExprM (evalStatement stmt) Map.empty
       result `shouldBe` Right (List.map Number [1,3,5,7])
