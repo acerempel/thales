@@ -37,10 +37,6 @@ module Control.Applicative.Writer (
     mapWriterT,
     -- * Writer operations
     tell,
-    listen,
-    listens,
-    pass,
-    censor,
   ) where
 
 import Data.Functor.Classes
@@ -213,48 +209,3 @@ instance (Monoid w, MonadZip m) => MonadZip (WriterT w m) where
 tell :: (Applicative m) => w -> WriterT w m ()
 tell w = writer ((), w)
 {-# INLINE tell #-}
-
--- | @'listen' m@ is an action that executes the action @m@ and adds its
--- output to the value of the computation.
---
--- * @'runWriterT' ('listen' m) = 'liftM' (\\ (a, w) -> ((a, w), w)) ('runWriterT' m)@
-listen :: (Functor m) => WriterT w m a -> WriterT w m (a, w)
-listen m = WriterT $
-    (\(a, w) -> ((a, w), w)) <$> runWriterT m
-{-# INLINE listen #-}
-
--- | @'listens' f m@ is an action that executes the action @m@ and adds
--- the result of applying @f@ to the output to the value of the computation.
---
--- * @'listens' f m = 'liftM' (id *** f) ('listen' m)@
---
--- * @'runWriterT' ('listens' f m) = 'liftM' (\\ (a, w) -> ((a, f w), w)) ('runWriterT' m)@
-listens :: (Monad m) => (w -> b) -> WriterT w m a -> WriterT w m (a, b)
-listens f m = WriterT $ do
-    (a, w) <- runWriterT m
-    return ((a, f w), w)
-{-# INLINE listens #-}
-
--- | @'pass' m@ is an action that executes the action @m@, which returns
--- a value and a function, and returns the value, applying the function
--- to the output.
---
--- * @'runWriterT' ('pass' m) = 'liftM' (\\ ((a, f), w) -> (a, f w)) ('runWriterT' m)@
-pass :: (Monad m) => WriterT w m (a, w -> w) -> WriterT w m a
-pass m = WriterT $ do
-    ((a, f), w) <- runWriterT m
-    return (a, f w)
-{-# INLINE pass #-}
-
--- | @'censor' f m@ is an action that executes the action @m@ and
--- applies the function @f@ to its output, leaving the return value
--- unchanged.
---
--- * @'censor' f m = 'pass' ('liftM' (\\ x -> (x,f)) m)@
---
--- * @'runWriterT' ('censor' f m) = 'liftM' (\\ (a, w) -> (a, f w)) ('runWriterT' m)@
-censor :: (Monad m) => (w -> w) -> WriterT w m a -> WriterT w m a
-censor f m = WriterT $ do
-    (a, w) <- runWriterT m
-    return (a, f w)
-{-# INLINE censor #-}
