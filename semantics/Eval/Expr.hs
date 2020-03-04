@@ -38,7 +38,9 @@ lookup n = ExprM (asks (Map.lookup n))
 
 addLocalBindings :: [(Name, Value)] -> ExprM a -> ExprM a
 addLocalBindings binds (ExprM r) =
-  ExprM (local (`Map.union` Map.fromList binds) r)
+  -- 'binds' has to be the first argument to 'Map.union', so that we can shadow
+  -- existing bindings -- 'Map.union' is left-biased.
+  ExprM (local (Map.fromList binds `Map.union`) r)
 
 handleZut :: (Problem -> ExprM a) -> ExprM a -> ExprM a
 handleZut handler (ExprM m) = ExprM (catchE m (unExprM . handler))
