@@ -10,7 +10,7 @@ extra-source-files:  CHANGELOG.md
 
 common stuff
   build-depends:
-      base >= 4.8 && < 4.14
+      base >= 4.8 && < 4.13
     , relude >= 0.6 && < 0.7
   mixins:
       relude (Relude as Prelude)
@@ -27,6 +27,7 @@ common stuff
     , LambdaCase
     , GADTs
     , RecordWildCards
+    , NamedFieldPuns
     , DefaultSignatures
     , KindSignatures
     , StrictData
@@ -70,21 +71,32 @@ library semantics
     , Eval
   other-modules:
       Eval.Expr
+    , Eval.Statement
   signatures:
       BaseMonad
   build-depends:
-      list-sig
+      applicative-writer
+    , list-sig
     , syntax
+    , dlist ^>= 0.8
     , megaparsec >= 8.0 && < 9.0
     , prettyprinter >= 1.3 && < 1.7
     , scientific >= 0.3.5.2 && < 0.4
+    , text >= 1.2.2 && < 1.3
     , transformers >= 0.5 && < 0.6
     , unordered-containers
+    , validation ^>= 1
+
+library applicative-writer
+  hs-source-dirs:   applicative-writer
+  exposed-modules:  Control.Applicative.Writer
+  build-depends:    base >= 4.8 && < 4.13
+  default-language: Haskell2010
 
 library list-sig
   hs-source-dirs:   list-sig
   signatures:       List
-  build-depends:    base >= 4.9 && < 4.13
+  build-depends:    base >= 4.8 && < 4.13
   default-language: Haskell2010
 
 library basemonad-io

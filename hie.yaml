@@ -8,3 +8,5 @@ cradle:
       component: "test:parsing"
     - path: "./tests/eval"
       component: "test:evaluation"
+    - path: "./applicative-writer"
+      component: "lib:applicative-writer"
