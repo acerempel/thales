@@ -1,4 +1,3 @@
-{-# LANGUAGE NoMonoLocalBinds, StrictData #-}
 module Eval
   ( EvalM, Bindings
   , Problem(..), ProblemWhere(..), ProblemDescription(..)
@@ -44,12 +43,7 @@ evalExpr mContext expr =
     return (literalToValue lit)
 
   ArrayE arr -> do
-    let {- NoMonoLocalBinds above is needed so because addArrayProblemContext needs
-           to be polymorphic in 'zut', because of the type of 'evalSubExpr'.
-           MonoLocalBinds is implied by GADTs (from default-extensions). Of course adding
-           a type annotation would make this work as well, and that one line instead of
-           these five ;) -}
-        addArrayProblemContext index = \zut ->
+    let addArrayProblemContext index = \zut ->
           ArrayE
             ( List.unsafeUpdate index zut
             $ List.map (NoProblem . getId) arr)
