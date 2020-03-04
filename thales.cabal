@@ -29,6 +29,7 @@ common stuff
     , RecordWildCards
     , DefaultSignatures
     , KindSignatures
+    , StrictData
 
 library
   import:          stuff
@@ -60,8 +61,6 @@ library syntax
     , scientific >= 0.3.5.2 && < 0.4
     , text >= 1.2.2 && < 1.3
     , unordered-containers
-  other-extensions:
-      StrictData
 
 library semantics
   import:         stuff

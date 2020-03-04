@@ -1,4 +1,3 @@
-{-# LANGUAGE StrictData #-}
 module Eval.Expr
   ( EvalM, Bindings, runEvalM
   , Problem(..), ProblemWhere(..)

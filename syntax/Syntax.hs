@@ -1,4 +1,3 @@
-{-# LANGUAGE StrictData #-}
 module Syntax where
 
 import Data.Functor.Classes

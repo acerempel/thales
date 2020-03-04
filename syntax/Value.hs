@@ -1,4 +1,3 @@
-{-# LANGUAGE StrictData #-}
 module Value ( Value(..) ) where
 
 import qualified Data.HashMap.Strict as Map
