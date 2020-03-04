@@ -1,9 +1,9 @@
 module Eval.Expr
-  ( ExprM, Bindings, runExprM
+  ( ExprM, Bindings, runExprM, Name
   , Problem(..), ProblemWhere(..)
   , ProblemDescription(..), AddProblemContext
   , zutAlors, handleZut, mapZut, addProblemSource
-  , lookup, localBindings, liftEval
+  , lookup, addLocalBindings, liftEval
   )
 where
 
@@ -36,8 +36,9 @@ zutAlors prob = ExprM (throwE (Problem Nowhere prob))
 lookup :: Name -> ExprM (Maybe Value)
 lookup n = ExprM (asks (Map.lookup n))
 
-localBindings :: (Bindings -> Bindings) -> ExprM a -> ExprM a
-localBindings f (ExprM r) = ExprM (local f r)
+addLocalBindings :: [(Name, Value)] -> ExprM a -> ExprM a
+addLocalBindings binds (ExprM r) =
+  ExprM (local (`Map.union` Map.fromList binds) r)
 
 handleZut :: (Problem -> ExprM a) -> ExprM a -> ExprM a
 handleZut handler (ExprM m) = ExprM (catchE m (unExprM . handler))

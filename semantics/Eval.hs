@@ -69,8 +69,8 @@ evalStatement = \case
       Array vec ->
         List.concat <$>
         for vec (\item ->
-          localBindings
-          (Map.insert var item)
+          addLocalBindings
+          [(var, item)]
           (List.concat <$> for (List.fromList body) evalStatement))
       _ ->
         zutAlors (NotAnArray val)
@@ -79,8 +79,8 @@ evalStatement = \case
     case val of
       Nothing -> return List.empty
       Just v ->
-        localBindings
-        (Map.insert var v)
+        addLocalBindings
+        [(var, v)]
         (List.concat <$> for (List.fromList body) evalStatement)
   Optional sp expr ->
     let dummyName = "____" in
