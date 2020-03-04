@@ -58,7 +58,7 @@ data ProblemDescription
   = NameNotFound Name
   | FieldNotFound Name Value
   | NotARecord Value
-  | TypeMismatch SomeValueType Value
+  | NotAnArray Value
   deriving ( Show, Eq )
 
 data Problem = Problem

@@ -1,20 +1,17 @@
 {-# LANGUAGE StrictData #-}
-module Value where
+module Value ( Value(..) ) where
 
 import qualified Data.HashMap.Strict as Map
 import Data.Scientific
 import Text.Show
 
-import BaseMonad
 import List (List)
 import Syntax
 import Verbatim
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
-Effectively, templates are dynamically typed. There is some support
-for dynamic type-checking of function arguments: the type of the
-function's argument, represented by a 'ValueType', may be specified.
-Aside from functions, this is basically equivalent to Aeson's @Value@
+Effectively, templates are dynamically typed. Aside from the absence of null,
+this is basically equivalent to Aeson's @Value@
 type.-}
 data Value where
   Number :: Scientific -> Value
@@ -37,39 +34,6 @@ instance Eq Value where
     a1 == a2
   _ == _ =
     False
-
-{-| A representation of the type that a 'Value' may have. This is
-used primarily for checking of the type of function arguments. The
-type variable 't' is a type index corresponding to the underlying
-type contained in the relevant 'Value' data constructor.-}
-data ValueType t where
-  NumberT :: ValueType Scientific
-  StringT :: ValueType Text
-  BooleanT :: ValueType Bool
-  ArrayT :: ValueType (List Value)
-  RecordT :: ValueType (HashMap Name Value)
-
-{-| An existentialized 'ValueType', so you can compare them
-for equality, have a list of them, etc.-}
-data SomeValueType where
-  SomeValueType :: ValueType t -> SomeValueType
-
-instance Eq SomeValueType where
-  (SomeValueType NumberT) == (SomeValueType NumberT) = True
-  (SomeValueType StringT) == (SomeValueType StringT) = True
-  (SomeValueType BooleanT) == (SomeValueType BooleanT) = True
-  (SomeValueType ArrayT) == (SomeValueType ArrayT) = True
-  (SomeValueType RecordT) == (SomeValueType RecordT) = True
-  _ == _ = False
-
-instance Show SomeValueType where
-  showsPrec _prec (SomeValueType vt) = case vt of
-    NumberT -> s "number"
-    StringT -> s "text"
-    BooleanT -> s "bool"
-    ArrayT -> s "array"
-    RecordT -> s "record"
-    where s = (Prelude.++)
 
 instance Show Value where
   showsPrec prec = \case

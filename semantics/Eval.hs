@@ -79,7 +79,7 @@ evalStatement = \case
           (Map.insert var item)
           (List.concat <$> for (List.fromList body) evalStatement))
       _ ->
-        zutAlors (TypeMismatch (SomeValueType ArrayT) val)
+        zutAlors (NotAnArray val)
   Optionally _sp var expr body -> do
     val <- handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr)
     case val of
