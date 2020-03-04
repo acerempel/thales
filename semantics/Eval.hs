@@ -5,14 +5,14 @@ module Eval
   )
 where
 
-import Data.Traversable
 import qualified Data.HashMap.Strict as Map
 
 import Eval.Expr
-import List (List)
+import Eval.Statement
 import qualified List
 import Syntax
 import Value
+import Verbatim
 
 evalSubExpr :: AddProblemContext -> Expr -> ExprM Value
 evalSubExpr f = evalExpr (Just f)
@@ -57,31 +57,48 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-evalStatement :: Statement -> ExprM (List Value)
+evalStatement :: Statement -> StmtM ()
 evalStatement = \case
+
   VerbatimS verb ->
-    return $ List.singleton (Verbatim verb)
-  ExprS _sp expr ->
-    List.singleton <$> evalTopExpr expr
+    addOutput verb
+
+  ExprS _sp expr -> do
+    text <- liftExprM $ do
+      val <- evalTopExpr expr
+      case val of
+        String text ->
+          return (escape text)
+        _ ->
+          zutAlors (NotText val)
+    addOutput text
+
   ForS _sp var expr body -> do
-    val <- evalTopExpr expr
-    case val of
-      Array vec ->
-        List.concat <$>
-        for vec (\item ->
-          addLocalBindings
-          [(var, item)]
-          (List.concat <$> for (List.fromList body) evalStatement))
-      _ ->
-        zutAlors (NotAnArray val)
+    arr <- liftExprM $ do
+      val <- evalTopExpr expr
+      case val of
+        Array vec ->
+          return vec
+        _ ->
+          zutAlors (NotAnArray val)
+    for_ arr $ \val ->
+      for_ body $ \stmt ->
+        addLocalBinding var val $ evalStatement stmt
+
   Optionally _sp var expr body -> do
-    val <- handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr)
-    case val of
-      Nothing -> return List.empty
-      Just v ->
-        addLocalBindings
-        [(var, v)]
-        (List.concat <$> for (List.fromList body) evalStatement)
+    mb_val <- liftExprM $
+      handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr)
+    case mb_val of
+      Nothing ->
+        pure ()
+      Just val ->
+        for_ body $ \stmt ->
+          addLocalBinding var val $ evalStatement stmt
+
+  _ -> liftExprM $ zutAlors undefined
+
+  {-
   Optional sp expr ->
     let dummyName = "____" in
     evalStatement (Optionally sp dummyName expr [ExprS sp (NameE dummyName)])
+    -}

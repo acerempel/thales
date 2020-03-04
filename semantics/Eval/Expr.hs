@@ -61,6 +61,7 @@ data ProblemDescription
   | FieldNotFound Name Value
   | NotARecord Value
   | NotAnArray Value
+  | NotText Value
   deriving ( Show, Eq )
 
 data Problem = Problem

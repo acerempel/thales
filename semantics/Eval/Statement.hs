@@ -1,6 +1,6 @@
 module Eval.Statement
   ( StmtM, runStmtM
-  , addOutput, addBinding, addBindings
+  , addOutput, addBinding, addBindings, addLocalBinding
   , liftExprM
   )
 where
@@ -17,6 +17,7 @@ import Data.Validation as Validation
 import BaseMonad
 import Eval.Expr
 import Value
+import Verbatim
 
 newtype StmtM a = StmtM
   { unStmtM :: Bindings -> M (WriterT ResultAccum (Validation (DList Problem)) a) }
@@ -41,6 +42,23 @@ instance Applicative StmtM where
   (StmtM mf) <*> (StmtM ma) =
     StmtM $ \b -> liftA2 (<*>) (mf b) (ma b)
 
+instance Monad StmtM where
+  (StmtM m) >>= f =
+    StmtM $ \binds ->
+      m binds >>= \w ->
+        case runWriterT w of
+          Validation.Failure problems ->
+            pure $ WriterT (Validation.Failure problems)
+          Validation.Success (a, accum) ->
+            case f a of
+              StmtM m' ->
+                m' binds >>= \w' -> pure $ WriterT $
+                  case runWriterT w' of
+                    Validation.Failure problems' ->
+                      Validation.Failure problems'
+                    Validation.Success (b, accum') ->
+                      Validation.Success (b, accum <> accum')
+
 runStmtM :: StmtM a -> Bindings -> M (Validation (DList Problem) (a, Bindings, Builder))
 runStmtM (StmtM m) b = do
   w <- m b
@@ -48,13 +66,17 @@ runStmtM (StmtM m) b = do
         (a, tplBindings, DList.foldr (<>) mempty tplOutput)
   return (fmap massage (runWriterT w))
 
-addOutput :: Builder -> StmtM ()
+addOutput :: Verbatim -> StmtM ()
 addOutput o =
-  StmtM (\_ -> pure (tell (Result Map.empty (DList.singleton o))))
+  StmtM (\_ -> pure (tell (Result Map.empty (DList.singleton (fromVerbatim o)))))
 
 addBinding :: Name -> Value -> StmtM ()
 addBinding n v =
   StmtM (\_ -> pure (tell (Result (Map.singleton n v) mempty)))
+
+addLocalBinding :: Name -> Value -> StmtM a -> StmtM a
+addLocalBinding n v (StmtM m) =
+  StmtM (m . Map.insert n v)
 
 addBindings :: [(Name, Value)] -> StmtM ()
 addBindings binds =
