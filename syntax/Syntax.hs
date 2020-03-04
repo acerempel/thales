@@ -11,22 +11,42 @@ import Verbatim
 
 type Name = Text
 
-{- TODO: This ADT will have to have to have all constructors tagged
-with 'SourcePos' for error reporting. -}
 {- TODO: Replace 'Expr' with a type variable, so that it can be replaced
 with the result of evaluating the expression.-}
+-- | The things that can occur at the top level of a template. They are all
+-- expected to produce some string output somehow.
 data Statement
+  -- | A piece of verbatim text, to appear in the same place in the output.
   = VerbatimS Verbatim
+  -- | An expression, which should be evaluated, the result expected to be a
+  -- 'Text', which is then spliced into the output.
   | ExprS SourcePos Expr
+  -- | Iterate over the element in the 'Expr', which is expected to evaluate to
+  -- a 'List', and in each iteration bind the element to 'Name', and evaluate
+  -- the '[Statement]' in that context.
   | ForS SourcePos Name Expr [Statement]
+  -- | Evaluate the expression; if an error occurs -- e.g. if a variable is not
+  -- found -- then simply output nothing, rather than propogate the error.
   | Optional SourcePos Expr
+  -- | Like 'Optional', but if evaluating the expression is successful, bind the
+  -- result to the 'Name', and evaluate the '[Statement]'s in that context.
   | Optionally SourcePos Name Expr [Statement]
   deriving ( Show, Eq )
 
+-- | An expression. The expression language is quite limited at the moment, but
+-- I imagine I will expand it a bit. The H in 'ExprH' stands for "higher-order"
+-- -- in reference to the @f@ type parameter, which has the kind @'Type' ->
+-- Type@. It is used to wrap recursive uses of 'ExprH', with the purpose of
+-- allowing flexibility in representing different states of the syntax tree. 
+-- See Eval.hs for an example of its use.
 data ExprH f
+  -- | A literal thing of data, like @10.2@.
   = LiteralE Literal
+  -- | An array of expressions, like @[1, "seven", [2]]@.
   | ArrayE (List (f (ExprH f)))
+  -- | A field access, like @post.description@.
   | FieldAccessE Name (f (ExprH f))
+  -- | A bare name, like @potato@.
   | NameE Name
 
 instance Show1 f => Show (ExprH f) where
@@ -60,10 +80,14 @@ instance Eq1 f => Eq (ExprH f) where
   _ == _ =
     False
 
+-- | 'Id' is short for "Identity". This is like
+-- 'Data.Functor.Identity.Identity', but I redefined it here for some reason,
+-- possibly for the 'Show' instance, or possibly because the name is shorter.
 newtype Id a = Id
   { getId :: a }
   deriving newtype ( Show, Eq )
 
+-- | Note that the "Id" constructor is /not/ shown!
 instance Show1 Id where
   liftShowsPrec showsPrecA _showsListA prec (Id a) =
     showsPrecA prec a
@@ -74,6 +98,8 @@ instance Eq1 Id where
 
 type Expr = ExprH Id
 
+-- | A piece of literal scalar data -- cannot contain other expressions, simple,
+-- atomic.
 data Literal
   = NumberL Scientific
   | StringL Text
