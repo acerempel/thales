@@ -68,6 +68,8 @@ library semantics
       Display
     , Eval
     , Value
+  other-modules:
+      Eval.Expr
   signatures:
       BaseMonad
   build-depends:
