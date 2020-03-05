@@ -60,12 +60,12 @@ instance Monad StmtM where
                     Validation.Success (b, accum') ->
                       Validation.Success (b, accum <> accum')
 
-runStmtM :: StmtM a -> Bindings -> M (Validation (DList Problem) (a, Bindings, Builder))
+runStmtM :: StmtM () -> Bindings -> M (Either (DList Problem) (Bindings, Builder))
 runStmtM (StmtM m) b = do
   w <- m b
-  let massage (a, Result { tplBindings, tplOutput }) =
-        (a, tplBindings, DList.foldr (<>) mempty tplOutput)
-  return (fmap massage (runWriterT w))
+  let massage ((), Result { tplBindings, tplOutput }) =
+        (tplBindings, DList.foldr (<>) mempty tplOutput)
+  return (Validation.toEither $ fmap massage (runWriterT w))
 
 addOutput :: Verbatim -> StmtM ()
 addOutput o =
