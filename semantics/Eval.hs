@@ -1,7 +1,7 @@
 module Eval
   ( ExprM, Bindings
   , Problem(..), ProblemWhere(..), ProblemDescription(..)
-  , evalTopExpr, evalStatement, runExprM
+  , evalTopExpr, evalStatement, runExprM, runStmtM
   )
 where
 
