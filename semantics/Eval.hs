@@ -88,12 +88,9 @@ evalStatement = \case
   Optionally _sp var expr body -> do
     mb_val <- liftExprM $
       handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr)
-    case mb_val of
-      Nothing ->
-        pure ()
-      Just val ->
-        for_ body $ \stmt ->
-          addLocalBinding var val $ evalStatement stmt
+    whenJust mb_val $ \val ->
+      for_ body $ \stmt ->
+        addLocalBinding var val $ evalStatement stmt
 
   _ -> liftExprM $ zutAlors undefined
 
