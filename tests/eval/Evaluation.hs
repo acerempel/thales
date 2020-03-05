@@ -3,6 +3,7 @@
 import Test.Hspec
 
 import qualified Data.HashMap.Strict as Map
+import qualified Data.Text.Lazy.Builder as Builder
 import Text.Megaparsec (SourcePos(..), mkPos)
 
 import Eval
@@ -27,8 +28,9 @@ main = hspec $
     it "evaluates for statements" $ do
       let sp = SourcePos "tests-e/Evaluation.hs" (mkPos 1) (mkPos 1)
           stmt =
-            ForS sp "potato"
-              (ArrayE (List.map (Id . LiteralE . NumberL) [1,3,5,7]))
-              [ExprS sp (NameE "potato")]
-      result <- runExprM (evalStatement stmt) Map.empty
-      result `shouldBe` Right (List.map Number [1,3,5,7])
+            ForS sp "vegetable"
+              (ArrayE (List.map (Id . LiteralE . StringL)
+                ["leek", "potato", "turnip", "acorn squash"]))
+              [ExprS sp (NameE "vegetable"), VerbatimS ", "]
+      result <- runStmtM (evalStatement stmt) Map.empty
+      fmap (Builder.toLazyText . snd) result `shouldBe` Right "leek, potato, turnip, acorn squash, "

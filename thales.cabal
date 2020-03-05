@@ -144,4 +144,5 @@ test-suite evaluation
     , list-vector
     , megaparsec
     , hspec >= 2.5 && < 3
+    , text
     , unordered-containers
