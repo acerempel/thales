@@ -13,13 +13,9 @@ import qualified Data.HashMap.Strict as Map
 import Text.Show
 
 import BaseMonad
+import Eval.Bindings
 import Syntax
 import Value
-
--- | A 'Bindings' provides the bindings that are available at the top level
--- in a template. At the moment it is just a type synonym, but this will
--- probably change.
-type Bindings = HashMap Name Value
 
 newtype ExprM a = ExprM
   { unExprM :: ExceptT Problem (ReaderT Bindings M) a }
@@ -36,11 +32,11 @@ zutAlors prob = ExprM (throwE (Problem Nowhere prob))
 lookup :: Name -> ExprM (Maybe Value)
 lookup n = ExprM (asks (Map.lookup n))
 
-addLocalBindings :: [(Name, Value)] -> ExprM a -> ExprM a
-addLocalBindings binds (ExprM r) =
-  -- 'binds' has to be the first argument to 'Map.union', so that we can shadow
-  -- existing bindings -- 'Map.union' is left-biased.
-  ExprM (local (Map.fromList binds `Map.union`) r)
+instance HasLocalBindings ExprM where
+  addLocalBindings binds (ExprM r) =
+    -- 'binds' has to be the first argument to 'Map.union', so that we can shadow
+    -- existing bindings -- 'Map.union' is left-biased.
+    ExprM (local (Map.fromList binds `Map.union`) r)
 
 handleZut :: (Problem -> ExprM a) -> ExprM a -> ExprM a
 handleZut handler (ExprM m) = ExprM (catchE m (unExprM . handler))

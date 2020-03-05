@@ -70,7 +70,8 @@ library semantics
       Display
     , Eval
   other-modules:
-      Eval.Expr
+      Eval.Bindings
+    , Eval.Expr
     , Eval.Statement
   signatures:
       BaseMonad

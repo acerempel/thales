@@ -7,6 +7,7 @@ where
 
 import qualified Data.HashMap.Strict as Map
 
+import Eval.Bindings
 import Eval.Expr
 import Eval.Statement
 import qualified List

@@ -1,6 +1,6 @@
 module Eval.Statement
   ( StmtM, runStmtM
-  , addOutput, addBinding, addBindings, addLocalBinding
+  , addOutput, addBinding, addBindings
   , liftExprM
   )
 where
@@ -15,6 +15,7 @@ import Data.Text.Lazy.Builder
 import Data.Validation as Validation
 
 import BaseMonad
+import Eval.Bindings
 import Eval.Expr
 import Value
 import Verbatim
@@ -70,13 +71,17 @@ addOutput :: Verbatim -> StmtM ()
 addOutput o =
   StmtM (\_ -> pure (tell (Result Map.empty (DList.singleton (fromVerbatim o)))))
 
+instance HasLocalBindings StmtM where
+
+  addLocalBindings binds (StmtM m) =
+    StmtM (m . (Map.fromList binds `Map.union`))
+
+  addLocalBinding n v (StmtM m) =
+    StmtM (m . Map.insert n v)
+
 addBinding :: Name -> Value -> StmtM ()
 addBinding n v =
   StmtM (\_ -> pure (tell (Result (Map.singleton n v) mempty)))
-
-addLocalBinding :: Name -> Value -> StmtM a -> StmtM a
-addLocalBinding n v (StmtM m) =
-  StmtM (m . Map.insert n v)
 
 addBindings :: [(Name, Value)] -> StmtM ()
 addBindings binds =
