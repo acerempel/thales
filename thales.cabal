@@ -146,3 +146,19 @@ test-suite evaluation
     , hspec >= 2.5 && < 3
     , text
     , unordered-containers
+
+test-suite everything
+  import:         stuff
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: tests/everything
+  main-is:        Main.hs
+  build-depends:
+      semantics
+    , syntax
+    , basemonad-io
+    , list-seq
+    , filepath >= 1.4 && < 2.0
+    , megaparsec
+    , tasty >= 1.1.0.3 && < 2.0
+    , tasty-golden >= 2.3 && < 2.4
+    , text
