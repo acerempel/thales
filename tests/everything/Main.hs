@@ -25,16 +25,15 @@ createGoldenTest tplFile =
     (replaceExtension tplFile ".html")
     (runTemplate tplFile)
 
-runTemplate tplPath =
-  (>>= either throwIO return) $ runExceptT $ do
-    input  <- lift $ Text.readFile tplPath
-    parsed <- ExceptT $ pure $
-              first (toException . ParseError . errorBundlePretty) $
-              parseTemplate defaultDelimiters tplPath input
-    eval'd <- ExceptT $
-              first (toException . EvalError . toList) . second snd <$>
-              runStmtM (for_ parsed evalStatement) mempty
-    return $ Text.encodeUtf8 $ Builder.toLazyText eval'd
+runTemplate tplPath = do
+  input  <- Text.readFile tplPath
+  parsed <- either throwIO pure $
+            first (ParseError . errorBundlePretty) $
+            parseTemplate defaultDelimiters tplPath input
+  eval'd <- (>>= either throwIO pure) $
+            first (EvalError . toList) . second snd <$>
+            runStmtM (for_ parsed evalStatement) mempty
+  return $ Text.encodeUtf8 $ Builder.toLazyText eval'd
 
 newtype TplParseError =
   ParseError String
