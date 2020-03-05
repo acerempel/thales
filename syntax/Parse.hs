@@ -128,6 +128,7 @@ exprP = do
     <|> ArrayE . coerce . List.fromList
         <$> bracketsP (sepEndBy exprP (specialCharP ','))
     <|> LiteralE <$> numberP
+    <|> LiteralE <$> stringP
     <|> NameE <$> nameP
   fields <- many (specialCharP '.' *> nameP)
   return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
@@ -137,6 +138,13 @@ exprP = do
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space
+
+stringP :: Parser Literal
+stringP = do
+  specialCharP '"'
+  str <- takeWhileP (Just "any character other than '\"'") (/= '"')
+  specialCharP '"'
+  return (StringL str)
 
 -- TODO: parse other kinds of exprs!
 
