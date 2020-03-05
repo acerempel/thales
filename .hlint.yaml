@@ -76,6 +76,8 @@
     - Use tuple-section
     - Use first
     - Use second
+    - Use hierarchical imports
+    - Redundant lambda
 
 # Define some custom infix operators
 # - fixity: infixr 3 ~^#^~
