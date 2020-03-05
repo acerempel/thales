@@ -41,6 +41,7 @@ defaultDelimiters :: Delimiters
 defaultDelimiters = Delimiters "{" "}"
 
 -- TODO: put this somewhere else.
+{-| For ad-hoc manual testing purposes. -}
 parse :: Text -> Either String [Statement]
 parse =
   first errorBundlePretty .
@@ -121,6 +122,8 @@ forP sp = do
   array <- exprP
   return (BlockS $ ForS sp itemName array)
 
+-- TODO: Parsing of record literals, record updates, array indexes, add back
+-- some form of application.
 exprP :: Parser Expr
 exprP = do
   expr <-
@@ -145,8 +148,6 @@ stringP = do
   str <- takeWhileP (Just "any character other than '\"'") (/= '"')
   specialCharP '"'
   return (StringL str)
-
--- TODO: parse other kinds of exprs!
 
 specialCharP :: Char -> Parser ()
 specialCharP c = single c >> space
