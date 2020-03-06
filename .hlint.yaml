@@ -73,6 +73,7 @@
     - Eta reduce
     - Use bimap
     - Use fmap
+    - "Use <$>"
     - Use tuple-section
     - Use first
     - Use second
