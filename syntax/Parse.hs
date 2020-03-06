@@ -48,10 +48,16 @@ data PartialStatement
 
 {-| Our parser monad. This is a newtype over Megaparsec's 'ParsecT' type. -}
 newtype Parser a = Parser
-  { unParser :: ParsecT Void Text (Reader Delimiters) a }
+  { unParser :: ParsecT InternalError Text (Reader Delimiters) a }
   deriving ( Monad, Applicative, Functor, Alternative, MonadPlus )
 
-deriving instance MonadParsec Void Text Parser
+deriving instance MonadParsec InternalError Text Parser
+
+data InternalError = InternalError
+  deriving stock ( Ord, Eq, Show )
+
+instance ShowErrorComponent InternalError where
+  showErrorComponent InternalError = "Internal error!"
 
 {-| A default set of delimiters -- @{ ... }@. -}
 defaultDelimiters :: Delimiters
@@ -71,14 +77,14 @@ parseTemplate ::
   FilePath ->
   -- | The input.
   Text ->
-  Either (ParseErrorBundle Text Void) [Statement]
+  Either (ParseErrorBundle Text InternalError) [Statement]
 parseTemplate =
   runParser templateP
 
 {-| Run an arbitrary parser. Currently this module only exports two parsers,
 namely 'templateP' and 'exprP', for parsing an entire template and an
 expression respectively.-}
-runParser :: Parser a -> Delimiters -> FilePath -> Text -> Either (ParseErrorBundle Text Void) a
+runParser :: Parser a -> Delimiters -> FilePath -> Text -> Either (ParseErrorBundle Text InternalError) a
 runParser parser delims name input =
   let r = runParserT (unParser parser) name input
   in runReader r delims
@@ -137,9 +143,12 @@ keywordP ident = do
   space
 
 nameP :: Parser Name
-nameP = label "name" $
+nameP = label "name" $ do
   -- TODO: fail if is keyword.
-  takeWhile1P (Just "identifier character") isIdChar <* space
+  ident <- takeWhile1P (Just "identifier character") isIdChar <* space
+  case NonEmptyText.fromText ident of
+    Just net -> return $ Name net
+    Nothing  -> customFailure InternalError
 
 forP :: SourcePos -> Parser PartialStatement
 forP sp = do

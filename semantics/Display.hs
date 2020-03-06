@@ -34,9 +34,9 @@ instance DisplayH ExprH where
           ((toList . List.map (liftDisplay display Loose)) vec)
       <+> rbracket
     FieldAccessE n a ->
-      group $ liftDisplay display Tight a <> line' <> dot <> pretty n
+      group $ liftDisplay display Tight a <> line' <> dot <> display prec n
     NameE n ->
-      pretty n
+      display prec n
 
 instance Display1 Id where
   liftDisplay displayA prec (Id a) =
@@ -47,3 +47,7 @@ instance Display Literal where
     NumberL n -> unsafeViaShow n
     StringL s -> pretty s
     BooleanL b -> unsafeViaShow b
+
+instance Display Name where
+  display _prec (Name net) =
+    unsafeViaShow net

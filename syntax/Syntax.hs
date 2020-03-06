@@ -11,6 +11,7 @@ import Data.Scientific
 import Text.Megaparsec
 import Text.Show
 
+import NonEmptyText
 import List (List)
 import Verbatim
 
@@ -21,7 +22,8 @@ import Verbatim
 -- (Currently there is no way to bind a value to a name within a template -- it
 -- must already exist in the context in which the template is evaluated. This is
 -- a TODO.)
-type Name = Text
+newtype Name = Name { fromName :: NonEmptyText }
+  deriving newtype ( Eq, Ord, Show, Hashable, NFData, IsString )
 
 {- TODO: Replace 'Expr' with a type variable, so that it can be replaced
 with the result of evaluating the expression.-}
