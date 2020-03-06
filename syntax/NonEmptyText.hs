@@ -9,7 +9,7 @@ import qualified Data.Text as Text
 
 newtype NonEmptyText =
   NonEmptyText { fromNonEmptyText :: Text }
-  deriving newtype ( Eq, Ord, Semigroup, Monoid, IsString, Show )
+  deriving newtype ( Eq, Ord, Semigroup, Monoid, IsString, Show, Hashable, NFData )
 
 nonEmptyText :: Text -> Maybe NonEmptyText
 nonEmptyText t =
