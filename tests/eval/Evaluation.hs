@@ -6,6 +6,7 @@ import qualified Data.HashMap.Strict as Map
 import qualified Data.Text.Lazy.Builder as Builder
 import Text.Megaparsec (SourcePos(..), mkPos)
 
+import qualified Bindings
 import Eval
 import qualified List
 import Syntax
@@ -15,13 +16,13 @@ main = hspec $
   describe "Evaluation" $ do
     it "evaluates names to their bindings" $ do
       let expr = NameE "potato"
-          bindings = Map.singleton "potato" (Number 3)
+          bindings = Bindings.singleton "potato" (Number 3)
       result <- runExprM (evalTopExpr expr) bindings
       result `shouldBe` Right (Number 3)
     it "evaluates field accesses" $ do
       let expr = FieldAccessE "potato" (Id (NameE "vegetables"))
           bindings =
-            Map.singleton "vegetables"
+            Bindings.singleton "vegetables"
             (Record (Map.singleton "potato" (Number 7)))
       result <- runExprM (evalTopExpr expr) bindings
       result `shouldBe` Right (Number 7)
@@ -32,5 +33,5 @@ main = hspec $
               (ArrayE (List.map (Id . LiteralE . StringL)
                 ["leek", "potato", "turnip", "acorn squash"]))
               [ExprS sp (NameE "vegetable"), VerbatimS ", "]
-      result <- runStmtM (evalStatement stmt) Map.empty
+      result <- runStmtM (evalStatement stmt) Bindings.empty
       fmap (Builder.toLazyText . snd) result `shouldBe` Right "leek, potato, turnip, acorn squash, "

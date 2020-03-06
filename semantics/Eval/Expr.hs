@@ -3,17 +3,16 @@ module Eval.Expr
   , Problem(..), ProblemWhere(..)
   , ProblemDescription(..), AddProblemContext
   , zutAlors, handleZut, mapZut, addProblemSource
-  , lookup, addLocalBindings, liftEval
+  , lookupName, addLocalBindings, liftEval
   )
 where
 
 import Control.Monad.Trans.Except
 import Data.Functor.Classes
-import qualified Data.HashMap.Strict as Map
 import Text.Show
 
 import BaseMonad
-import Eval.Bindings
+import Bindings
 import Syntax
 import Value
 
@@ -29,14 +28,14 @@ runExprM (ExprM m) bindings =
 zutAlors :: ProblemDescription -> ExprM a
 zutAlors prob = ExprM (throwE (Problem Nowhere prob))
 
-lookup :: Name -> ExprM (Maybe Value)
-lookup n = ExprM (asks (Map.lookup n . getBindings))
+lookupName :: Name -> ExprM (Maybe Value)
+lookupName n = ExprM (asks (Bindings.lookup n))
 
 instance HasLocalBindings ExprM where
   addLocalBindings binds (ExprM r) =
     -- 'binds' has to be the first argument to 'Map.union', so that we can shadow
     -- existing bindings -- 'Map.union' is left-biased.
-    ExprM (local (coerce (Map.fromList binds `Map.union`)) r)
+    ExprM (local (Bindings.fromList binds `Bindings.union`) r)
 
 handleZut :: (Problem -> ExprM a) -> ExprM a -> ExprM a
 handleZut handler (ExprM m) = ExprM (catchE m (unExprM . handler))

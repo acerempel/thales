@@ -67,11 +67,11 @@ library semantics
   import:         stuff
   hs-source-dirs: semantics
   exposed-modules:
-      Display
+      Bindings
+    , Display
     , Eval
   other-modules:
-      Eval.Bindings
-    , Eval.Expr
+      Eval.Expr
     , Eval.Statement
   signatures:
       BaseMonad
@@ -156,7 +156,8 @@ test-suite everything
       semantics
     , syntax
     , basemonad-io
-    , list-seq
+    , list-vector
+    , directory >= 1.3.2.2 && < 1.4
     , filepath >= 1.4 && < 2.0
     , megaparsec
     , tasty >= 1.1.0.3 && < 2.0

@@ -1,4 +1,4 @@
-module Eval.Bindings where
+module Bindings where
 
 import qualified Data.HashMap.Strict as Map
 
@@ -28,6 +28,9 @@ singleton n v = Bindings (Map.singleton n v)
 
 empty :: Bindings
 empty = Bindings Map.empty
+
+lookup :: Name -> Bindings -> Maybe Value
+lookup n = Map.lookup n . getBindings
 
 class HasLocalBindings m where
 

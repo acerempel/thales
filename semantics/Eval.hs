@@ -7,7 +7,7 @@ where
 
 import qualified Data.HashMap.Strict as Map
 
-import Eval.Bindings
+import Bindings
 import Eval.Expr
 import Eval.Statement
 import qualified List
@@ -26,7 +26,7 @@ evalExpr mContext expr =
  maybe id mapZut mContext . addProblemSource expr $ case expr of
 
   NameE name -> do
-    mVal <- lookup name
+    mVal <- lookupName name
     case mVal of
       Just val -> return val
       Nothing -> zutAlors (NameNotFound name)

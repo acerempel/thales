@@ -14,7 +14,7 @@ import Data.Text.Lazy.Builder
 import Data.Validation as Validation
 
 import BaseMonad
-import Eval.Bindings as Bindings
+import Bindings
 import Eval.Expr
 import Value
 import Verbatim
