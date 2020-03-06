@@ -10,12 +10,11 @@ import Prelude hiding (foldr)
 import Control.Applicative.Writer
 import Data.DList (DList)
 import qualified Data.DList as DList
-import qualified Data.HashMap.Strict as Map
 import Data.Text.Lazy.Builder
 import Data.Validation as Validation
 
 import BaseMonad
-import Eval.Bindings
+import Eval.Bindings as Bindings
 import Eval.Expr
 import Value
 import Verbatim
@@ -29,10 +28,10 @@ data ResultAccum = Result
 
 instance Semigroup ResultAccum where
   Result tb1 to1 <> Result tb2 to2 =
-    Result (tb1 `Map.union` tb2) (to1 <> to2)
+    Result (tb1 `Bindings.union` tb2) (to1 <> to2)
 
 instance Monoid ResultAccum where
-  mempty = Result Map.empty mempty
+  mempty = Result Bindings.empty mempty
 
 instance Functor StmtM where
   fmap f (StmtM m) =
@@ -69,23 +68,23 @@ runStmtM (StmtM m) b = do
 
 addOutput :: Verbatim -> StmtM ()
 addOutput o =
-  StmtM (\_ -> pure (tell (Result Map.empty (DList.singleton (fromVerbatim o)))))
+  StmtM (\_ -> pure (tell (Result Bindings.empty (DList.singleton (fromVerbatim o)))))
 
 instance HasLocalBindings StmtM where
 
   addLocalBindings binds (StmtM m) =
-    StmtM (m . (Map.fromList binds `Map.union`))
+    StmtM (m . (Bindings.fromList binds `Bindings.union`))
 
   addLocalBinding n v (StmtM m) =
-    StmtM (m . Map.insert n v)
+    StmtM (m . Bindings.insert n v)
 
 addBinding :: Name -> Value -> StmtM ()
 addBinding n v =
-  StmtM (\_ -> pure (tell (Result (Map.singleton n v) mempty)))
+  StmtM (\_ -> pure (tell (Result (Bindings.singleton n v) mempty)))
 
 addBindings :: [(Name, Value)] -> StmtM ()
 addBindings binds =
-  StmtM (\_ -> pure (tell (Result (Map.fromList binds) mempty)))
+  StmtM (\_ -> pure (tell (Result (Bindings.fromList binds) mempty)))
 
 liftExprM :: ExprM a -> StmtM a
 liftExprM expr =

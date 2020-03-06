@@ -30,13 +30,13 @@ zutAlors :: ProblemDescription -> ExprM a
 zutAlors prob = ExprM (throwE (Problem Nowhere prob))
 
 lookup :: Name -> ExprM (Maybe Value)
-lookup n = ExprM (asks (Map.lookup n))
+lookup n = ExprM (asks (Map.lookup n . getBindings))
 
 instance HasLocalBindings ExprM where
   addLocalBindings binds (ExprM r) =
     -- 'binds' has to be the first argument to 'Map.union', so that we can shadow
     -- existing bindings -- 'Map.union' is left-biased.
-    ExprM (local (Map.fromList binds `Map.union`) r)
+    ExprM (local (coerce (Map.fromList binds `Map.union`)) r)
 
 handleZut :: (Problem -> ExprM a) -> ExprM a -> ExprM a
 handleZut handler (ExprM m) = ExprM (catchE m (unExprM . handler))

@@ -162,3 +162,4 @@ test-suite everything
     , tasty >= 1.1.0.3 && < 2.0
     , tasty-golden >= 2.3 && < 2.4
     , text
+    , yaml >= 0.11.1.2 && < 0.12
