@@ -1,10 +1,9 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 import Test.Hspec
 import Test.Hspec.Megaparsec
-import qualified Data.Text as Text
 import Text.Megaparsec (SourcePos(..), mkPos)
 
-import NonEmptyText
+import qualified NonEmptyText
 import Parse
 import Syntax
 import Verbatim
@@ -19,7 +18,7 @@ parseTest p delims =
   runParser p delims "tests/Parsing.hs"
 
 within Delimiters{..} a =
-  fromNonEmptyText begin <> a <> fromNonEmptyText end
+  NonEmptyText.toText begin <> a <> NonEmptyText.toText end
 
 delimSets =
   [ Delimiters "{" "}"
@@ -53,9 +52,9 @@ testStmtParser delims =
   describe ("with delimiters " <> show delims) $ do
     let mkSP l c = SourcePos "tests/Parsing.hs" (mkPos l) (mkPos c)
         beginDelimLength =
-          (Text.length . fromNonEmptyText) (begin delims)
+          NonEmptyText.length (begin delims)
         endDelimLength =
-          (Text.length . fromNonEmptyText) (end delims)
+          NonEmptyText.length (end delims)
     describe "statement parser" $ do
       it "parses 'for' blocks" $
         let p1 = "<p>I am this potato: "

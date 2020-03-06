@@ -1,20 +1,23 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 {-# LANGUAGE BangPatterns #-}
+{-|
+Description : Provides a 'NonEmptyText' datatype for 'Text' that cannot be empty.
+-}
 module NonEmptyText
-  ( NonEmptyText, nonEmptyText, fromNonEmptyText
-  , head, tail )
+  ( NonEmptyText, fromText, toText
+  , head, tail, foldr, foldl', length )
 where
 
-import Prelude hiding (head, tail)
+import Prelude hiding (head, tail, foldl', foldr, toText, length)
 import qualified Data.Text as Text
 
 {-| This is simply 'Text', but it cannot be empty! -}
 newtype NonEmptyText =
-  NonEmptyText { fromNonEmptyText :: Text }
+  NonEmptyText { toText :: Text }
   deriving newtype ( Eq, Ord, Semigroup, Monoid, Show, Hashable, NFData )
 
-nonEmptyText :: Text -> Maybe NonEmptyText
-nonEmptyText !t =
+fromText :: Text -> Maybe NonEmptyText
+fromText !t =
   if Text.null t
     then Nothing
     else Just (NonEmptyText t)
@@ -28,6 +31,10 @@ instance IsString NonEmptyText where
       _ ->
         NonEmptyText (fromString str)
 
-head = Text.head . fromNonEmptyText
+head = Text.head . toText
 
-tail = Text.tail . fromNonEmptyText
+tail = Text.tail . toText
+
+foldr f a net = Text.foldr f a (toText net)
+foldl' f a net = Text.foldl' f a (toText net)
+length = Text.length . toText

@@ -25,7 +25,8 @@ import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (scientific)
 
 import qualified List
-import NonEmptyText
+import NonEmptyText (NonEmptyText)
+import qualified NonEmptyText
 import Syntax
 import Verbatim
 
@@ -84,11 +85,11 @@ runParser parser delims name input =
 
 getBeginDelim :: Parser Text
 getBeginDelim =
-  Parser (asks (fromNonEmptyText . begin))
+  Parser (asks (NonEmptyText.toText . begin))
 
 getEndDelim :: Parser Text
 getEndDelim =
-  Parser (asks (fromNonEmptyText . end))
+  Parser (asks (NonEmptyText.toText . end))
 
 blockP, templateP :: Parser [Statement]
 blockP = syntaxP True
