@@ -9,13 +9,22 @@ import qualified Data.Text as Text
 
 newtype NonEmptyText =
   NonEmptyText { fromNonEmptyText :: Text }
-  deriving newtype ( Eq, Ord, Semigroup, Monoid, IsString, Show, Hashable, NFData )
+  deriving newtype ( Eq, Ord, Semigroup, Monoid, Show, Hashable, NFData )
 
 nonEmptyText :: Text -> Maybe NonEmptyText
 nonEmptyText t =
   if Text.length t < 1
     then Nothing
     else Just (NonEmptyText t)
+
+instance IsString NonEmptyText where
+  -- | Calls 'error' if the given 'String' is empty.
+  fromString str =
+    case str of
+      [] ->
+        error "NonEmptyText.fromString: given String is empty!"
+      _ ->
+        NonEmptyText (fromString str)
 
 head = Text.head . fromNonEmptyText
 
