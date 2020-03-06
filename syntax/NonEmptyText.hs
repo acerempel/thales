@@ -12,8 +12,8 @@ newtype NonEmptyText =
   deriving newtype ( Eq, Ord, Semigroup, Monoid, Show, Hashable, NFData )
 
 nonEmptyText :: Text -> Maybe NonEmptyText
-nonEmptyText t =
-  if Text.length t < 1
+nonEmptyText !t =
+  if Text.null t
     then Nothing
     else Just (NonEmptyText t)
 
