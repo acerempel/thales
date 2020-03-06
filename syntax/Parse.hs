@@ -1,3 +1,14 @@
+{-|
+Description : The parser for this template language.
+
+This is the parser! You use it by calling the 'parseTemplate' function with the
+appropriate arguments. You must select the delimiters (which set template
+statments and expressions off from text to be included verbatim) yourself; this
+is the 'Delimiters' datatype.
+
+A small handful of other names are exported – these are just so that they can be
+tested; consumers of this module should not normally need them.
+-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 module Parse
   ( Parser, runParser, parse, parseTemplate
@@ -26,8 +37,12 @@ data Delimiters = Delimiters
   , end :: NonEmptyText }
   deriving Show
 
+-- | A statement that may enclose a block of further statements (or may not).
 data PartialStatement
+  -- | A block statement -- takes a block of statements as an argument, like
+  -- @for@. An @end@ statement signifies the end of the block.
   = BlockS ([Statement] -> Statement)
+  -- | A standalone statement, like an expression.
   | StandaloneS Statement
 
 {-| Our parser monad. This is a newtype over Megaparsec's 'ParsecT' type. -}
@@ -37,6 +52,7 @@ newtype Parser a = Parser
 
 deriving instance MonadParsec Void Text Parser
 
+{-| A default set of delimiters -- @{ ... }@. -}
 defaultDelimiters :: Delimiters
 defaultDelimiters = Delimiters "{" "}"
 
@@ -47,10 +63,20 @@ parse =
   first errorBundlePretty .
   runParser templateP defaultDelimiters "goof"
 
-parseTemplate :: Delimiters -> FilePath -> Text -> Either (ParseErrorBundle Text Void) [Statement]
+{-| Parse a template. This is simple @'runParser' 'templateP'@. -}
+parseTemplate ::
+  Delimiters ->
+  -- | The filename -- used for error messages.
+  FilePath ->
+  -- | The input.
+  Text ->
+  Either (ParseErrorBundle Text Void) [Statement]
 parseTemplate =
   runParser templateP
 
+{-| Run an arbitrary parser. Currently this module only exports two parsers,
+namely 'templateP' and 'exprP', for parsing an entire template and an
+expression respectively.-}
 runParser :: Parser a -> Delimiters -> FilePath -> Text -> Either (ParseErrorBundle Text Void) a
 runParser parser delims name input =
   let r = runParserT (unParser parser) name input
@@ -70,7 +96,7 @@ templateP = syntaxP False
 
 syntaxP :: Bool -> Parser [Statement]
 syntaxP inBlock =
-  return [] <* endP
+  [] <$ endP
     <|> ((:) <$> statementP <*> syntaxP inBlock)
     <|> ((:) <$> fmap VerbatimS ((<>) <$> fmap preEscapedSingleton anySingle <*> verbatimP) <*> syntaxP inBlock)
   where
@@ -85,7 +111,7 @@ statementP :: Parser Statement
 statementP = label "statement" $ do
   statem <- withinDelims $ do
     sp <- getSourcePos
-    forP sp <|> (StandaloneS . ExprS sp) <$> exprP
+    forP sp <|> StandaloneS . ExprS sp <$> exprP
   case statem of
     BlockS continuation ->
       continuation <$> blockP
@@ -124,6 +150,7 @@ forP sp = do
 
 -- TODO: Parsing of record literals, record updates, array indexes, add back
 -- some form of application.
+{-| Parse an expression. Only exported for testing purposes. -}
 exprP :: Parser Expr
 exprP = do
   expr <-

@@ -1,3 +1,9 @@
+{-|
+Description : The definition of the abstract syntax tree.
+
+I dunno, this is pretty self-explanatory. The only interesting thing is 'ExprH' –
+see the "Eval.Expr" module for how the parameter to that type is used.
+-}
 module Syntax where
 
 import Data.Functor.Classes
@@ -8,6 +14,13 @@ import Text.Show
 import List (List)
 import Verbatim
 
+-- | A name, to which a value may be bound. This is the sort of thing that is
+-- usually called a variable, except that these names are strictly immutable –
+-- they simply refer to values.
+--
+-- (Currently there is no way to bind a value to a name within a template -- it
+-- must already exist in the context in which the template is evaluated. This is
+-- a TODO.)
 type Name = Text
 
 {- TODO: Replace 'Expr' with a type variable, so that it can be replaced
@@ -37,7 +50,7 @@ data Statement
 -- -- in reference to the @f@ type parameter, which has the kind @'Type' ->
 -- Type@. It is used to wrap recursive uses of 'ExprH', with the purpose of
 -- allowing flexibility in representing different states of the syntax tree. 
--- See Eval.hs for an example of its use.
+-- See "Eval.Expr" and "Eval" for an example of its use.
 data ExprH f
   -- | A literal thing of data, like @10.2@.
   = LiteralE Literal
@@ -95,6 +108,8 @@ instance Eq1 Id where
   liftEq eqA (Id a) (Id b) =
     eqA a b
 
+-- | An 'ExprH Id', i.e., an 'Expr' whose constructors contain no extra
+-- information.
 type Expr = ExprH Id
 
 -- | A piece of literal scalar data -- cannot contain other expressions, simple,
