@@ -10,7 +10,7 @@ extra-source-files:  CHANGELOG.md
 
 common stuff
   build-depends:
-      base >= 4.8 && < 4.13
+      base >= 4.8 && < 4.14
     , relude >= 0.6 && < 0.7
   mixins:
       relude (Relude as Prelude)
@@ -91,13 +91,13 @@ library semantics
 library applicative-writer
   hs-source-dirs:   applicative-writer
   exposed-modules:  Control.Applicative.Writer
-  build-depends:    base >= 4.8 && < 4.13
+  build-depends:    base >= 4.8 && < 4.14
   default-language: Haskell2010
 
 library list-sig
   hs-source-dirs:   list-sig
   signatures:       List
-  build-depends:    base >= 4.8 && < 4.13
+  build-depends:    base >= 4.8 && < 4.14
   default-language: Haskell2010
 
 library basemonad-io

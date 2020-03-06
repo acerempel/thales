@@ -51,7 +51,9 @@ import Control.Monad.Fix
 import Control.Monad.Zip (MonadZip(mzipWith))
 import Data.Foldable
 import Data.Monoid
+#if !MIN_VERSION_base(4,13,0)
 import Data.Traversable (Traversable(traverse))
+#endif
 import Prelude hiding (null, length)
 
 -- ---------------------------------------------------------------------------
