@@ -26,12 +26,11 @@ main = do
   defaultMain goldenTests
 
 createGoldenTest tplFile =
-  goldenVsString
-    (takeBaseName tplFile)
-    (replaceExtension tplFile ".html")
-    (runTemplate tplFile bindingsFile)
+  goldenVsString testName outputFile (runTemplate tplFile bindingsFile)
   where
     bindingsFile = replaceExtension tplFile ".yaml"
+    outputFile = replaceExtension tplFile ".html"
+    testName = takeBaseName tplFile
 
 runTemplate tplPath yamlPath = do
   input  <- Text.readFile tplPath
