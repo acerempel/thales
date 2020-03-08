@@ -6,7 +6,6 @@ license-file:        LICENSE
 author:              Alan Rempel
 maintainer:          alan.rempel@gmail.com
 build-type:          Simple
-extra-source-files:  CHANGELOG.md
 
 common stuff
   build-depends:
