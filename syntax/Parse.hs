@@ -19,7 +19,6 @@ where
 
 import Prelude hiding (many)
 import Data.Char
-import qualified Data.Text as Text
 import Text.Megaparsec hiding (parse, runParser)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (scientific)
@@ -89,13 +88,13 @@ runParser parser delims name input =
   let r = runParserT (unParser parser) name input
   in runReader r delims
 
-getBeginDelim :: Parser Text
+getBeginDelim :: Parser NonEmptyText
 getBeginDelim =
-  Parser (asks (NonEmptyText.toText . begin))
+  Parser (asks begin)
 
-getEndDelim :: Parser Text
+getEndDelim :: Parser NonEmptyText
 getEndDelim =
-  Parser (asks (NonEmptyText.toText . end))
+  Parser (asks end)
 
 blockP, templateP :: Parser [Statement]
 blockP = syntaxP True
@@ -109,7 +108,7 @@ syntaxP inBlock =
   where
     verbatimP = do
       beginD <- getBeginDelim
-      preEscaped <$> takeWhileP (Just "any non-delimiter character") (/= Text.head beginD)
+      preEscaped <$> takeWhileP (Just "any non-delimiter character") (/= NonEmptyText.head beginD)
     endP =
       -- TODO: I do not like this 'try'. Would be nice to remove it.
       if inBlock then try (withinDelims (keywordP "end") <?> "end of block") else eof
@@ -127,10 +126,10 @@ statementP = label "statement" $ do
 
 withinDelims :: Parser a -> Parser a
 withinDelims innerP = do
-  chunk =<< getBeginDelim
+  chunk . NonEmptyText.toText =<< getBeginDelim
   space
   inner <- innerP
-  chunk =<< getEndDelim
+  chunk . NonEmptyText.toText =<< getEndDelim
   return inner
 
 isIdChar :: Char -> Bool
