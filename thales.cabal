@@ -3,9 +3,25 @@ name:                thales
 version:             0.1.0.0
 license:             MIT
 license-file:        LICENSE
-author:              Alan Rempel
+author:              Alan Rempel <alan.rempel@gmail.com>
 maintainer:          alan.rempel@gmail.com
 build-type:          Simple
+extra-doc-files:     README.md
+tested-with:         GHC == 8.6.5, GHC == 8.8.3
+homepage:            https://github.com/parsonyorick/thales-templating
+synopsis:            A nice and very simple textual templating system
+category:            Text
+description:
+  A nice and very simple textual templating system, sort of like Mustache
+  or Jinja2.
+  .
+  Hmmm, I should write more here!
+  .
+  See the README.md (<https://github.com/parsonyorick/thales-templating#readme) for more info.
+
+source-repository head
+  location: https://github.com/parsonyorick/thales-templating
+  type: git
 
 common stuff
   build-depends:
