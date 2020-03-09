@@ -38,12 +38,9 @@ data Statement
   -- a 'List', and in each iteration bind the element to 'Name', and evaluate
   -- the '[Statement]' in that context.
   | ForS SourcePos Name Expr [Statement]
-  -- | Evaluate the expression; if an error occurs -- e.g. if a variable is not
-  -- found -- then simply output nothing, rather than propogate the error.
-  | Optional SourcePos Expr
-  -- | Like 'Optional', but if evaluating the expression is successful, bind the
+  -- | If evaluating the expression is successful, bind the
   -- result to the 'Name', and evaluate the '[Statement]'s in that context.
-  | Optionally SourcePos Name Expr [Statement]
+  | OptionallyS SourcePos Expr (Maybe Name) [Statement]
   deriving ( Show, Eq )
 
 -- | An expression. The expression language is quite limited at the moment, but

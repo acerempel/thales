@@ -118,7 +118,7 @@ statementP :: Parser Statement
 statementP = label "statement" $ do
   statem <- withinDelims $ do
     sp <- getSourcePos
-    forP sp <|> StandaloneS . ExprS sp <$> exprP
+    forP sp <|> optionallyP sp <|> StandaloneS . ExprS sp <$> exprP
   case statem of
     BlockS continuation ->
       continuation <$> blockP
@@ -157,6 +157,15 @@ forP sp = do
   keywordP "in"
   array <- exprP
   return (BlockS $ ForS sp itemName array)
+
+optionallyP :: SourcePos -> Parser PartialStatement
+optionallyP sp = do
+  keywordP "optionally"
+  expr <- exprP
+  mb_name <- optional $ do
+    keywordP "as"
+    nameP
+  return (BlockS $ OptionallyS sp expr mb_name)
 
 -- TODO: Parsing of record literals, record updates, array indexes, add back
 -- some form of application.

@@ -22,17 +22,43 @@ import Syntax
 import Value
 
 main = do
-  templateFiles <- findByExtension [".tpl"] "tests/everything/golden"
-  let goldenTests =
-        testGroup "Golden tests" (fmap createGoldenTest templateFiles)
+  let dir = "tests/everything/golden"
+  templateFiles <- findByExtension [".tpl"] dir
+  mb_tests <- runMaybeT $ traverse (liftA2 (<|>) goldenTestFile goldenTestDir) templateFiles
+  let tests =  fromMaybe (error "No output files found!") mb_tests
+  let goldenTests = testGroup "Golden tests" tests
   defaultMain goldenTests
 
-createGoldenTest tplFile =
-  goldenVsString testName outputFile (runTemplate tplFile bindingsFile)
+goldenTestFile templateFile = do
+  let outputPath = templateFile -<.> "out"
+  outExists <- liftIO $ doesFileExist outputPath
+  MaybeT $ return $
+    if outExists
+      then let testName = takeBaseName templateFile
+               bindingsFile = templateFile -<.> "yaml"
+           in Just $ createGoldenTest testName templateFile outputPath bindingsFile
+      else Nothing
+
+goldenTestDir templateFile = do
+  let dir = dropExtension templateFile
+  dirExists <- liftIO $ doesDirectoryExist dir
+  MaybeT $
+    if dirExists
+      then do
+        outFiles <- findByExtension [".out"] dir
+        let tests = map createTest outFiles
+            groupName = takeBaseName dir
+        return (Just (testGroup groupName tests))
+      else return Nothing
   where
-    bindingsFile = replaceExtension tplFile ".yaml"
-    outputFile = replaceExtension tplFile ".html"
-    testName = takeBaseName tplFile
+    createTest outFile =
+      let testName = takeBaseName outFile
+          bindingsFile = outFile -<.> "yaml"
+      in createGoldenTest testName templateFile outFile bindingsFile
+
+
+createGoldenTest testName templateFile outputFile bindingsFile =
+  goldenVsString testName outputFile (runTemplate templateFile bindingsFile)
 
 runTemplate tplPath yamlPath = do
   input  <- Text.readFile tplPath
@@ -68,9 +94,9 @@ yamlValueToValue :: Yaml.Value -> Yaml.Parser Value
 yamlValueToValue val =
   case val of
     Yaml.Object obj ->
-      Record . coerceHashMap <$> (traverse yamlValueToValue obj)
+      Record . coerceHashMap <$> traverse yamlValueToValue obj
     Yaml.Array arr ->
-      Array <$> (traverse yamlValueToValue arr)
+      Array <$> traverse yamlValueToValue arr
     Yaml.String str ->
       pure $ String str
     Yaml.Number num ->

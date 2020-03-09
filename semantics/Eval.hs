@@ -87,17 +87,10 @@ evalStatement = \case
       for_ body $ \stmt ->
         addLocalBinding var val $ evalStatement stmt
 
-  Optionally _sp var expr body -> do
+  OptionallyS _sp expr mb_var body -> do
     mb_val <- liftExprM $
       handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr)
     whenJust mb_val $ \val ->
       for_ body $ \stmt ->
-        addLocalBinding var val $ evalStatement stmt
-
-  _ -> liftExprM $ zutAlors undefined
-
-  {-
-  Optional sp expr ->
-    let dummyName = "____" in
-    evalStatement (Optionally sp dummyName expr [ExprS sp (NameE dummyName)])
-    -}
+        maybe id (`addLocalBinding` val) mb_var $
+        evalStatement stmt

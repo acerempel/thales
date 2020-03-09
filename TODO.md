@@ -15,7 +15,7 @@
 
 - Getting environment from a yaml file.
 
-  - Extend golden tests suitably.
+  - ~~Extend golden tests suitably.~~
 
 - Framework for negative golden tests.
 
