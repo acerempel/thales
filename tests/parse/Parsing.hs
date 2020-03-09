@@ -6,7 +6,6 @@ import Text.Megaparsec (SourcePos(..), mkPos)
 import qualified NonEmptyText
 import Parse
 import Syntax
-import Verbatim
 
 parseTestStmt =
   parseTest templateP
@@ -62,15 +61,15 @@ testStmtParser delims =
         in
           parseTestStmt delims
             (within delims "for potato in potatoes"
-            <> p1 <> within delims "potato"
-            <> p2 <> within delims "end")
+            <> NonEmptyText.toText p1 <> within delims "potato"
+            <> NonEmptyText.toText p2 <> within delims "end")
           `shouldParse`
             -- TODO: these SourcePos's are just from the output of the failing
             -- test. Should really make these correct by construction, or just
             -- ignore them somehow. In fact, maybe the Eq instance *should*
             -- ignore them.
             [ ForS (mkSP 1 (1 + beginDelimLength)) "potato" (NameE "potatoes")
-              [ VerbatimS (preEscaped p1)
+              [ VerbatimS p1
               , ExprS (mkSP 1 (44 + beginDelimLength + endDelimLength + beginDelimLength)) (NameE "potato")
-              , VerbatimS (preEscaped p2) ]
+              , VerbatimS p2 ]
             ]

@@ -6,7 +6,6 @@ import Text.Show
 
 import List (List)
 import Syntax
-import Verbatim
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
 Effectively, templates are dynamically typed. Aside from the absence of null,
@@ -15,7 +14,7 @@ type.-}
 data Value where
   Number :: Scientific -> Value
   String :: Text -> Value
-  Verbatim :: Verbatim -> Value
+  Verbatim :: Text -> Value
   Boolean :: Bool -> Value
   Array :: List Value -> Value
   Record :: HashMap Name Value -> Value

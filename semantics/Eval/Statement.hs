@@ -10,21 +10,20 @@ import Prelude hiding (foldr)
 import Control.Applicative.Writer
 import Data.DList (DList)
 import qualified Data.DList as DList
-import Data.Text.Lazy.Builder
 import Data.Validation as Validation
 
 import BaseMonad
 import Bindings
 import Eval.Expr
+import Output
 import Value
-import Verbatim
 
 newtype StmtM a = StmtM
   { unStmtM :: Bindings -> M (WriterT ResultAccum (Validation (DList Problem)) a) }
 
 data ResultAccum = Result
   { tplBindings :: Bindings
-  , tplOutput :: DList Builder }
+  , tplOutput :: DList Output }
 
 instance Semigroup ResultAccum where
   Result tb1 to1 <> Result tb2 to2 =
@@ -59,16 +58,16 @@ instance Monad StmtM where
                     Validation.Success (b, accum') ->
                       Validation.Success (b, accum <> accum')
 
-runStmtM :: StmtM () -> Bindings -> M (Either (DList Problem) (Bindings, Builder))
+runStmtM :: StmtM () -> Bindings -> M (Either (DList Problem) (Bindings, Output))
 runStmtM (StmtM m) b = do
   w <- m b
   let massage ((), Result { tplBindings, tplOutput }) =
         (tplBindings, DList.foldr (<>) mempty tplOutput)
   return (Validation.toEither $ fmap massage (runWriterT w))
 
-addOutput :: Verbatim -> StmtM ()
+addOutput :: Output -> StmtM ()
 addOutput o =
-  StmtM (\_ -> pure (tell (Result Bindings.empty (DList.singleton (fromVerbatim o)))))
+  StmtM (\_ -> pure (tell (Result Bindings.empty (DList.singleton o))))
 
 instance HasLocalBindings StmtM where
 

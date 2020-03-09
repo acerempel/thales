@@ -21,6 +21,8 @@ common stuff
     , GeneralizedNewtypeDeriving
     , StandaloneDeriving
     , DeriveFunctor
+    , DeriveGeneric
+    , DeriveAnyClass
     , MultiParamTypeClasses
     , RankNTypes
     , LambdaCase
@@ -42,7 +44,7 @@ library
     , Value
     , Eval
     , NonEmptyText
-    , Verbatim
+    , Output
     , Display
 
 library syntax
@@ -53,7 +55,6 @@ library syntax
     , NonEmptyText
     , Syntax
     , Value
-    , Verbatim
   build-depends:
       list-sig
     , megaparsec >= 8.0 && < 9.0
@@ -69,6 +70,7 @@ library semantics
       Bindings
     , Display
     , Eval
+    , Output
   other-modules:
       Eval.Expr
     , Eval.Statement
@@ -78,6 +80,7 @@ library semantics
       applicative-writer
     , list-sig
     , syntax
+    , bytestring >= 0.10.8 && < 0.11
     , dlist ^>= 0.8
     , megaparsec >= 8.0 && < 9.0
     , prettyprinter >= 1.3 && < 1.7
@@ -129,7 +132,6 @@ test-suite parsing
     , hspec >= 2.5 && < 3
     , hspec-megaparsec >= 2.1 && < 3
     , megaparsec
-    , text
 
 test-suite evaluation
   import:         stuff
@@ -141,9 +143,9 @@ test-suite evaluation
     , syntax
     , basemonad-io
     , list-vector
+    , bytestring >= 0.10.8 && < 0.11
     , megaparsec
     , hspec >= 2.5 && < 3
-    , text
     , unordered-containers
 
 test-suite everything
@@ -156,10 +158,12 @@ test-suite everything
     , syntax
     , basemonad-io
     , list-vector
+    , bytestring >= 0.10.8 && < 0.11
     , directory >= 1.3.2.2 && < 1.4
     , filepath >= 1.4 && < 2.0
     , megaparsec
     , tasty >= 1.1.0.3 && < 2.0
     , tasty-golden >= 2.3 && < 2.4
     , text
+    , unordered-containers
     , yaml >= 0.11.1.2 && < 0.12

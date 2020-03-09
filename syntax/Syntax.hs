@@ -13,7 +13,6 @@ import Text.Show
 
 import NonEmptyText
 import List (List)
-import Verbatim
 
 -- | A name, to which a value may be bound. This is the sort of thing that is
 -- usually called a variable, except that these names are strictly immutable –
@@ -31,7 +30,7 @@ with the result of evaluating the expression.-}
 -- expected to produce some string output somehow.
 data Statement
   -- | A piece of verbatim text, to appear in the same place in the output.
-  = VerbatimS Verbatim
+  = VerbatimS NonEmptyText
   -- | An expression, which should be evaluated, the result expected to be a
   -- 'Text', which is then spliced into the output.
   | ExprS SourcePos Expr

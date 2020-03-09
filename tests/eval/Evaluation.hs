@@ -2,13 +2,14 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 import Test.Hspec
 
+import qualified Data.ByteString.Builder as Builder
 import qualified Data.HashMap.Strict as Map
-import qualified Data.Text.Lazy.Builder as Builder
 import Text.Megaparsec (SourcePos(..), mkPos)
 
 import qualified Bindings
 import Eval
 import qualified List
+import qualified Output
 import Syntax
 import Value
 
@@ -34,4 +35,4 @@ main = hspec $
                 ["leek", "potato", "turnip", "acorn squash"]))
               [ExprS sp (NameE "vegetable"), VerbatimS ", "]
       result <- runStmtM (evalStatement stmt) Bindings.empty
-      fmap (Builder.toLazyText . snd) result `shouldBe` Right "leek, potato, turnip, acorn squash, "
+      fmap (Builder.toLazyByteString . Output.toBuilder . snd) result `shouldBe` Right "leek, potato, turnip, acorn squash, "

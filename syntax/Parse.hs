@@ -24,10 +24,9 @@ import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (scientific)
 
 import qualified List
-import NonEmptyText (NonEmptyText)
+import NonEmptyText (NonEmptyText(..))
 import qualified NonEmptyText
 import Syntax
-import Verbatim
 
 {-| The strings that delimit bits of code, or directives, or whatever
 you want to call them, in a template. E.g. @Delimiters "{{" "}}"@,
@@ -48,9 +47,9 @@ data PartialStatement
 {-| Our parser monad. This is a newtype over Megaparsec's 'ParsecT' type. -}
 newtype Parser a = Parser
   { unParser :: ParsecT InternalError Text (Reader Delimiters) a }
-  deriving ( Monad, Applicative, Functor, Alternative, MonadPlus )
+  deriving newtype ( Monad, Applicative, Functor, Alternative, MonadPlus )
 
-deriving instance MonadParsec InternalError Text Parser
+deriving newtype instance MonadParsec InternalError Text Parser
 
 data InternalError = InternalError
   deriving stock ( Ord, Eq, Show )
@@ -104,11 +103,13 @@ syntaxP :: Bool -> Parser [Statement]
 syntaxP inBlock =
   [] <$ endP
     <|> ((:) <$> statementP <*> syntaxP inBlock)
-    <|> ((:) <$> fmap VerbatimS ((<>) <$> fmap preEscapedSingleton anySingle <*> verbatimP) <*> syntaxP inBlock)
+    <|> ((:) <$> fmap VerbatimS
+                 (NonEmptyText <$> anySingle <*> verbatimP)
+             <*> syntaxP inBlock)
   where
     verbatimP = do
       beginD <- getBeginDelim
-      preEscaped <$> takeWhileP (Just "any non-delimiter character") (/= NonEmptyText.head beginD)
+      takeWhileP (Just "any non-delimiter character") (/= NonEmptyText.head beginD)
     endP =
       -- TODO: I do not like this 'try'. Would be nice to remove it.
       if inBlock then try (withinDelims (keywordP "end") <?> "end of block") else eof

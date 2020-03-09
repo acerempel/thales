@@ -2,10 +2,10 @@
 module Main where
 
 import Control.Exception
-import qualified Data.Yaml as Yaml
+import qualified Data.ByteString.Builder as Builder
+import qualified Data.HashMap.Strict as Map
 import qualified Data.Text.IO as Text
-import qualified Data.Text.Lazy.Builder as Builder
-import qualified Data.Text.Lazy.Encoding as Text
+import qualified Data.Yaml as Yaml
 import System.FilePath
 import System.Directory
 import Test.Tasty
@@ -15,6 +15,8 @@ import Unsafe.Coerce (unsafeCoerce)
 
 import Eval
 import Bindings
+import qualified NonEmptyText
+import qualified Output
 import Parse
 import Syntax
 import Value
@@ -45,12 +47,18 @@ runTemplate tplPath yamlPath = do
   eval'd <- (>>= either throwIO pure) $
             first (EvalError . toList) . second snd <$>
             runStmtM (for_ parsed evalStatement) bindings
-  return $ Text.encodeUtf8 $ Builder.toLazyText eval'd
+  return $ Builder.toLazyByteString $ Output.toBuilder $ eval'd
 
 instance Yaml.FromJSON Bindings where
   parseJSON =
     Yaml.withObject "Bindings"
-    (fmap Bindings . traverse yamlValueToValue . coerceHashMap)
+    (fmap Bindings . traverse yamlValueToValue . transformHashMap)
+    where
+      transformHashMap =
+        Map.fromList
+        . map (first (Name . fromJust . NonEmptyText.fromText))
+        . Map.toList
+      fromJust (Just a) = a
 
 -- | b/c type role HashMap nominal representational
 coerceHashMap :: HashMap Text a -> HashMap Name a

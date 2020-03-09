@@ -11,9 +11,10 @@ import Bindings
 import Eval.Expr
 import Eval.Statement
 import qualified List
+import qualified NonEmptyText
+import Output
 import Syntax
 import Value
-import Verbatim
 
 evalSubExpr :: AddProblemContext -> Expr -> ExprM Value
 evalSubExpr f = evalExpr (Just f)
@@ -62,14 +63,14 @@ evalStatement :: Statement -> StmtM ()
 evalStatement = \case
 
   VerbatimS verb ->
-    addOutput verb
+    addOutput (Output.fromText (NonEmptyText.toText verb))
 
   ExprS _sp expr -> do
     text <- liftExprM $ do
       val <- evalTopExpr expr
       case val of
         String text ->
-          return (escape text)
+          return (Output.fromText text)
         _ ->
           zutAlors (NotText val)
     addOutput text

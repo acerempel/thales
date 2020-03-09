@@ -1,10 +1,9 @@
-{-# OPTIONS_GHC -Wno-missing-signatures #-}
-{-# LANGUAGE BangPatterns #-}
+{-# OPTIONS_GHC -Wno-missing-signatures -funbox-strict-fields #-}
 {-|
 Description : Provides a 'NonEmptyText' datatype for 'Text' that cannot be empty.
 -}
 module NonEmptyText
-  ( NonEmptyText, fromText, toText
+  ( NonEmptyText(..), singleton, fromText, toText
   , head, tail, foldr, foldl', length )
 where
 
@@ -12,15 +11,21 @@ import Prelude hiding (head, tail, foldl', foldr, toText, length)
 import qualified Data.Text as Text
 
 {-| This is simply 'Text', but it cannot be empty! -}
-newtype NonEmptyText =
-  NonEmptyText { toText :: Text }
-  deriving newtype ( Eq, Ord, Semigroup, Monoid, Show, Hashable, NFData )
+data NonEmptyText =
+  NonEmptyText Char Text
+  deriving stock ( Eq, Ord, Show, Generic )
+  deriving anyclass ( Hashable, NFData )
+
+singleton :: Char -> NonEmptyText
+singleton c = NonEmptyText c Text.empty
 
 fromText :: Text -> Maybe NonEmptyText
-fromText !t =
-  if Text.null t
-    then Nothing
-    else Just (NonEmptyText t)
+fromText t =
+  uncurry NonEmptyText <$> Text.uncons t
+
+toText :: NonEmptyText -> Text
+toText (NonEmptyText hd tl) =
+  Text.cons hd tl
 
 instance IsString NonEmptyText where
   -- | Calls 'error' if the given 'String' is empty.
@@ -28,13 +33,18 @@ instance IsString NonEmptyText where
     case str of
       [] ->
         error "NonEmptyText.fromString: given String is empty!"
-      _ ->
-        NonEmptyText (fromString str)
+      hd:tl ->
+        NonEmptyText hd (fromString tl)
 
-head = Text.head . toText
+head (NonEmptyText hd _) = hd
 
-tail = Text.tail . toText
+tail (NonEmptyText _ tl) = tl
 
-foldr f a net = Text.foldr f a (toText net)
-foldl' f a net = Text.foldl' f a (toText net)
-length = Text.length . toText
+foldr f a (NonEmptyText hd tl) =
+  f hd (Text.foldr f a tl)
+
+foldl' f a (NonEmptyText hd tl) =
+  Text.foldl' (f a hd) a tl
+
+length (NonEmptyText _ tl) =
+  1 + Text.length tl

@@ -18,7 +18,7 @@ import Value
 
 newtype ExprM a = ExprM
   { unExprM :: ExceptT Problem (ReaderT Bindings M) a }
-  deriving ( Monad, Functor, Applicative )
+  deriving newtype ( Monad, Functor, Applicative )
 
 runExprM :: ExprM a -> Bindings -> M (Either Problem a)
 runExprM (ExprM m) bindings =
