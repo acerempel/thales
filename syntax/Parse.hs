@@ -60,9 +60,10 @@ data InternalError = InternalError
 instance ShowErrorComponent InternalError where
   showErrorComponent InternalError = "Internal error!"
 
-{-| A default set of delimiters -- @{ ... }@. -}
+{-| A default set of delimiters – @{{ ... }}@, same as what Mustache templates
+use (and Jinja2 and Liquid, for expression splices). -}
 defaultDelimiters :: Delimiters
-defaultDelimiters = Delimiters "{" "}"
+defaultDelimiters = Delimiters "{{" "}}"
 
 -- TODO: put this somewhere else.
 {-| For ad-hoc manual testing purposes. -}

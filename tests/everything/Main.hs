@@ -62,9 +62,10 @@ createGoldenTest testName templateFile outputFile bindingsFile =
 
 runTemplate tplPath yamlPath = do
   input  <- Text.readFile tplPath
+  let delimiters = Delimiters "{" "}"
   parsed <- either throwIO pure $
             first (ParseError . errorBundlePretty) $
-            parseTemplate defaultDelimiters tplPath input
+            parseTemplate delimiters tplPath input
   yamlExists <- doesFileExist yamlPath
   bindings <-
     if yamlExists
