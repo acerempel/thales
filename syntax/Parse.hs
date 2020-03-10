@@ -85,7 +85,15 @@ parseTemplate =
 {-| Run an arbitrary parser. Currently this module only exports two parsers,
 namely 'templateP' and 'exprP', for parsing an entire template and an
 expression respectively.-}
-runParser :: Parser a -> Delimiters -> FilePath -> Text -> Either (ParseErrorBundle Text InternalError) a
+runParser ::
+  -- | The parser you wish to run.
+  Parser a ->
+  Delimiters ->
+  -- | The filename -- used for error messages.
+  FilePath ->
+  -- | The input to the parser.
+  Text ->
+  Either (ParseErrorBundle Text InternalError) a
 runParser parser delims name input =
   let r = runParserT (unParser parser) name input
   in runReader r delims
@@ -100,6 +108,7 @@ getEndDelim =
 
 blockP, templateP :: Parser [Statement]
 blockP = syntaxP True
+-- | Parser for an entire template. Used in 'parseTemplate'.
 templateP = syntaxP False
 
 syntaxP :: Bool -> Parser [Statement]
