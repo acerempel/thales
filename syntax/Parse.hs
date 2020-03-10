@@ -14,6 +14,7 @@ module Parse
   ( Parser, runParser, parse, parseTemplate
   , templateP, exprP
   , Delimiters(..), defaultDelimiters
+  , InternalError(..)
   )
 where
 
@@ -51,6 +52,8 @@ newtype Parser a = Parser
 
 deriving newtype instance MonadParsec InternalError Text Parser
 
+-- | This error type signifies that an internal invariant in the parser was
+-- broken. If you ever see it in an error message, it's a bug in the parser.
 data InternalError = InternalError
   deriving stock ( Ord, Eq, Show )
 
