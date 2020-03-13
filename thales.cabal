@@ -124,6 +124,13 @@ library basemonad-io
   exposed-modules: BaseMonad
   default-language: Haskell2010
 
+library basemonad-action
+  hs-source-dirs: basemonad-action
+  build-depends:  shake >= 0.18 && < 0.19
+  exposed-modules: BaseMonad
+  default-language: Haskell2010
+  default-extensions: NoImplicitPrelude
+
 library list-seq
   import:         stuff
   hs-source-dirs: list-seq
