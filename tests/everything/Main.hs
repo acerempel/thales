@@ -74,7 +74,7 @@ runTemplate tplPath yamlPath = do
   eval'd <- (>>= either throwIO pure) $
             first (EvalError . toList) . second snd <$>
             runStmtM (for_ parsed evalStatement) bindings
-  return $ Builder.toLazyByteString $ Output.toBuilder $ eval'd
+  return $ Builder.toLazyByteString $ Output.toBuilder eval'd
 
 instance Yaml.FromJSON Bindings where
   parseJSON =
