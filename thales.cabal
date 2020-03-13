@@ -119,13 +119,13 @@ library list-sig
   default-language: Haskell2010
 
 library basemonad-io
-  hs-source-dirs: basemonad-io
+  hs-source-dirs: basemonad/io
   build-depends:  base
   exposed-modules: BaseMonad
   default-language: Haskell2010
 
 library basemonad-action
-  hs-source-dirs: basemonad-action
+  hs-source-dirs: basemonad/action
   build-depends:  shake >= 0.18 && < 0.19
   exposed-modules: BaseMonad
   default-language: Haskell2010
