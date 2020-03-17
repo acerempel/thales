@@ -141,10 +141,10 @@ test-suite evaluation
     , hspec >= 2.5 && < 3
     , unordered-containers
 
-test-suite everything
+test-suite golden
   import:         stuff
   type:           exitcode-stdio-1.0
-  hs-source-dirs: tests/everything
+  hs-source-dirs: tests/golden
   main-is:        Main.hs
   build-depends:
       thales

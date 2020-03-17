@@ -22,7 +22,7 @@ import Syntax
 import Value
 
 main = do
-  let dir = "tests/everything/golden"
+  let dir = "tests/golden/files"
   templateFiles <- findByExtension [".tpl"] dir
   mb_tests <- runMaybeT $ traverse (liftA2 (<|>) goldenTestFile goldenTestDir) templateFiles
   let tests =  fromMaybe (error "No output files found!") mb_tests
