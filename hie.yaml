@@ -1,14 +1,12 @@
 cradle:
   cabal:
-    - path: "./syntax"
-      component: "lib:syntax"
-    - path: "./semantics"
-      component: "lib:semantics"
+    - path: "./sources"
+      component: "lib:thales"
     - path: "./tests/parse"
       component: "test:parsing"
     - path: "./tests/eval"
       component: "test:evaluation"
     - path: "./tests/everything"
       component: "test:everything"
-    - path: "./applicative-writer"
-      component: "lib:applicative-writer"
+    - path: "./applicative-transformers"
+      component: "lib:applicative-transformers"

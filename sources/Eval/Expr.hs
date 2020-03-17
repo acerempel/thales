@@ -1,55 +1,60 @@
 module Eval.Expr
-  ( ExprM, Bindings, runExprM, Name
+  ( ExprT, Bindings, runExprT, Name
   , Problem(..), ProblemWhere(..)
   , ProblemDescription(..), AddProblemContext
   , zutAlors, handleZut, mapZut, addProblemSource
-  , lookupName, addLocalBindings, liftEval
+  , lookupName, addLocalBindings
   )
 where
 
+import Prelude hiding (local, ask, asks)
+
 import Control.Monad.Trans.Except
+import Control.Applicative.Trans.Reader
 import Data.Functor.Classes
 import Text.Show
 
-import BaseMonad
 import Bindings
 import Syntax
 import Value
 
-newtype ExprM a = ExprM
-  { unExprM :: ExceptT Problem (ReaderT Bindings M) a }
+newtype ExprT m a = ExprT
+  { unExprT :: ExceptT Problem (ReaderT Bindings m) a }
   deriving newtype ( Monad, Functor, Applicative )
 
-runExprM :: ExprM a -> Bindings -> M (Either Problem a)
-runExprM (ExprM m) bindings =
+instance MonadTrans ExprT where
+  lift = ExprT . lift . lift
+
+instance MonadIO m => MonadIO (ExprT m) where
+  liftIO = lift . liftIO
+
+runExprT :: ExprT m a -> Bindings -> m (Either Problem a)
+runExprT (ExprT m) bindings =
   runReaderT (runExceptT m) bindings
 
 -- | Abort this evaluation with the given problem.
-zutAlors :: ProblemDescription -> ExprM a
-zutAlors prob = ExprM (throwE (Problem Nowhere prob))
+zutAlors :: Monad m => ProblemDescription -> ExprT m a
+zutAlors prob = ExprT (throwE (Problem Nowhere prob))
 
-lookupName :: Name -> ExprM (Maybe Value)
-lookupName n = ExprM (asks (Bindings.lookup n))
+lookupName :: Monad m => Name -> ExprT m (Maybe Value)
+lookupName n = ExprT $ lift $ asks (Bindings.lookup n)
 
-instance HasLocalBindings ExprM where
-  addLocalBindings binds (ExprM r) =
+instance Applicative m => HasLocalBindings (ExprT m) where
+  addLocalBindings binds (ExprT r) =
     -- 'binds' has to be the first argument to 'Map.union', so that we can shadow
     -- existing bindings -- 'Map.union' is left-biased.
-    ExprM (local (Bindings.fromList binds `Bindings.union`) r)
+    ExprT (mapExceptT (local (Bindings.fromList binds `Bindings.union`)) r)
 
-handleZut :: (Problem -> ExprM a) -> ExprM a -> ExprM a
-handleZut handler (ExprM m) = ExprM (catchE m (unExprM . handler))
+handleZut :: Monad m => (Problem -> ExprT m a) -> ExprT m a -> ExprT m a
+handleZut handler (ExprT m) = ExprT (catchE m (unExprT . handler))
 
-mapZut :: AddProblemContext -> ExprM a -> ExprM a
-mapZut f (ExprM m) =
-  ExprM $ withExceptT (problemAddContext f) m
+mapZut :: Functor m => AddProblemContext -> ExprT m a -> ExprT m a
+mapZut f (ExprT m) =
+  ExprT $ withExceptT (problemAddContext f) m
 
-addProblemSource :: Expr -> ExprM a -> ExprM a
-addProblemSource source (ExprM m) =
-  ExprM $ withExceptT (problemSetSource source) m
-
-liftEval :: M a -> ExprM a
-liftEval m = ExprM (lift (lift m))
+addProblemSource :: Functor m => Expr -> ExprT m a -> ExprT m a
+addProblemSource source (ExprT m) =
+  ExprT $ withExceptT (problemSetSource source) m
 
 data ProblemDescription
   = NameNotFound Name

@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                thales
-version:             0.1.0.0
+version:             0.2.0.0
 license:             MIT
 license-file:        LICENSE
 author:              Alan Rempel <alan.rempel@gmail.com>
@@ -48,57 +48,32 @@ common stuff
     , DefaultSignatures
     , KindSignatures
     , StrictData
+    , ScopedTypeVariables
 
 library
   import:          stuff
-  build-depends:
-      syntax
-    , semantics
-  reexported-modules:
-      Parse
-    , Syntax
-    , Value
+  hs-source-dirs:  sources
+  exposed-modules:
+      BaseMonad
+    , Bindings
+    , Display
     , Eval
     , NonEmptyText
     , Output
-    , Display
-
-library syntax
-  import:          stuff
-  hs-source-dirs:  syntax
-  exposed-modules:
-      Parse
-    , NonEmptyText
+    , Parse
     , Syntax
     , Value
-  build-depends:
-      list-sig
-    , megaparsec >= 8.0 && < 9.0
-    , parser-combinators >= 0.4
-    , scientific >= 0.3.5.2 && < 0.4
-    , text >= 1.2.2 && < 1.3
-    , unordered-containers
-
-library semantics
-  import:         stuff
-  hs-source-dirs: semantics
-  exposed-modules:
-      Bindings
-    , Display
-    , Eval
-    , Output
   other-modules:
       Eval.Expr
     , Eval.Statement
-  signatures:
-      BaseMonad
   build-depends:
-      applicative-writer
-    , list-sig
-    , syntax
+    , applicative-transformers
     , bytestring >= 0.10.8 && < 0.11
+    , directory
     , dlist ^>= 0.8
+    , list-sig
     , megaparsec >= 8.0 && < 9.0
+    , parser-combinators >= 0.4
     , prettyprinter >= 1.3 && < 1.7
     , scientific >= 0.3.5.2 && < 0.4
     , text >= 1.2.2 && < 1.3
@@ -106,10 +81,20 @@ library semantics
     , unordered-containers
     , validation >= 1 && < 2
 
-library applicative-writer
-  hs-source-dirs:   applicative-writer
-  exposed-modules:  Control.Applicative.Writer
-  build-depends:    base >= 4.8 && < 4.14
+library thales-shake
+  import:           stuff
+  hs-source-dirs:   shake
+  build-depends:    thales, shake >= 0.18 && < 0.19
+  exposed-modules:  Shake
+
+library applicative-transformers
+  hs-source-dirs:   applicative-transformers
+  exposed-modules:
+      Control.Applicative.Trans.Reader
+    , Control.Applicative.Trans.Writer
+  build-depends:
+      base >= 4.8 && < 4.14
+    , transformers >= 0.5 && < 0.6
   default-language: Haskell2010
 
 library list-sig
@@ -117,19 +102,6 @@ library list-sig
   signatures:       List
   build-depends:    base >= 4.8 && < 4.14
   default-language: Haskell2010
-
-library basemonad-io
-  hs-source-dirs: basemonad/io
-  build-depends:  base, directory, syntax
-  exposed-modules: BaseMonad
-  default-language: Haskell2010
-
-library basemonad-action
-  hs-source-dirs: basemonad/action
-  build-depends:  shake >= 0.18 && < 0.19
-  exposed-modules: BaseMonad
-  default-language: Haskell2010
-  default-extensions: NoImplicitPrelude
 
 library list-seq
   import:         stuff
@@ -150,7 +122,7 @@ test-suite parsing
   hs-source-dirs: tests/parse
   main-is:        Parsing.hs
   build-depends:
-      syntax
+      thales
     , list-vector
     , hspec >= 2.5 && < 3
     , hspec-megaparsec >= 2.1 && < 3
@@ -162,9 +134,7 @@ test-suite evaluation
   hs-source-dirs: tests/eval
   main-is:        Evaluation.hs
   build-depends:
-      semantics
-    , syntax
-    , basemonad-io
+      thales
     , list-vector
     , bytestring >= 0.10.8 && < 0.11
     , megaparsec
@@ -177,9 +147,7 @@ test-suite everything
   hs-source-dirs: tests/everything
   main-is:        Main.hs
   build-depends:
-      semantics
-    , syntax
-    , basemonad-io
+      thales
     , list-vector
     , bytestring >= 0.10.8 && < 0.11
     , directory >= 1.3.2.2 && < 1.4

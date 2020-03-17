@@ -1,13 +1,13 @@
 module Eval.Statement
-  ( StmtM, runStmtM
+  ( StmtT, runStmtT
   , addOutput, addBinding, addBindings
-  , liftExprM
+  , liftExprT
   )
 where
 
 import Prelude hiding (foldr)
 
-import Control.Applicative.Writer
+import Control.Applicative.Trans.Writer
 import Data.DList (DList)
 import qualified Data.DList as DList
 import Data.Validation as Validation
@@ -18,8 +18,8 @@ import Eval.Expr
 import Output
 import Value
 
-newtype StmtM a = StmtM
-  { unStmtM :: Bindings -> M (WriterT ResultAccum (Validation (DList Problem)) a) }
+newtype StmtT m a = StmtT
+  { unStmtT :: Bindings -> m (WriterT ResultAccum (Validation (DList Problem)) a) }
 
 data ResultAccum = Result
   { tplBindings :: Bindings
@@ -32,25 +32,25 @@ instance Semigroup ResultAccum where
 instance Monoid ResultAccum where
   mempty = Result Bindings.empty mempty
 
-instance Functor StmtM where
-  fmap f (StmtM m) =
-    StmtM $ \b -> fmap (fmap f) (m b)
+instance Functor m => Functor (StmtT m) where
+  fmap f (StmtT m) =
+    StmtT $ \b -> fmap (fmap f) (m b)
 
-instance Applicative StmtM where
-  pure a = StmtM (\_ -> pure (pure a))
-  (StmtM mf) <*> (StmtM ma) =
-    StmtM $ \b -> liftA2 (<*>) (mf b) (ma b)
+instance Applicative m => Applicative (StmtT m) where
+  pure a = StmtT (\_ -> pure (pure a))
+  (StmtT mf) <*> (StmtT ma) =
+    StmtT $ \b -> liftA2 (<*>) (mf b) (ma b)
 
-instance Monad StmtM where
-  (StmtM m) >>= f =
-    StmtM $ \binds ->
+instance Monad m => Monad (StmtT m) where
+  (StmtT m) >>= f =
+    StmtT $ \binds ->
       m binds >>= \w ->
         case runWriterT w of
           Validation.Failure problems ->
             pure $ WriterT (Validation.Failure problems)
           Validation.Success (a, accum) ->
             case f a of
-              StmtM m' ->
+              StmtT m' ->
                 m' binds >>= \w' -> pure $ WriterT $
                   case runWriterT w' of
                     Validation.Failure problems' ->
@@ -58,38 +58,38 @@ instance Monad StmtM where
                     Validation.Success (b, accum') ->
                       Validation.Success (b, accum <> accum')
 
-runStmtM :: StmtM () -> Bindings -> M (Either (DList Problem) (Bindings, Output))
-runStmtM (StmtM m) b = do
+runStmtT :: Monad m => StmtT m () -> Bindings -> m (Either (DList Problem) (Bindings, Output))
+runStmtT (StmtT m) b = do
   w <- m b
   let massage ((), Result { tplBindings, tplOutput }) =
         (tplBindings, DList.foldr (<>) mempty tplOutput)
   return (Validation.toEither $ fmap massage (runWriterT w))
 
-addOutput :: Output -> StmtM ()
+addOutput :: Applicative m => Output -> StmtT m ()
 addOutput o =
-  StmtM (\_ -> pure (tell (Result Bindings.empty (DList.singleton o))))
+  StmtT (\_ -> pure (tell (Result Bindings.empty (DList.singleton o))))
 
-instance HasLocalBindings StmtM where
+instance HasLocalBindings (StmtT m) where
 
-  addLocalBindings binds (StmtM m) =
-    StmtM (m . (Bindings.fromList binds `Bindings.union`))
+  addLocalBindings binds (StmtT m) =
+    StmtT (m . (Bindings.fromList binds `Bindings.union`))
 
-  addLocalBinding n v (StmtM m) =
-    StmtM (m . Bindings.insert n v)
+  addLocalBinding n v (StmtT m) =
+    StmtT (m . Bindings.insert n v)
 
-addBinding :: Name -> Value -> StmtM ()
+addBinding :: Applicative m => Name -> Value -> StmtT m ()
 addBinding n v =
-  StmtM (\_ -> pure (tell (Result (Bindings.singleton n v) mempty)))
+  StmtT (\_ -> pure (tell (Result (Bindings.singleton n v) mempty)))
 
-addBindings :: [(Name, Value)] -> StmtM ()
+addBindings :: Applicative m => [(Name, Value)] -> StmtT m ()
 addBindings binds =
-  StmtM (\_ -> pure (tell (Result (Bindings.fromList binds) mempty)))
+  StmtT (\_ -> pure (tell (Result (Bindings.fromList binds) mempty)))
 
-liftExprM :: ExprM a -> StmtM a
-liftExprM expr =
-  StmtM $ \bindings ->
+liftExprT :: BaseMonad m => ExprT m a -> StmtT m a
+liftExprT expr =
+  StmtT $ \bindings ->
     WriterT
     . second (\a -> (a, mempty))
     . first DList.singleton
     . Validation.fromEither
-    <$> runExprM expr bindings
+    <$> runExprT expr bindings

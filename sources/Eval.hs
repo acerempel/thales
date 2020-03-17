@@ -1,7 +1,7 @@
 module Eval
-  ( ExprM, Bindings
+  ( ExprT, Bindings
   , Problem(..), ProblemWhere(..), ProblemDescription(..)
-  , evalTopExpr, evalStatement, runExprM, runStmtM
+  , evalTopExpr, evalStatement, runExprT, runStmtT
   )
 where
 
@@ -18,13 +18,13 @@ import Output
 import Syntax
 import Value
 
-evalSubExpr :: AddProblemContext -> Expr -> ExprM Value
+evalSubExpr :: BaseMonad m => AddProblemContext -> Expr -> ExprT m Value
 evalSubExpr f = evalExpr (Just f)
 
-evalTopExpr :: Expr -> ExprM Value
+evalTopExpr :: BaseMonad m => Expr -> ExprT m Value
 evalTopExpr = evalExpr Nothing
 
-evalExpr :: Maybe AddProblemContext -> Expr -> ExprM Value
+evalExpr :: BaseMonad m => Maybe AddProblemContext -> Expr -> ExprT m Value
 evalExpr mContext expr =
  maybe id mapZut mContext . addProblemSource expr $ case expr of
 
@@ -59,7 +59,7 @@ evalExpr mContext expr =
     path <- evalSubExpr (ListDirectoryE) subExpr
     case path of
       String str ->
-        liftEval
+        lift
         $ Array . List.map (String . Text.pack) . List.fromList
         <$> listDirectory (Text.unpack str)
       _ ->
@@ -80,15 +80,15 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-evalStatement :: Statement -> StmtM ()
+evalStatement :: forall m. BaseMonad m => Statement -> StmtT m ()
 evalStatement = \case
 
   VerbatimS verb ->
     addOutput (Output.fromText (NonEmptyText.toText verb))
 
   ExprS _sp expr -> do
-    text <- liftExprM $ do
-      val <- evalTopExpr expr
+    text <- liftExprT $ do
+      val <- evalTopExpr expr :: ExprT m Value
       case val of
         String text ->
           return (Output.fromText text)
@@ -97,8 +97,8 @@ evalStatement = \case
     addOutput text
 
   ForS _sp var expr body -> do
-    arr <- liftExprM $ do
-      val <- evalTopExpr expr
+    arr <- liftExprT $ do
+      val <- evalTopExpr expr :: ExprT m Value
       case val of
         Array vec ->
           return vec
@@ -109,8 +109,8 @@ evalStatement = \case
         addLocalBinding var val $ evalStatement stmt
 
   OptionallyS _sp expr mb_var body -> do
-    mb_val <- liftExprM $
-      handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr)
+    mb_val <- liftExprT $
+      handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr :: ExprT m (Maybe Value))
     whenJust mb_val $ \val ->
       for_ body $ \stmt ->
         maybe id (`addLocalBinding` val) mb_var $
