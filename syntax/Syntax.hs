@@ -58,6 +58,18 @@ data ExprH f
   | FieldAccessE Name (f (ExprH f))
   -- | A bare name, like @potato@.
   | NameE Name
+  | ListDirectoryE (f (ExprH f))
+  | FileE (f (ExprH f))
+
+identifyFunction :: Name -> Maybe (Expr -> Expr)
+identifyFunction (Name name) =
+  case NonEmptyText.toText name of
+    "file" ->
+      Just (FileE . Id)
+    "list-directory" ->
+      Just (ListDirectoryE . Id)
+    _ ->
+      Nothing
 
 instance Show1 f => Show (ExprH f) where
   -- TODO: use prec correctly!
