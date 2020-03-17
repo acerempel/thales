@@ -11,5 +11,7 @@ class Monad m => BaseMonad m where
   loadFile :: (FilePath -> m Value) -> FilePath -> m Value
 
 instance BaseMonad IO where
-  listDirectory = System.listDirectory
+  listDirectory dir = sort <$> System.listDirectory dir
+  {-# INLINE listDirectory #-}
   loadFile = id
+  {-# INLINE loadFile #-}

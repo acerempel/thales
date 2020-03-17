@@ -4,7 +4,15 @@ Description : The definition of the abstract syntax tree.
 I dunno, this is pretty self-explanatory. The only interesting thing is 'ExprH' –
 see the "Eval.Expr" module for how the parameter to that type is used.
 -}
-module Syntax where
+module Syntax
+  ( Name(..)
+  , Statement(..)
+  , ExprH(..) , Expr, Id(..)
+  , Literal(..)
+  , identifyFunction
+  , SourcePos(..)
+  )
+where
 
 import Data.Functor.Classes
 import Data.Scientific
