@@ -3,7 +3,6 @@ module Main where
 
 import Control.Exception
 import qualified Data.ByteString.Builder as Builder
-import qualified Data.HashMap.Strict as Map
 import qualified Data.Text.IO as Text
 import qualified Data.Yaml as Yaml
 import System.FilePath
@@ -11,14 +10,11 @@ import System.Directory
 import Test.Tasty
 import Test.Tasty.Golden
 import Text.Megaparsec
-import Unsafe.Coerce (unsafeCoerce)
 
 import Eval
 import Bindings
-import qualified NonEmptyText
 import qualified Output
 import Parse
-import Syntax
 import Value
 
 main = do
@@ -79,23 +75,13 @@ runTemplate tplPath yamlPath = do
 instance Yaml.FromJSON Bindings where
   parseJSON =
     Yaml.withObject "Bindings"
-    (fmap Bindings . traverse yamlValueToValue . transformHashMap)
-    where
-      transformHashMap =
-        Map.fromList
-        . map (first (Name . fromJust . NonEmptyText.fromText))
-        . Map.toList
-      fromJust (Just a) = a
-
--- | b/c type role HashMap nominal representational
-coerceHashMap :: HashMap Text a -> HashMap Name a
-coerceHashMap = unsafeCoerce
+    (fmap Bindings . traverse yamlValueToValue)
 
 yamlValueToValue :: Yaml.Value -> Yaml.Parser Value
 yamlValueToValue val =
   case val of
     Yaml.Object obj ->
-      Record . coerceHashMap <$> traverse yamlValueToValue obj
+      Record <$> traverse yamlValueToValue obj
     Yaml.Array arr ->
       Array <$> traverse yamlValueToValue arr
     Yaml.String str ->

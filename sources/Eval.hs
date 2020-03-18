@@ -40,7 +40,7 @@ evalExpr mContext dir expr =
     case subVal of
       Record rec ->
         let ohNo = zutAlors (FieldNotFound name subVal)
-        in maybe ohNo return (Map.lookup name rec)
+        in maybe ohNo return (Map.lookup (fromName name) rec)
       _ ->
         zutAlors (NotARecord subVal)
 

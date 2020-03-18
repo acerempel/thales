@@ -164,9 +164,7 @@ nameP :: Parser Name
 nameP = label "name" $ do
   -- TODO: fail if is keyword.
   ident <- takeWhile1P (Just "identifier character") isIdChar <* space
-  case NonEmptyText.fromText ident of
-    Just net -> return $ Name net
-    Nothing  -> customFailure InternalError
+  return $ Name ident
 
 forP :: SourcePos -> Parser PartialStatement
 forP sp = do
@@ -212,7 +210,7 @@ exprP = do
         | Just funcConstr <- identifyFunction name ->
           pure (funcConstr arg)
         | otherwise ->
-          customFailure (UnknownFunction (NonEmptyText.toText (fromName name)))
+          customFailure (UnknownFunction (fromName name))
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space

@@ -29,7 +29,7 @@ import List (List)
 -- (Currently there is no way to bind a value to a name within a template -- it
 -- must already exist in the context in which the template is evaluated. This is
 -- a TODO.)
-newtype Name = Name { fromName :: NonEmptyText }
+newtype Name = Name { fromName :: Text }
   deriving newtype ( Eq, Ord, Show, Hashable, NFData, IsString )
 
 {- TODO: Replace 'Expr' with a type variable, so that it can be replaced
@@ -71,7 +71,7 @@ data ExprH f
 
 identifyFunction :: Name -> Maybe (Expr -> Expr)
 identifyFunction (Name name) =
-  case NonEmptyText.toText name of
+  case name of
     "file" ->
       Just (FileE . Id)
     "list-directory" ->

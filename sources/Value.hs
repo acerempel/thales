@@ -5,7 +5,6 @@ import Data.Scientific
 import Text.Show
 
 import List (List)
-import Syntax
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
 Effectively, templates are dynamically typed. Aside from the absence of null,
@@ -17,7 +16,7 @@ data Value where
   Verbatim :: Text -> Value
   Boolean :: Bool -> Value
   Array :: List Value -> Value
-  Record :: HashMap Name Value -> Value
+  Record :: HashMap Text Value -> Value
 
 instance Eq Value where
   (Number a1) == (Number a2) =
