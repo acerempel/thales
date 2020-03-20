@@ -181,6 +181,8 @@ instance DependencyMonad IO where
   listDirectory dir = sort <$> System.listDirectory dir
   lookupField _ft _fp _t = fail "zrop"
 
+hash :: Hashable a => a -> Int
 hash = hashWithSalt defaultSalt
 
+defaultSalt :: Int
 defaultSalt = -2578643520546668380
