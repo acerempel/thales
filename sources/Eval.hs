@@ -6,6 +6,7 @@ module Eval
 where
 
 import qualified Data.Text as Text
+import Data.Traversable
 import qualified Data.HashMap.Strict as Map
 import System.FilePath
 
@@ -118,6 +119,13 @@ evalStatement = \case
       for_ body $ \stmt ->
         maybe id (`addLocalBinding` val) mb_var $
         evalStatement stmt
+
+  LetS sp binds body -> do
+    eval'd_binds <-
+      for binds $ \(name, expr) -> liftExprT $
+        (name,) <$> (evalTopExpr (sourceDir sp) expr :: ExprT m Value)
+    addLocalBindings eval'd_binds $
+      for_ body evalStatement
 
   where
     sourceDir = takeDirectory . sourceName
