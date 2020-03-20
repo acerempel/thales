@@ -50,6 +50,7 @@ data Statement
   -- | If evaluating the expression is successful, bind the
   -- result to the 'Name', and evaluate the '[Statement]'s in that context.
   | OptionallyS SourcePos Expr (Maybe Name) [Statement]
+  | LetS SourcePos [(Name, Expr)] [Statement]
   deriving ( Show, Eq )
 
 -- | An expression. The expression language is quite limited at the moment, but

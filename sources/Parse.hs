@@ -132,7 +132,7 @@ statementP :: Parser Statement
 statementP = label "statement" $ do
   statem <- withinDelims $ do
     sp <- getSourcePos
-    forP sp <|> optionallyP sp <|> StandaloneS . ExprS sp <$> exprP
+    forP sp <|> optionallyP sp <|> letP sp <|> StandaloneS . ExprS sp <$> exprP
   case statem of
     BlockS continuation ->
       continuation <$> blockP
@@ -178,6 +178,22 @@ optionallyP sp = do
     keywordP "as"
     nameP
   return (BlockS $ OptionallyS sp expr mb_name)
+
+-- | Parse the header of a 'let' block, of the form @let name = expr, … in@.
+-- Note that a trailing comma after the bindings is optional, and that it is
+-- permissible to provide no bindings (@let in@).
+letP :: SourcePos -> Parser PartialStatement
+letP sp = do
+  keywordP "let"
+  bindings <- sepEndBy binding (specialCharP ',')
+  keywordP "in"
+  return (BlockS $ LetS sp bindings)
+ where
+  binding = do
+    name <- nameP
+    specialCharP '='
+    val <- exprP
+    return (name, val)
 
 -- TODO: Parsing of record literals, record updates, array indexes, add back
 -- some form of application.
