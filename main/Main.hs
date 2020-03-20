@@ -2,24 +2,63 @@
 module Main (main) where
 
 import qualified Control.Applicative.Combinators.NonEmpty as NE
+import Control.Exception
 import Development.Shake
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
 import Options.Applicative
 import Options.Applicative.Help.Pretty
 import System.Directory
 import System.FilePath
+import System.IO
+import Text.Megaparsec (errorBundlePretty)
 
+import qualified Bindings
 import DependencyMonad hiding (listDirectory)
+import Eval
 import qualified NonEmptyText
+import qualified Output
 import Parse
 
 main = do
   options@Options{..} <- execParser cli
   run options $ do
     want optTargets
-    "**/*" %> \target -> do
-      let template = target <.> templateExtension
-      need [template]
+    dependDelimiters <- addOracle pure
+    (`elem` optTargets) ?> \targetPath -> do
+      let templatePath = targetPath <.> templateExtension
+      need [templatePath]
+      _ <- dependDelimiters optDelimiters
+      execTemplate optDelimiters templatePath targetPath
+
+execTemplate :: Delimiters -> FilePath -> FilePath -> Action ()
+execTemplate delimiters templatePath targetPath = do
+  input <- liftIO $ Text.readFile templatePath
+  parsed <-
+    either (liftIO . throwIO) pure $
+    first (ParseError . errorBundlePretty) $
+    parseTemplate delimiters templatePath input
+  eval'd <-
+    (>>= either (liftIO . throwIO) pure) $
+      first (EvalError . toList) <$>
+      runStmtT (for_ parsed evalStatement) Bindings.empty
+  liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
+    hSetBuffering hdl (BlockBuffering Nothing)
+    Output.write hdl (snd eval'd)
+
+type instance RuleResult Delimiters = Delimiters
+
+newtype TemplateParseError =
+  ParseError String
+  deriving newtype Show
+
+instance Exception TemplateParseError where
+  displayException (ParseError err) = err
+
+newtype TemplateEvalError = EvalError [Problem]
+  deriving stock Show
+
+instance Exception TemplateEvalError
 
 cli =
   info (optionsParser <**> helper) $

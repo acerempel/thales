@@ -9,13 +9,14 @@ module NonEmptyText
 where
 
 import Prelude hiding (head, tail, foldl', foldr, toText, length)
+import Data.Binary
 import qualified Data.Text as Text
 
 {-| This is simply 'Text', but it cannot be empty! -}
 data NonEmptyText =
   NonEmptyText Char Text
-  deriving stock ( Eq, Ord, Show, Generic )
-  deriving anyclass ( Hashable, NFData )
+  deriving stock ( Eq, Ord, Show, Generic, Typeable )
+  deriving anyclass ( Hashable, NFData, Binary )
 
 singleton :: Char -> NonEmptyText
 singleton c = NonEmptyText c Text.empty

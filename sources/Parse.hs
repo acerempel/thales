@@ -19,6 +19,7 @@ module Parse
 where
 
 import Prelude hiding (many)
+import Data.Binary
 import Data.Char
 import qualified Data.Text as Text
 import Text.Megaparsec hiding (parse, runParser)
@@ -36,7 +37,8 @@ or @Delimiters { begin = "$(", end = ")" }@. -}
 data Delimiters = Delimiters
   { begin :: NonEmptyText
   , end :: NonEmptyText }
-  deriving Show
+  deriving stock ( Show, Eq, Generic, Typeable )
+  deriving anyclass ( Hashable, NFData, Binary )
 
 -- | A statement that may enclose a block of further statements (or may not).
 data PartialStatement

@@ -1,5 +1,5 @@
 module Output
-  ( Output, toBuilder
+  ( Output, toBuilder, write
   , fromText, preEscapedFromText
   , singleton, preEscapedSingleton
   )
@@ -29,3 +29,6 @@ preEscapedSingleton = Output . Builder.charUtf8
 
 toBuilder :: Output -> Builder
 toBuilder = fromOutput
+
+write :: Handle -> Output -> IO ()
+write h = Builder.hPutBuilder h . fromOutput
