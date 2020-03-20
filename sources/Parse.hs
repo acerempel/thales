@@ -54,14 +54,10 @@ newtype Parser a = Parser
 deriving newtype instance MonadParsec CustomError Text Parser
 
 data CustomError
-  -- | This error constructor signifies that an internal invariant in the parser was
-  -- broken. If you ever see it in an error message, it's a bug in the parser.
-  = InternalError
-  | UnknownFunction Text
+  = UnknownFunction Text
   deriving stock ( Ord, Eq, Show )
 
 instance ShowErrorComponent CustomError where
-  showErrorComponent InternalError = "Internal error!"
   showErrorComponent (UnknownFunction name) =
     Text.unpack name <> " is not a known function."
 
