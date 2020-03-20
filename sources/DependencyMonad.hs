@@ -2,6 +2,7 @@ module DependencyMonad
   ( DependencyMonad(..)
   , FileType(..)
   , Options(..)
+  , RebuildUnconditionally(..)
   , run
   )
 where
@@ -36,12 +37,10 @@ instance DependencyMonad Action where
 
 -- | The command-line options.
 data Options = Options
-  { optTemplateFileExtension :: String
-  , optOutputFileExtension :: String
-  , optInputDirectory :: FilePath
-  , optOutputDirectory :: FilePath
+  { optTargets :: [FilePath]
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
   , optDelimiters :: Delimiters
+  , optVerbosity :: Verbosity
   , optTimings :: Bool }
 
 data RebuildUnconditionally
@@ -60,7 +59,8 @@ run options rules =
     optionsToShakeOptions Options{..} =
       shakeOptions
         { shakeRebuild = translateRebuild optRebuildUnconditionally
-        , shakeTimings = optTimings }
+        , shakeTimings = optTimings
+        , shakeVerbosity = optVerbosity }
 
     translateRebuild optRebuild =
       case optRebuild of

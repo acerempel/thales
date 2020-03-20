@@ -58,12 +58,12 @@ executable thales
   main-is:        Main.hs
   build-depends:
       core
-    , bytestring >= 0.10.8 && < 0.11
+    , filepath >= 1.4 && < 1.5
+    , directory
     , optparse-applicative >= 0.14 && < 0.16
+    , parser-combinators
     , shake >= 0.18 && < 0.19
     , text >= 1.2.2 && < 1.3
-    , unordered-containers >= 0.2.9 && < 0.3
-    , yaml >= 0.11.1.2 && < 0.12
 
 library core
   import:          stuff

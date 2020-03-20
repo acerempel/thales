@@ -3,7 +3,8 @@
 Description : Provides a 'NonEmptyText' datatype for 'Text' that cannot be empty.
 -}
 module NonEmptyText
-  ( NonEmptyText(..), singleton, fromText, toText
+  ( NonEmptyText(..), singleton
+  , fromText, fromNonEmptyString, toText
   , head, tail, foldr, foldl', length )
 where
 
@@ -22,6 +23,10 @@ singleton c = NonEmptyText c Text.empty
 fromText :: Text -> Maybe NonEmptyText
 fromText t =
   uncurry NonEmptyText <$> Text.uncons t
+
+fromNonEmptyString :: NonEmpty Char -> NonEmptyText
+fromNonEmptyString (hd :| tl) =
+  NonEmptyText hd (Text.pack tl)
 
 toText :: NonEmptyText -> Text
 toText (NonEmptyText hd tl) =
