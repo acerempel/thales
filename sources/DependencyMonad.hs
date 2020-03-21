@@ -13,6 +13,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text.IO as Text
 import qualified Data.Yaml as Yaml
 import Development.Shake
+import Development.Shake.Classes hiding (show)
 import Development.Shake.Rule
 import qualified Lucid
 import Text.Megaparsec
@@ -227,9 +228,3 @@ newtype TemplateEvalError = EvalError [Problem]
   deriving stock Show
 
 instance Exception TemplateEvalError
-
-hash :: Hashable a => a -> Int
-hash = hashWithSalt defaultSalt
-
-defaultSalt :: Int
-defaultSalt = -2578643520546668380
