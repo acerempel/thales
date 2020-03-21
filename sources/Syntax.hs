@@ -9,19 +9,18 @@ module Syntax
   , Statement(..)
   , ExprH(..) , Expr, Id(..)
   , Literal(..)
-  , identifyFunction
   , SourcePos(..)
+  , FileType(..)
   )
 where
 
 import Data.Functor.Classes
 import Data.Scientific
+import Development.Shake.Classes
 import Text.Megaparsec
-import Text.Show
 
 import NonEmptyText
 import List (List)
-import Value
 
 -- | A name, to which a value may be bound. This is the sort of thing that is
 -- usually called a variable, except that these names are strictly immutable –
@@ -69,19 +68,42 @@ data ExprH f
   -- | A bare name, like @potato@.
   | NameE Name
   | ListDirectoryE (f (ExprH f))
-  | FileE FileType (f (ExprH f))
+  | FileE (FileType (f (ExprH f))) (f (ExprH f))
 
-identifyFunction :: Name -> Maybe (Expr -> Expr)
-identifyFunction (Name name) =
-  case name of
-    "yaml-file" ->
-      Just (FileE YamlFile . Id)
-    "markdown-file" ->
-      Just (FileE MarkdownFile . Id)
-    "list-directory" ->
-      Just (ListDirectoryE . Id)
-    _ ->
-      Nothing
+-- | A type of file that may be interpreted as a key-value mapping, i.e. a
+-- 'Record'.
+data FileType a
+  -- | The YAML file is assumed to have an associative array at the top level
+  -- with string keys.
+  = YamlFile
+  -- | Any YAML front matter is treated as with 'YamlFile', and the document
+  -- body is available under the "body" key.
+  | MarkdownFile
+  -- | The output of executing the template is available under the "body" key.
+  -- The argument to this constructor represents the parameters given to the
+  -- template. In the abstract syntax tree ('Syntax'), this is an 'ExprH',
+  -- and in a 'Value', this is a @'HashMap' 'Text' Value@.
+  | TemplateFile a
+  deriving stock ( Eq, Show, Generic, Functor )
+  deriving anyclass ( Hashable, NFData, Typeable, Binary )
+
+
+instance Foldable FileType where
+  foldMap f (TemplateFile a) = f a
+  foldMap _f _ = mempty
+
+instance Applicative FileType where
+  (TemplateFile f) <*> (TemplateFile a) = TemplateFile (f a)
+  (TemplateFile _f) <*> YamlFile = YamlFile
+  (TemplateFile _f) <*> MarkdownFile = MarkdownFile
+  YamlFile <*> _ = YamlFile
+  MarkdownFile <*> _ = MarkdownFile
+  pure = TemplateFile
+
+instance Traversable FileType where
+  traverse f (TemplateFile a) = TemplateFile <$> f a
+  traverse _f YamlFile = pure YamlFile
+  traverse _f MarkdownFile = pure MarkdownFile
 
 instance Show1 f => Show (ExprH f) where
   -- TODO: use prec correctly!

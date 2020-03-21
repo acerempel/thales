@@ -43,7 +43,7 @@ evalExpr mContext dir expr =
       Record rec ->
         maybe ohNo return (Map.lookup (fromName name) rec)
       ExternalRecord ft path -> do
-        mb_val <- lift $ lookupField ft path (fromName name)
+        mb_val <- lift $ lookupField (Bindings <$> ft) path (fromName name)
         maybe ohNo return mb_val
       _ ->
         zutAlors (NotARecord subVal)
@@ -71,10 +71,13 @@ evalExpr mContext dir expr =
         zutAlors (error "oh no!!!")
 
   FileE ft (Id subExpr) -> do
-    path <- evalSubExpr (FileE ft) dir subExpr
-    case path of
-      String str ->
-        pure (ExternalRecord ft (Text.unpack str))
+    -- TODO: make this comprehensible
+    path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) dir subExpr
+    ft' <- traverse (evalSubExpr (\ft'' -> FileE (pure ft'') (NoProblem subExpr)) dir) (getId <$> ft)
+    let ft'' = traverse (\val -> case val of { Record r -> Right r; _ -> Left "oh no!" }) ft'
+    case (path, ft'') of
+      (String str, Right rec) ->
+        pure (ExternalRecord rec (Text.unpack str))
       _ ->
         zutAlors (error "ack!")
 

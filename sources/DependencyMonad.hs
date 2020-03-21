@@ -23,13 +23,14 @@ import Bindings (Bindings(..))
 import Output (Output)
 import qualified Output
 import Parse
+import Syntax
 import Value
 
 class Monad m => DependencyMonad m where
 
   listDirectory :: FilePath -> m [FilePath]
 
-  lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
+  lookupField :: FileType Bindings -> FilePath -> Text -> m (Maybe Value)
 
 instance DependencyMonad Action where
 
@@ -127,7 +128,7 @@ type instance RuleResult Delimiters = Delimiters
 {-# INLINEABLE run #-}
 
 data FieldAccessQ = FieldAccessQ
-  { faFileType :: FileType
+  { faFileType :: FileType Bindings
   , faFilePath :: FilePath
     -- ^ The path to a file containing key-value pairs. This is assumed to be an
     -- absolute path.
@@ -159,7 +160,7 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
       MarkdownFile -> fromMarkdown <$> getMarkdown faFilePath
       TemplateFile bindings -> do
         ExecTemplate execTemplate <- getTemplate faFilePath
-        execTemplate (Bindings bindings)
+        execTemplate bindings
   val <-
     case mb_record of
       Record hashMap ->
@@ -192,7 +193,7 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
 
 {-# INLINE fieldAccessRuleRun #-}
 
-data NotAnObject = NotAnObject FileType FilePath
+data NotAnObject = NotAnObject (FileType Bindings) FilePath
   deriving stock ( Show, Typeable )
 
 instance Exception NotAnObject

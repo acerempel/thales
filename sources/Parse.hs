@@ -216,15 +216,31 @@ exprP = do
   bracketsP = between (specialCharP '[') (specialCharP ']')
   applicationOrNameP = do
     name <- nameP
-    mb_arg <- optional exprP
-    case mb_arg of
+    case identifyFunction name of
+      Just (OneArgumentFunction f) ->
+        f <$> exprP
+      Just (TwoArgumentFunction f) ->
+        f <$> exprP <*> exprP
       Nothing ->
         pure (NameE name)
-      Just arg
-        | Just funcConstr <- identifyFunction name ->
-          pure (funcConstr arg)
-        | otherwise ->
-          customFailure (UnknownFunction (fromName name))
+
+data Function
+  = OneArgumentFunction (Expr -> Expr)
+  | TwoArgumentFunction (Expr -> Expr -> Expr)
+
+identifyFunction :: Name -> Maybe Function
+identifyFunction (Name name) =
+  case name of
+    "load-yaml" ->
+      Just $ OneArgumentFunction (FileE YamlFile . Id)
+    "load-markdown" ->
+      Just $ OneArgumentFunction (FileE MarkdownFile . Id)
+    "list-directory" ->
+      Just $ OneArgumentFunction (ListDirectoryE . Id)
+    "load-template" ->
+      Just $ TwoArgumentFunction (\path binds -> FileE (TemplateFile (Id binds)) (Id path))
+    _ ->
+      Nothing
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space

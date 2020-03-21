@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE TypeApplications #-}
-module Value ( Value(..), FileType(..) ) where
+module Value ( Value(..) ) where
 
 import Control.Foldl as Fold
 import Data.Binary.Instances.UnorderedContainers ()
@@ -12,6 +12,7 @@ import Text.MMark as MMark
 
 import List (List)
 import Output (StorableOutput)
+import Syntax
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
 Effectively, templates are dynamically typed. Aside from the absence of null,
@@ -30,22 +31,9 @@ data Value where
   -- like a YAML file. We just have the path to the file here, and retrieve the
   -- value for a given key on demand. The 'FileType' tells us how to interpret
   -- the file -- e.g. as YAML, or something else.
-  ExternalRecord :: FileType -> FilePath -> Value
+  ExternalRecord :: FileType (HashMap Text Value) -> FilePath -> Value
   deriving stock ( Generic, Typeable, Show, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
-
--- | A type of file that may be interpreted as a key-value mapping, i.e. a
--- 'Record'.
-data FileType
-  -- | The YAML file is assumed to have an associative array at the top level
-  -- with string keys.
-  = YamlFile
-  -- | Any YAML front matter is treated as with 'YamlFile', and the document
-  -- body is available under the "body" key.
-  | MarkdownFile
-  | TemplateFile (HashMap Text Value)
-  deriving stock ( Eq, Show, Generic )
-  deriving anyclass ( Hashable, NFData, Typeable, Binary )
 
 -- | Orphan instance, necessary for @Eq 'Value'@.
 instance Eq MMark where

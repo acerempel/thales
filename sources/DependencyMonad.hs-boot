@@ -1,10 +1,12 @@
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 module DependencyMonad where
 
+import Bindings
+import Syntax (FileType)
 import Value
 
 class Monad m => DependencyMonad m where
 
   listDirectory :: FilePath -> m [FilePath]
 
-  lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
+  lookupField :: FileType Bindings -> FilePath -> Text -> m (Maybe Value)
