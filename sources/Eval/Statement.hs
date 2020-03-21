@@ -13,7 +13,7 @@ import Control.Applicative.Trans.Writer
 import Data.DList (DList)
 import qualified Data.DList as DList
 
-import DependencyMonad
+import {-# SOURCE #-} DependencyMonad
 import Bindings
 import Eval.Expr
 import Output

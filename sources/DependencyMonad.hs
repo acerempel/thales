@@ -1,6 +1,5 @@
 module DependencyMonad
   ( DependencyMonad(..)
-  , FileType(..)
   , Options(..)
   , RebuildUnconditionally(..)
   , run
@@ -15,9 +14,14 @@ import qualified Data.Text.IO as Text
 import qualified Data.Yaml as Yaml
 import Development.Shake
 import Development.Shake.Rule
+import qualified Lucid
 import Text.Megaparsec
 import Text.MMark as MMark
 
+import Eval
+import Bindings (Bindings)
+import Output (Output)
+import qualified Output
 import Parse
 import Value
 
@@ -27,12 +31,17 @@ class Monad m => DependencyMonad m where
 
   lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
 
+  execTemplate :: Bindings -> FilePath -> m (Bindings, Output)
+
 instance DependencyMonad Action where
 
   listDirectory = getDirectoryContents
 
   lookupField ft path key = apply1 (FieldAccessQ ft path key)
   {-# INLINE lookupField #-}
+
+  execTemplate binds path = apply1 (TemplateQ binds path)
+  {-# INLINE execTemplate #-}
 
 -- | The command-line options.
 data Options = Options
@@ -61,7 +70,8 @@ run options rules =
       shakeOptions
         { shakeRebuild = translateRebuild optRebuildUnconditionally
         , shakeTimings = optTimings
-        , shakeVerbosity = optVerbosity }
+        , shakeVerbosity = optVerbosity
+        , shakeThreads = 0 }
 
     translateRebuild optRebuild =
       case optRebuild of
@@ -91,7 +101,13 @@ run options rules =
           Left err -> liftIO $ throwIO (Yaml.YamlException err)
           Right (Record hashmap) -> return hashmap
           Right _ -> liftIO $ throwIO $ NotAnObject MarkdownFile path
-      let record' = Map.insert "body" (Markdown mmark) record
+      let markdownOutput =
+            ( Output.toStorable
+            . Output.fromBuilder
+            . runIdentity
+            . Lucid.execHtmlT
+            . MMark.render ) mmark
+      let record' = Map.insert "body" (Output markdownOutput) record
       return $ MarkdownValue $ Record record'
 
 {-# INLINEABLE run #-}
@@ -106,18 +122,6 @@ data FieldAccessQ = FieldAccessQ
     deriving anyclass ( Hashable, Binary, NFData )
 
 type instance RuleResult FieldAccessQ = Maybe Value
-
--- | A type of file that may be interpreted as a key-value mapping, i.e. a
--- 'Record'.
-data FileType
-  -- | The YAML file is assumed to have an associative array at the top level
-  -- with string keys.
-  = YamlFile
-  -- | Any YAML front matter is treated as with 'YamlFile', and the document
-  -- body is available under the "body" key.
-  | MarkdownFile
-  deriving stock ( Eq, Show, Generic )
-  deriving anyclass ( Hashable, NFData, Typeable, Binary )
 
 -- | This newtype exists solely to help me keep the order of arguments in
 -- 'fieldAccessRuleRun' straight.
@@ -150,24 +154,22 @@ fieldAccessRuleRun getYaml getMarkdown fa@FieldAccessQ{..} mb_stored mode = do
         ChangedRecomputeDiff
         (toStrict (encode (hash val)))
         val
-    Just stored ->
-      let
-        previous_hash = decode (toLazy stored)
-        (new_hash, did_change) =
-          case mode of
-            RunDependenciesSame ->
-              (previous_hash, ChangedNothing)
-            RunDependenciesChanged ->
-              let changed =
-                    if new_hash == previous_hash
-                      then ChangedRecomputeSame else ChangedRecomputeDiff
-              in (hash val, changed)
-      in do
-        putVerbose (show fa <> ": " <> show did_change <> " " <> show new_hash)
-        return $ RunResult
-          did_change
-          (toStrict (encode new_hash))
-          val
+    Just stored -> do
+      let previous_hash = decode (toLazy stored)
+      let (new_hash, did_change) =
+            case mode of
+              RunDependenciesSame ->
+                (previous_hash, ChangedNothing)
+              RunDependenciesChanged ->
+                let changed =
+                      if new_hash == previous_hash
+                        then ChangedRecomputeSame else ChangedRecomputeDiff
+                in (hash val, changed)
+      putVerbose (show fa <> ": " <> show did_change <> " " <> show new_hash)
+      return $ RunResult
+        did_change
+        (toStrict (encode new_hash))
+        val
 
 data NotAnObject = NotAnObject FileType FilePath
   deriving stock ( Show, Typeable )
@@ -180,6 +182,59 @@ newtype MMarkException = MMarkException (ParseErrorBundle Text MMarkErr)
 instance Exception MMarkException where
   displayException (MMarkException err) =
     errorBundlePretty err
+
+data TemplateQ = TemplateQ
+  { templateParameters :: Bindings
+  , templatePath :: FilePath }
+  deriving stock ( Eq, Show, Generic )
+  deriving anyclass ( Hashable, NFData, Typeable, Binary )
+
+type instance RuleResult TemplateQ = (Bindings, Output)
+
+templateRuleRun ::
+  (Delimiters -> Action ()) ->
+  Delimiters ->
+  TemplateQ ->
+  Maybe ByteString ->
+  RunMode ->
+  Action (RunResult (Bindings, Output))
+templateRuleRun dependDelimiters delimiters key@TemplateQ{..} mb_previous mode = do
+  need [templatePath]
+  dependDelimiters delimiters
+  case mb_previous of
+    Nothing ->
+      RunResult ChangedRecomputeDiff mempty <$> rebuild
+    Just _ -> do
+      case mode of
+        RunDependenciesSame -> do
+          RunResult ChangedNothing mempty <$> rebuild
+        RunDependenciesChanged -> do
+          RunResult ChangedRecomputeDiff mempty <$> rebuild
+
+ where
+  rebuild = do
+    input <- liftIO $ Text.readFile templatePath
+    parsed <- eitherThrow $
+      first (ParseError . errorBundlePretty) $
+      parseTemplate delimiters templatePath input
+    (>>= eitherThrow) $
+      first (EvalError . toList) <$>
+      runStmtT (for_ parsed evalStatement) templateParameters
+
+eitherThrow :: (MonadIO m, Exception e) => Either e a -> m a
+eitherThrow = either (liftIO . throwIO) pure
+
+newtype TemplateParseError =
+  ParseError String
+  deriving newtype Show
+
+instance Exception TemplateParseError where
+  displayException (ParseError err) = err
+
+newtype TemplateEvalError = EvalError [Problem]
+  deriving stock Show
+
+instance Exception TemplateEvalError
 
 hash :: Hashable a => a -> Int
 hash = hashWithSalt defaultSalt

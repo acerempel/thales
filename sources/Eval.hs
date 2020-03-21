@@ -8,11 +8,9 @@ where
 import qualified Data.Text as Text
 import Data.Traversable
 import qualified Data.HashMap.Strict as Map
-import qualified Lucid
 import System.FilePath
-import qualified Text.MMark as MMark
 
-import DependencyMonad
+import {-# SOURCE #-} DependencyMonad
 import Bindings
 import Eval.Expr
 import Eval.Statement
@@ -98,12 +96,8 @@ evalStatement = \case
       case val of
         String text ->
           return (Output.fromText text)
-        Markdown mmark ->
-          return
-            ( Output.fromBuilder
-            . runIdentity
-            . Lucid.execHtmlT
-            $ MMark.render mmark)
+        Output out ->
+          return (Output.fromStorable out)
         _ ->
           zutAlors (NotText val)
     addOutput text

@@ -36,14 +36,12 @@ main = do
 execTemplate :: Delimiters -> FilePath -> FilePath -> Action ()
 execTemplate delimiters templatePath targetPath = do
   input <- liftIO $ Text.readFile templatePath
-  parsed <-
-    either (liftIO . throwIO) pure $
+  parsed <- eitherThrow $
     first (ParseError . errorBundlePretty) $
     parseTemplate delimiters templatePath input
-  eval'd <-
-    (>>= either (liftIO . throwIO) pure) $
-      first (EvalError . toList) <$>
-      runStmtT (for_ parsed evalStatement) Bindings.empty
+  eval'd <- (>>= eitherThrow) $
+    first (EvalError . toList) <$>
+    runStmtT (for_ parsed evalStatement) Bindings.empty
   liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
     hSetBuffering hdl (BlockBuffering Nothing)
     Output.write hdl (snd eval'd)

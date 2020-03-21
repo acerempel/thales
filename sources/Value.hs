@@ -1,15 +1,17 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
-module Value ( Value(..) ) where
+{-# LANGUAGE TypeApplications #-}
+module Value ( Value(..), FileType(..) ) where
 
 import Control.Foldl as Fold
+import Data.Binary.Instances.UnorderedContainers ()
+import Data.Binary.Instances.Vector ()
 import Data.Scientific
+import Development.Shake.Classes
 import qualified Data.Yaml as Yaml
 import Text.MMark as MMark
-import Text.MMark.Extension as MMark
-import Text.URI
 
-import {-# SOURCE #-} DependencyMonad
 import List (List)
+import Output (StorableOutput)
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
 Effectively, templates are dynamically typed. Aside from the absence of null,
@@ -22,34 +24,32 @@ data Value where
   Boolean :: Bool -> Value
   Array :: List Value -> Value
   Record :: HashMap Text Value -> Value
-  -- | A Markdown document.
-  Markdown :: MMark -> Value
+  -- | The output of a template or of the body of a markdown document.
+  Output :: StorableOutput -> Value
   -- | A reference to a 'Record'-like value that is found in a file somewhere –
   -- like a YAML file. We just have the path to the file here, and retrieve the
   -- value for a given key on demand. The 'FileType' tells us how to interpret
   -- the file -- e.g. as YAML, or something else.
   ExternalRecord :: FileType -> FilePath -> Value
   deriving stock ( Generic, Typeable, Show, Eq )
-  deriving anyclass ( NFData, Hashable )
+  deriving anyclass ( NFData, Hashable, Binary )
+
+-- | A type of file that may be interpreted as a key-value mapping, i.e. a
+-- 'Record'.
+data FileType
+  -- | The YAML file is assumed to have an associative array at the top level
+  -- with string keys.
+  = YamlFile
+  -- | Any YAML front matter is treated as with 'YamlFile', and the document
+  -- body is available under the "body" key.
+  | MarkdownFile
+  deriving stock ( Eq, Show, Generic )
+  deriving anyclass ( Hashable, NFData, Typeable, Binary )
 
 -- | Orphan instance, necessary for @Eq 'Value'@.
 instance Eq MMark where
   (==) =
     (==) `on` flip MMark.runScanner Fold.list
-
-instance Hashable a => Hashable (MMark.Block a)
-instance Hashable MMark.Inline
-instance Hashable MMark.CellAlign
-instance Hashable URI
-instance Hashable (RText label)
-instance Hashable Authority
-instance Hashable UserInfo
-instance Hashable QueryParam
-
--- | Orphan instance, needed for @Hashable 'Value'@.
-instance Hashable MMark where
-  hashWithSalt salt mmark =
-    hashWithSalt salt (MMark.runScanner mmark Fold.list)
 
 instance Yaml.FromJSON Value where
   parseJSON = parseYamlValue

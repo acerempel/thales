@@ -19,9 +19,9 @@ import Data.Scientific
 import Text.Megaparsec
 import Text.Show
 
-import {-# SOURCE #-} DependencyMonad
 import NonEmptyText
 import List (List)
+import Value
 
 -- | A name, to which a value may be bound. This is the sort of thing that is
 -- usually called a variable, except that these names are strictly immutable –

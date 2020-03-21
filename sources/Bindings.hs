@@ -1,5 +1,9 @@
 module Bindings where
 
+import Prelude hiding (put, get)
+
+import Data.Binary
+import Data.Binary.Instances.UnorderedContainers
 import qualified Data.HashMap.Strict as Map
 
 import Syntax
@@ -10,7 +14,7 @@ import Value
 -- probably change.
 newtype Bindings = Bindings
   { getBindings :: HashMap Text Value }
-  deriving newtype ( Show, Monoid, Semigroup )
+  deriving newtype ( Show, Monoid, Semigroup, NFData, Eq, Hashable, Binary )
 
 union :: Bindings -> Bindings -> Bindings
 union (Bindings a) (Bindings b) =

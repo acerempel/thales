@@ -1,15 +1,14 @@
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 module DependencyMonad where
 
-import Development.Shake.Classes
+import Bindings
+import Output
+import Value
 
-data FileType
-  = YamlFile
-  | MarkdownFile
+class Monad m => DependencyMonad m where
 
-instance Eq FileType
-instance Show FileType
-instance Generic FileType
-instance Hashable FileType
-instance NFData FileType
-instance Binary FileType
+  listDirectory :: FilePath -> m [FilePath]
+
+  lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
+
+  execTemplate :: Bindings -> FilePath -> m (Bindings, Output)
