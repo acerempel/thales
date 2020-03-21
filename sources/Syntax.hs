@@ -8,6 +8,7 @@ module Syntax
   ( Name(..)
   , Statement(..)
   , ExprH(..) , Expr, Id(..)
+  , RecordBinding(..)
   , Literal(..)
   , SourcePos(..)
   , FileType(..)
@@ -63,12 +64,17 @@ data ExprH f
   = LiteralE Literal
   -- | An array of expressions, like @[1, "seven", [2]]@.
   | ArrayE (List (f (ExprH f)))
+  | RecordE [RecordBinding f]
   -- | A field access, like @post.description@.
   | FieldAccessE Name (f (ExprH f))
   -- | A bare name, like @potato@.
   | NameE Name
   | ListDirectoryE (f (ExprH f))
   | FileE (FileType (f (ExprH f))) (f (ExprH f))
+
+data RecordBinding f
+  = FieldPun Name
+  | FieldAssignment Name (f (ExprH f))
 
 -- | A type of file that may be interpreted as a key-value mapping, i.e. a
 -- 'Record'.

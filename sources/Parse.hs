@@ -204,6 +204,7 @@ exprP :: Parser Expr
 exprP =
   applicationP <|> atomicExprP
  where
+  -- TODO: Rewrite to improve error messages.
   applicationP = do
     func <- try $ do
       name <- nameP
@@ -220,6 +221,7 @@ atomicExprP = do
     parensP exprP
     <|> ArrayE . coerce . List.fromList
         <$> bracketsP (sepEndBy exprP (specialCharP ','))
+    <|> RecordE <$> bracesP (sepEndBy recordBindingP (specialCharP ','))
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
     <|> NameE <$> nameP
@@ -228,6 +230,19 @@ atomicExprP = do
  where
   parensP = between (specialCharP '(') (specialCharP ')')
   bracketsP = between (specialCharP '[') (specialCharP ']')
+  bracesP = between (specialCharP '{') (specialCharP '}')
+
+
+recordBindingP :: Parser (RecordBinding Id)
+recordBindingP = do
+  name <- nameP
+  mb_val <- optional $ do
+    specialCharP '='
+    exprP
+  pure $
+    case mb_val of
+      Just val -> FieldAssignment name (Id val)
+      Nothing  -> FieldPun name
 
 data Function
   = OneArgumentFunction (Expr -> Expr)
