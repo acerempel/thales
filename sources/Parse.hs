@@ -187,15 +187,12 @@ optionallyP sp = do
 letP :: SourcePos -> Parser PartialStatement
 letP sp = do
   keywordP "let"
-  bindings <- sepEndBy binding (specialCharP ',')
+  bindings <- sepEndBy binding comma
   keywordP "in"
   return (BlockS $ LetS sp bindings)
  where
-  binding = do
-    name <- nameP
-    specialCharP '='
-    val <- exprP
-    return (name, val)
+  binding =
+    (,) <$> (nameP <* equals) <*> exprP
 
 -- TODO: Parsing of record literals, record updates, array indexes, add back
 -- some form of application.
@@ -220,25 +217,22 @@ atomicExprP = do
   expr <-
     parensP exprP
     <|> ArrayE . coerce . List.fromList
-        <$> bracketsP (sepEndBy exprP (specialCharP ','))
-    <|> RecordE <$> bracesP (sepEndBy recordBindingP (specialCharP ','))
+        <$> bracketsP (sepEndBy exprP comma)
+    <|> RecordE <$> bracesP (sepEndBy recordBindingP comma)
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
     <|> NameE <$> nameP
-  fields <- many (specialCharP '.' *> nameP)
+  fields <- many (dot *> nameP)
   return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
  where
-  parensP = between (specialCharP '(') (specialCharP ')')
-  bracketsP = between (specialCharP '[') (specialCharP ']')
-  bracesP = between (specialCharP '{') (specialCharP '}')
-
+  parensP = betweenChars '(' ')'
+  bracketsP = betweenChars '[' ']'
+  bracesP = betweenChars '{' '}'
 
 recordBindingP :: Parser (RecordBinding Id)
 recordBindingP = do
   name <- nameP
-  mb_val <- optional $ do
-    specialCharP '='
-    exprP
+  mb_val <- optional (equals >> exprP)
   pure $
     case mb_val of
       Just val -> FieldAssignment name (Id val)
@@ -271,6 +265,15 @@ stringP = do
   str <- takeWhileP (Just "any character other than '\"'") (/= '"')
   specialCharP '"'
   return (StringL str)
+
+betweenChars :: Char -> Char -> Parser a -> Parser a
+betweenChars before after =
+  between (specialCharP before) (specialCharP after)
+
+comma, equals, dot :: Parser ()
+comma = specialCharP ','
+equals = specialCharP '='
+dot = specialCharP '.'
 
 specialCharP :: Char -> Parser ()
 specialCharP c = single c >> space
