@@ -201,28 +201,33 @@ letP sp = do
 -- some form of application.
 {-| Parse an expression. Only exported for testing purposes. -}
 exprP :: Parser Expr
-exprP = do
+exprP =
+  applicationP <|> atomicExprP
+ where
+  applicationP = do
+    func <- try $ do
+      name <- nameP
+      maybe empty pure (identifyFunction name)
+    case func of
+      OneArgumentFunction f ->
+        f <$> atomicExprP
+      TwoArgumentFunction f ->
+        f <$> atomicExprP <*> atomicExprP
+
+atomicExprP :: Parser Expr
+atomicExprP = do
   expr <-
     parensP exprP
     <|> ArrayE . coerce . List.fromList
         <$> bracketsP (sepEndBy exprP (specialCharP ','))
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
-    <|> applicationOrNameP
+    <|> NameE <$> nameP
   fields <- many (specialCharP '.' *> nameP)
   return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
  where
   parensP = between (specialCharP '(') (specialCharP ')')
   bracketsP = between (specialCharP '[') (specialCharP ']')
-  applicationOrNameP = do
-    name <- nameP
-    case identifyFunction name of
-      Just (OneArgumentFunction f) ->
-        f <$> exprP
-      Just (TwoArgumentFunction f) ->
-        f <$> exprP <*> exprP
-      Nothing ->
-        pure (NameE name)
 
 data Function
   = OneArgumentFunction (Expr -> Expr)
