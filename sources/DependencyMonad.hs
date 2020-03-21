@@ -19,7 +19,7 @@ import Text.Megaparsec
 import Text.MMark as MMark
 
 import Eval
-import Bindings (Bindings)
+import Bindings (Bindings(..))
 import Output (Output)
 import qualified Output
 import Parse
@@ -31,17 +31,12 @@ class Monad m => DependencyMonad m where
 
   lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
 
-  execTemplate :: Bindings -> FilePath -> m (Bindings, Output)
-
 instance DependencyMonad Action where
 
   listDirectory = getDirectoryContents
 
   lookupField ft path key = apply1 (FieldAccessQ ft path key)
   {-# INLINE lookupField #-}
-
-  execTemplate binds path = apply1 (TemplateQ binds path)
-  {-# INLINE execTemplate #-}
 
 -- | The command-line options.
 data Options = Options
@@ -62,7 +57,10 @@ run options rules =
   shake (optionsToShakeOptions options) $ do
     readYamlCached <- newCache readYaml
     readMarkdownCached <- newCache readMarkdown
-    addBuiltinRule noLint noIdentity (fieldAccessRuleRun readYamlCached readMarkdownCached)
+    dependDelimiters <- addOracle pure
+    readTemplateCached <- newCache (readTemplate dependDelimiters)
+    addBuiltinRule noLint noIdentity
+      (fieldAccessRuleRun readYamlCached readMarkdownCached readTemplateCached)
     rules
 
   where
@@ -110,6 +108,22 @@ run options rules =
       let record' = Map.insert "body" (Output markdownOutput) record
       return $ MarkdownValue $ Record record'
 
+    readTemplate dependDelimiters templatePath = do
+      need [templatePath]
+      input <- liftIO $ Text.readFile templatePath
+      _ <- dependDelimiters (optDelimiters options)
+      parsed <- eitherThrow $
+        first (ParseError . errorBundlePretty) $
+        parseTemplate (optDelimiters options) templatePath input
+      return $ ExecTemplate $ \templateParameters -> do
+        (Bindings bindings, output) <- (>>= eitherThrow) $
+          first (EvalError . toList) <$>
+          runStmtT (for_ parsed evalStatement) templateParameters
+        let record = Map.insert "body" (Output (Output.toStorable output)) bindings
+        return $ Record record
+
+type instance RuleResult Delimiters = Delimiters
+
 {-# INLINEABLE run #-}
 
 data FieldAccessQ = FieldAccessQ
@@ -128,19 +142,24 @@ type instance RuleResult FieldAccessQ = Maybe Value
 newtype YamlValue = YamlValue { fromYaml :: Value }
 -- | See 'YamlValue'.
 newtype MarkdownValue = MarkdownValue { fromMarkdown :: Value }
+newtype ExecTemplate = ExecTemplate (Bindings -> Action Value)
 
 fieldAccessRuleRun ::
   (FilePath -> Action YamlValue) ->
   (FilePath -> Action MarkdownValue) ->
+  (FilePath -> Action ExecTemplate) ->
   FieldAccessQ ->
   Maybe ByteString ->
   RunMode ->
   Action (RunResult (Maybe Value))
-fieldAccessRuleRun getYaml getMarkdown fa@FieldAccessQ{..} mb_stored mode = do
+fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored mode = do
   mb_record <-
     case faFileType of
       YamlFile -> fromYaml <$> getYaml faFilePath
       MarkdownFile -> fromMarkdown <$> getMarkdown faFilePath
+      TemplateFile bindings -> do
+        ExecTemplate execTemplate <- getTemplate faFilePath
+        execTemplate (Bindings bindings)
   val <-
     case mb_record of
       Record hashMap ->
@@ -171,6 +190,8 @@ fieldAccessRuleRun getYaml getMarkdown fa@FieldAccessQ{..} mb_stored mode = do
         (toStrict (encode new_hash))
         val
 
+{-# INLINE fieldAccessRuleRun #-}
+
 data NotAnObject = NotAnObject FileType FilePath
   deriving stock ( Show, Typeable )
 
@@ -190,36 +211,6 @@ data TemplateQ = TemplateQ
   deriving anyclass ( Hashable, NFData, Typeable, Binary )
 
 type instance RuleResult TemplateQ = (Bindings, Output)
-
-templateRuleRun ::
-  (Delimiters -> Action ()) ->
-  Delimiters ->
-  TemplateQ ->
-  Maybe ByteString ->
-  RunMode ->
-  Action (RunResult (Bindings, Output))
-templateRuleRun dependDelimiters delimiters key@TemplateQ{..} mb_previous mode = do
-  need [templatePath]
-  dependDelimiters delimiters
-  case mb_previous of
-    Nothing ->
-      RunResult ChangedRecomputeDiff mempty <$> rebuild
-    Just _ -> do
-      case mode of
-        RunDependenciesSame -> do
-          RunResult ChangedNothing mempty <$> rebuild
-        RunDependenciesChanged -> do
-          RunResult ChangedRecomputeDiff mempty <$> rebuild
-
- where
-  rebuild = do
-    input <- liftIO $ Text.readFile templatePath
-    parsed <- eitherThrow $
-      first (ParseError . errorBundlePretty) $
-      parseTemplate delimiters templatePath input
-    (>>= eitherThrow) $
-      first (EvalError . toList) <$>
-      runStmtT (for_ parsed evalStatement) templateParameters
 
 eitherThrow :: (MonadIO m, Exception e) => Either e a -> m a
 eitherThrow = either (liftIO . throwIO) pure

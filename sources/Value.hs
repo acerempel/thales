@@ -43,6 +43,7 @@ data FileType
   -- | Any YAML front matter is treated as with 'YamlFile', and the document
   -- body is available under the "body" key.
   | MarkdownFile
+  | TemplateFile (HashMap Text Value)
   deriving stock ( Eq, Show, Generic )
   deriving anyclass ( Hashable, NFData, Typeable, Binary )
 

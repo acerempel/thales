@@ -3,7 +3,7 @@ module Bindings where
 import Prelude hiding (put, get)
 
 import Data.Binary
-import Data.Binary.Instances.UnorderedContainers
+import Data.Binary.Instances.UnorderedContainers ()
 import qualified Data.HashMap.Strict as Map
 
 import Syntax

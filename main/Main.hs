@@ -46,8 +46,6 @@ execTemplate delimiters templatePath targetPath = do
     hSetBuffering hdl (BlockBuffering Nothing)
     Output.write hdl (snd eval'd)
 
-type instance RuleResult Delimiters = Delimiters
-
 newtype TemplateParseError =
   ParseError String
   deriving newtype Show
