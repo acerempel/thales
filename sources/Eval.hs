@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 module Eval
   ( ExprT, Bindings
   , Problem(..), ProblemWhere(..), ProblemDescription(..)
@@ -55,10 +56,20 @@ evalExpr mContext dir expr =
     let addArrayProblemContext index = \zut ->
           ArrayE
             ( List.unsafeUpdate index zut
-            $ List.map (NoProblem . getId) arr)
+            $ List.map (NoProblem . getId) arr )
         evalArrayElement index (Id subExpr) =
           evalSubExpr (addArrayProblemContext index) dir subExpr
     Array <$> List.imapA evalArrayElement arr
+
+  RecordE bindings -> do
+    let expandBinding (FieldPun name) =
+          (name, NameE name)
+        expandBinding (FieldAssignment name (Id expr)) =
+          (name, expr)
+        evalBinding (name, expr) =
+          -- TODO: preserve context!
+          (fromName name,) <$> evalSubExpr (\e -> RecordE [FieldAssignment name e]) dir expr
+    Record . Map.fromList <$> traverse (evalBinding . expandBinding) bindings
 
   ListDirectoryE (Id subExpr) -> do
     path <- evalSubExpr ListDirectoryE dir subExpr
