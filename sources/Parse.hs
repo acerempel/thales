@@ -57,11 +57,14 @@ deriving newtype instance MonadParsec CustomError Text Parser
 
 data CustomError
   = UnknownFunction Text
+  | IsFunctionName Text
   deriving stock ( Ord, Eq, Show )
 
 instance ShowErrorComponent CustomError where
   showErrorComponent (UnknownFunction name) =
     Text.unpack name <> " is not a known function."
+  showErrorComponent (IsFunctionName name) =
+    Text.unpack name <> " is the name of a function!"
 
 {-| A default set of delimiters – @{{ ... }}@, same as what Mustache templates
 use (and Jinja2 and Liquid, for expression splices). -}
@@ -160,9 +163,15 @@ keywordP ident = do
 
 nameP :: Parser Name
 nameP = label "name" $ do
-  -- TODO: fail if is keyword.
   ident <- takeWhile1P (Just "identifier character") isIdChar <* space
+  whenJust (identifyFunction ident) $ \_ ->
+    customFailure (IsFunctionName ident)
   return $ Name ident
+
+functionP :: Parser Function
+functionP = try $ do
+  ident <- takeWhile1P (Just "identifier character") isIdChar <* space
+  maybe empty pure (identifyFunction ident)
 
 forP :: SourcePos -> Parser PartialStatement
 forP sp = do
@@ -194,8 +203,7 @@ letP sp = do
   binding =
     (,) <$> (nameP <* equals) <*> exprP
 
--- TODO: Parsing of record literals, record updates, array indexes, add back
--- some form of application.
+-- TODO: Parsing of record updates, array indexes
 {-| Parse an expression. Only exported for testing purposes. -}
 exprP :: Parser Expr
 exprP =
@@ -203,9 +211,7 @@ exprP =
  where
   -- TODO: Rewrite to improve error messages.
   applicationP = do
-    func <- try $ do
-      name <- nameP
-      maybe empty pure (identifyFunction name)
+    func <- functionP
     case func of
       OneArgumentFunction f ->
         f <$> atomicExprP
@@ -242,8 +248,8 @@ data Function
   = OneArgumentFunction (Expr -> Expr)
   | TwoArgumentFunction (Expr -> Expr -> Expr)
 
-identifyFunction :: Name -> Maybe Function
-identifyFunction (Name name) =
+identifyFunction :: Text -> Maybe Function
+identifyFunction name =
   case name of
     "load-yaml" ->
       Just $ OneArgumentFunction (FileE YamlFile . Id)
