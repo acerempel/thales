@@ -58,6 +58,7 @@ optionsParser =
     targetArguments =
       some $ strArgument $
         metavar "TARGET" <>
+        help "File to build from corresponding template" <>
         completer (listIOCompleter getPossibleTargets)
     rebuildOption =
       (Just . SomeThings <$> NE.some (strOption $
