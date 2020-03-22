@@ -51,6 +51,7 @@ data Statement
   -- result to the 'Name', and evaluate the '[Statement]'s in that context.
   | OptionallyS SourcePos Expr (Maybe Name) [Statement]
   | LetS SourcePos [(Name, Expr)] [Statement]
+  | ExportS SourcePos [RecordBinding Id]
   deriving ( Show, Eq )
 
 -- | An expression. The expression language is quite limited at the moment, but
@@ -72,9 +73,25 @@ data ExprH f
   | ListDirectoryE (f (ExprH f))
   | FileE (FileType (f (ExprH f))) (f (ExprH f))
 
+-- | The sort of binding that may occur in a record literal – also used in the
+-- @export@ statement.
 data RecordBinding f
+  -- | E.g. @{ thingy }@ – short for @{ thingy = thingy }@.
   = FieldPun Name
+  -- | E.g. @{ foo = [1, 2, 3] }@.
   | FieldAssignment Name (f (ExprH f))
+
+instance Eq1 f => Eq (RecordBinding f) where
+  FieldPun n1 == FieldPun n2 = n1 == n2
+  FieldAssignment n1 exp1 == FieldAssignment n2 exp2 =
+    n1 == n2 && liftEq (==) exp1 exp2
+  _ == _ = False
+
+instance Show1 f => Show (RecordBinding f) where
+  showsPrec prec (FieldPun name) =
+    ("FieldPun " ++) . showsPrec prec name
+  showsPrec prec (FieldAssignment name expr) =
+    ("FieldAssignment " ++) . showsPrec prec name . liftShowsPrec showsPrec showList prec expr
 
 -- | A type of file that may be interpreted as a key-value mapping, i.e. a
 -- 'Record'.
@@ -139,7 +156,7 @@ instance Eq1 f => Eq (ExprH f) where
     n1 == n2 && liftEq (==) e1 e2
   (NameE n1) == (NameE n2) =
     n1 == n2
-  _ == _ =
+  _ == _ = -- TODO fix this!!
     False
 
 -- | 'Id' is short for "Identity". This is like

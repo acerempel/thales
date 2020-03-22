@@ -62,14 +62,8 @@ evalExpr mContext dir expr =
     Array <$> List.imapA evalArrayElement arr
 
   RecordE bindings -> do
-    let expandBinding (FieldPun name) =
-          (name, NameE name)
-        expandBinding (FieldAssignment name (Id expr)) =
-          (name, expr)
-        evalBinding (name, expr) =
-          -- TODO: preserve context!
-          (fromName name,) <$> evalSubExpr (\e -> RecordE [FieldAssignment name e]) dir expr
-    Record . Map.fromList <$> traverse (evalBinding . expandBinding) bindings
+    -- TODO: preserve context!
+    Record . Map.fromList <$> traverse (evalBinding dir) bindings
 
   ListDirectoryE (Id subExpr) -> do
     path <- evalSubExpr ListDirectoryE dir subExpr
@@ -97,6 +91,16 @@ literalToValue = \case
   NumberL  n -> Number n
   StringL  s -> String s
   BooleanL b -> Boolean b
+
+evalBinding :: DependencyMonad m => FilePath -> RecordBinding Id -> ExprT m (Text, Value)
+evalBinding dir bind =
+  let (name, expr) = expandBinding bind
+  in (fromName name,) <$> evalSubExpr (\e -> RecordE [FieldAssignment name e]) dir expr -- TODO
+ where
+  expandBinding (FieldPun name) =
+    (name, NameE name)
+  expandBinding (FieldAssignment name (Id expr)) =
+    (name, expr)
 
 evalStatement :: forall m. DependencyMonad m => Statement -> StmtT m ()
 evalStatement = \case
@@ -142,6 +146,12 @@ evalStatement = \case
         (name,) <$> (evalTopExpr (sourceDir sp) expr :: ExprT m Value)
     addLocalBindings eval'd_binds $
       for_ body evalStatement
+
+  ExportS sp binds -> do
+    eval'd_binds <-
+      for binds $ \bind -> liftExprT $
+        first Name <$> evalBinding (sourceDir sp) bind :: StmtT m (Name, Value)
+    addBindings eval'd_binds
 
   where
     sourceDir = takeDirectory . sourceName

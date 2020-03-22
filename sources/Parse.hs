@@ -137,7 +137,9 @@ statementP :: Parser Statement
 statementP = label "statement" $ do
   statem <- withinDelims $ do
     sp <- getSourcePos
-    forP sp <|> optionallyP sp <|> letP sp <|> StandaloneS . ExprS sp <$> exprP
+    forP sp <|> optionallyP sp <|> letP sp
+      <|> exportP sp
+      <|> StandaloneS . ExprS sp <$> exprP
   case statem of
     BlockS continuation ->
       continuation <$> blockP
@@ -146,11 +148,14 @@ statementP = label "statement" $ do
 
 withinDelims :: Parser a -> Parser a
 withinDelims innerP = do
-  chunk . NonEmptyText.toText =<< getBeginDelim
+  nonEmptyChunk =<< getBeginDelim
   space
   inner <- innerP
-  chunk . NonEmptyText.toText =<< getEndDelim
+  nonEmptyChunk =<< getEndDelim
   return inner
+ where
+  nonEmptyChunk (NonEmptyText hd tl) =
+    try $ char hd >> chunk tl
 
 isIdChar :: Char -> Bool
 isIdChar = \c -> isAlpha c || c == '-' || c == '_'
@@ -202,6 +207,11 @@ letP sp = do
  where
   binding =
     (,) <$> (nameP <* equals) <*> exprP
+
+exportP :: SourcePos -> Parser PartialStatement
+exportP sp = do
+  keywordP "export"
+  StandaloneS . ExportS sp <$> sepEndBy recordBindingP comma
 
 -- TODO: Parsing of record updates, array indexes
 {-| Parse an expression. Only exported for testing purposes. -}
