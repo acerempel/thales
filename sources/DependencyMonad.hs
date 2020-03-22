@@ -71,7 +71,8 @@ run options rules =
         { shakeRebuild = translateRebuild optRebuildUnconditionally
         , shakeTimings = optTimings
         , shakeVerbosity = optVerbosity
-        , shakeThreads = 0 }
+        , shakeThreads = 0
+        , shakeVersion = "2" }
 
     translateRebuild optRebuild =
       case optRebuild of
