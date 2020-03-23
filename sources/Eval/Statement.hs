@@ -5,12 +5,13 @@ module Eval.Statement
   )
 where
 
-import Prelude hiding (foldr)
+import Prelude hiding (foldr, local)
 
+import Control.Applicative.Trans.Reader
+import Control.Applicative.Trans.Validation
 import Control.Applicative.Trans.Writer
 import Data.DList (DList)
 import qualified Data.DList as DList
-import Data.Validation as Validation
 
 import BaseMonad
 import Bindings
@@ -19,7 +20,8 @@ import Output
 import Value
 
 newtype StmtT m a = StmtT
-  { unStmtT :: Bindings -> m (WriterT ResultAccum (Validation (DList Problem)) a) }
+  { unStmtT :: ReaderT Bindings (WriterT ResultAccum (ValidationT (DList Problem) m)) a }
+  deriving newtype (Functor, Applicative, Alternative, Monad)
 
 data ResultAccum = Result
   { tplBindings :: Bindings
@@ -32,64 +34,40 @@ instance Semigroup ResultAccum where
 instance Monoid ResultAccum where
   mempty = Result Bindings.empty mempty
 
-instance Functor m => Functor (StmtT m) where
-  fmap f (StmtT m) =
-    StmtT $ \b -> fmap (fmap f) (m b)
-
-instance Applicative m => Applicative (StmtT m) where
-  pure a = StmtT (\_ -> pure (pure a))
-  (StmtT mf) <*> (StmtT ma) =
-    StmtT $ \b -> liftA2 (<*>) (mf b) (ma b)
-
-instance Monad m => Monad (StmtT m) where
-  (StmtT m) >>= f =
-    StmtT $ \binds ->
-      m binds >>= \w ->
-        case runWriterT w of
-          Validation.Failure problems ->
-            pure $ WriterT (Validation.Failure problems)
-          Validation.Success (a, accum) ->
-            case f a of
-              StmtT m' ->
-                m' binds >>= \w' -> pure $ WriterT $
-                  case runWriterT w' of
-                    Validation.Failure problems' ->
-                      Validation.Failure problems'
-                    Validation.Success (b, accum') ->
-                      Validation.Success (b, accum <> accum')
-
 runStmtT :: Monad m => StmtT m () -> Bindings -> m (Either (DList Problem) (Bindings, Output))
-runStmtT (StmtT m) b = do
-  w <- m b
+runStmtT stm b =
   let massage ((), Result { tplBindings, tplOutput }) =
         (tplBindings, DList.foldr (<>) mempty tplOutput)
-  return (Validation.toEither $ fmap massage (runWriterT w))
+  in fmap (fmap massage) $ runValidationT (runWriterT (runReaderT (unStmtT stm) b))
 
-addOutput :: Applicative m => Output -> StmtT m ()
+addOutput :: Monad m => Output -> StmtT m ()
 addOutput o =
-  StmtT (\_ -> pure (tell (Result Bindings.empty (DList.singleton o))))
+  StmtT (lift (tell (Result Bindings.empty (DList.singleton o))))
 
 instance HasLocalBindings (StmtT m) where
 
   addLocalBindings binds (StmtT m) =
-    StmtT (m . (Bindings.fromList binds `Bindings.union`))
+    StmtT (local (Bindings.fromList binds `Bindings.union`) m)
 
   addLocalBinding n v (StmtT m) =
-    StmtT (m . Bindings.insert n v)
+    StmtT (local (Bindings.insert n v) m)
 
-addBinding :: Applicative m => Name -> Value -> StmtT m ()
+addBinding :: Monad m => Name -> Value -> StmtT m ()
 addBinding n v =
-  StmtT (\_ -> pure (tell (Result (Bindings.singleton n v) mempty)))
+  StmtT (lift (tell (Result (Bindings.singleton n v) mempty)))
 
-addBindings :: Applicative m => [(Name, Value)] -> StmtT m ()
+addBindings :: Monad m => [(Name, Value)] -> StmtT m ()
 addBindings binds =
-  StmtT (\_ -> pure (tell (Result (Bindings.fromList binds) mempty)))
+  StmtT (lift (tell (Result (Bindings.fromList binds) mempty)))
 
 liftExprT :: BaseMonad m => ExprT m a -> StmtT m a
 liftExprT expr =
-  StmtT $ \bindings ->
-    WriterT
-    . second (\a -> (a, mempty))
-    . first DList.singleton
-    . Validation.fromEither
-    <$> runExprT expr bindings
+  StmtT $ ReaderT $ \bindings ->
+    let mE = runExprT expr bindings
+        mD = fmap
+               ( second (\a -> (a, mempty))
+               . first DList.singleton)
+               mE
+        vD = ValidationT mD
+        wD = WriterT vD
+    in wD
