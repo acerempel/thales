@@ -49,6 +49,7 @@ common stuff
     , KindSignatures
     , StrictData
     , ScopedTypeVariables
+    , TupleSections
     , TypeFamilies
 
 executable thales

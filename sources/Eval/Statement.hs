@@ -65,7 +65,7 @@ liftExprT expr =
   StmtT $ ReaderT $ \bindings ->
     let mE = runExprT expr bindings
         mD = fmap
-               ( second (\a -> (a, mempty))
+               ( second (,mempty)
                . first DList.singleton)
                mE
         vD = ValidationT mD
