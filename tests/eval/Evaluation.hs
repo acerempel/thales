@@ -4,6 +4,7 @@ import Test.Hspec
 
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.HashMap.Strict as Map
+import System.FilePath
 import Text.Megaparsec (SourcePos(..), mkPos)
 
 import qualified Bindings
@@ -13,22 +14,25 @@ import qualified Output
 import Syntax
 import Value
 
+sourceFile = "tests/evaluation/Evaluation.hs"
+sourceDir = takeDirectory sourceFile
+
 main = hspec $
   describe "Evaluation" $ do
     it "evaluates names to their bindings" $ do
       let expr = NameE "potato"
           bindings = Bindings.singleton "potato" (Number 3)
-      result <- runExprT (evalTopExpr expr) bindings
+      result <- runExprT (evalTopExpr sourceDir expr) bindings
       result `shouldBe` Right (Number 3)
     it "evaluates field accesses" $ do
       let expr = FieldAccessE "potato" (Id (NameE "vegetables"))
           bindings =
             Bindings.singleton "vegetables"
             (Record (Map.singleton "potato" (Number 7)))
-      result <- runExprT (evalTopExpr expr) bindings
+      result <- runExprT (evalTopExpr sourceDir expr) bindings
       result `shouldBe` Right (Number 7)
     it "evaluates for statements" $ do
-      let sp = SourcePos "tests-e/Evaluation.hs" (mkPos 1) (mkPos 1)
+      let sp = SourcePos sourceFile (mkPos 1) (mkPos 1)
           stmt =
             ForS sp "vegetable"
               (ArrayE (List.map (Id . LiteralE . StringL)
