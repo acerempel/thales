@@ -107,6 +107,7 @@ optionsParser =
       flag' Warn (long "warn" <> short 'w') <|>
       flag' Info (long "info") <|>
       flag' Verbose (long "verbose" <> short 'v') <|>
+      flag' Diagnostic (long "diagnostic") <|>
       pure Warn
     timingsOption =
       switch $
