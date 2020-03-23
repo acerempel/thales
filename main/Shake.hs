@@ -2,9 +2,9 @@ module Shake where
 
 import Development.Shake
 
-import BaseMonad
+import DependencyMonad
 
-instance BaseMonad Action where
+instance DependencyMonad Action where
   listDirectory = getDirectoryContents
   loadFile = id -- TODO
   run = id -- TODO

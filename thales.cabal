@@ -50,7 +50,21 @@ common stuff
     , StrictData
     , ScopedTypeVariables
 
-library
+executable thales
+  import:         stuff
+  hs-source-dirs: main
+  main-is:        Main.hs
+  build-depends:
+      core
+    , list-vector
+    , bytestring >= 0.10.8 && < 0.11
+    , optparse-applicative >= 0.14 && < 0.16
+    , shake >= 0.18 && < 0.19
+    , text >= 1.2.2 && < 1.3
+    , unordered-containers >= 0.2.9 && < 0.3
+    , yaml >= 0.11.1.2 && < 0.12
+
+library core
   import:          stuff
   hs-source-dirs:  sources
   exposed-modules:
@@ -80,12 +94,6 @@ library
     , text >= 1.2.2 && < 1.3
     , transformers >= 0.5 && < 0.6
     , unordered-containers
-
-library thales-shake
-  import:           stuff
-  hs-source-dirs:   shake
-  build-depends:    thales, shake >= 0.18 && < 0.19
-  exposed-modules:  Shake
 
 library applicative-transformers
   hs-source-dirs:   applicative-transformers

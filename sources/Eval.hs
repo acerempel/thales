@@ -9,7 +9,7 @@ import qualified Data.Text as Text
 import qualified Data.HashMap.Strict as Map
 import System.FilePath
 
-import BaseMonad
+import DependencyMonad
 import Bindings
 import Eval.Expr
 import Eval.Statement
@@ -19,13 +19,13 @@ import Output
 import Syntax
 import Value
 
-evalSubExpr :: BaseMonad m => AddProblemContext -> FilePath -> Expr -> ExprT m Value
+evalSubExpr :: DependencyMonad m => AddProblemContext -> FilePath -> Expr -> ExprT m Value
 evalSubExpr f = evalExpr (Just f)
 
-evalTopExpr :: BaseMonad m => FilePath -> Expr -> ExprT m Value
+evalTopExpr :: DependencyMonad m => FilePath -> Expr -> ExprT m Value
 evalTopExpr = evalExpr Nothing
 
-evalExpr :: BaseMonad m => Maybe AddProblemContext -> FilePath -> Expr -> ExprT m Value
+evalExpr :: DependencyMonad m => Maybe AddProblemContext -> FilePath -> Expr -> ExprT m Value
 evalExpr mContext dir expr =
  maybe id mapZut mContext . addProblemSource expr $ case expr of
 
@@ -81,7 +81,7 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-evalStatement :: forall m. BaseMonad m => Statement -> StmtT m ()
+evalStatement :: forall m. DependencyMonad m => Statement -> StmtT m ()
 evalStatement = \case
 
   VerbatimS verb ->
