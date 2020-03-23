@@ -51,15 +51,15 @@ instance Hashable MMark where
     hashWithSalt salt (MMark.runScanner mmark Fold.list)
 
 instance Yaml.FromJSON Value where
-  parseJSON = yamlValueToValue
+  parseJSON = parseYamlValue
 
-yamlValueToValue :: Yaml.Value -> Yaml.Parser Value
-yamlValueToValue val =
+parseYamlValue :: Yaml.Value -> Yaml.Parser Value
+parseYamlValue val =
   case val of
     Yaml.Object obj ->
-      Record <$> traverse yamlValueToValue obj
+      Record <$> traverse parseYamlValue obj
     Yaml.Array arr ->
-      Array <$> traverse yamlValueToValue arr
+      Array <$> traverse parseYamlValue arr
     Yaml.String str ->
       pure $ String str
     Yaml.Number num ->
