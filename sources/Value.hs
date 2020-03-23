@@ -8,6 +8,7 @@ import Text.MMark as MMark
 import Text.MMark.Extension as MMark
 import Text.URI
 
+import {-# SOURCE #-} DependencyMonad
 import List (List)
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
@@ -25,8 +26,9 @@ data Value where
   Markdown :: MMark -> Value
   -- | A reference to a 'Record'-like value that is found in a file somewhere –
   -- like a YAML file. We just have the path to the file here, and retrieve the
-  -- value for a given key on demand.
-  ExternalRecord :: FilePath -> Value
+  -- value for a given key on demand. The 'FileType' tells us how to interpret
+  -- the file -- e.g. as YAML, or something else.
+  ExternalRecord :: FileType -> FilePath -> Value
   deriving stock ( Generic, Typeable, Show, Eq )
   deriving anyclass ( NFData, Hashable )
 

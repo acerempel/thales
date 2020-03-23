@@ -1,5 +1,6 @@
 module DependencyMonad
   ( DependencyMonad(..)
+  , FileType(..)
   , Options(..)
   , run
   )
@@ -24,15 +25,14 @@ class Monad m => DependencyMonad m where
 
   listDirectory :: FilePath -> m [FilePath]
 
-  lookupYaml :: FilePath -> Text -> m (Maybe Value)
-
-  -- lookupMarkdown :: FilePath -> Text -> m Value
+  lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
 
 instance DependencyMonad Action where
 
   listDirectory = getDirectoryContents
 
-  lookupYaml path key = apply1 (FieldAccessQ YamlFile path key)
+  lookupField ft path key = apply1 (FieldAccessQ ft path key)
+  {-# INLINE lookupField #-}
 
 -- | The command-line options.
 data Options = Options
@@ -93,23 +93,35 @@ run options rules =
       let record' = Map.insert "body" (Markdown mmark) record
       return $ MarkdownValue $ Record record'
 
+{-# INLINEABLE run #-}
+
 data FieldAccessQ = FieldAccessQ
   { faFileType :: FileType
   , faFilePath :: FilePath
-    -- ^ The path to a YAML file. This is assumed to be an absolute path.
+    -- ^ The path to a file containing key-value pairs. This is assumed to be an
+    -- absolute path.
   , faField :: Text
   } deriving stock ( Generic, Show, Eq, Typeable )
     deriving anyclass ( Hashable, Binary, NFData )
 
 type instance RuleResult FieldAccessQ = Maybe Value
 
+-- | A type of file that may be interpreted as a key-value mapping, i.e. a
+-- 'Record'.
 data FileType
+  -- | The YAML file is assumed to have an associative array at the top level
+  -- with string keys.
   = YamlFile
+  -- | Any YAML front matter is treated as with 'YamlFile', and the document
+  -- body is available under the "body" key.
   | MarkdownFile
   deriving stock ( Eq, Show, Generic )
   deriving anyclass ( Hashable, NFData, Typeable, Binary )
 
+-- | This newtype exists solely to help me keep the order of arguments in
+-- 'fieldAccessRuleRun' straight.
 newtype YamlValue = YamlValue { fromYaml :: Value }
+-- | See 'YamlValue'.
 newtype MarkdownValue = MarkdownValue { fromMarkdown :: Value }
 
 fieldAccessRuleRun ::
@@ -167,8 +179,7 @@ instance Exception MMarkException where
 
 instance DependencyMonad IO where
   listDirectory dir = sort <$> System.listDirectory dir
-  lookupYaml _fp _t = fail "zrop"
-  -- lookupMarkdown _fp _t = fail "zmop"
+  lookupField _ft _fp _t = fail "zrop"
 
 hash = hashWithSalt defaultSalt
 

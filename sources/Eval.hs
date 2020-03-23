@@ -37,10 +37,13 @@ evalExpr mContext dir expr =
 
   FieldAccessE name (Id subExpr) -> do
     subVal <- evalSubExpr (FieldAccessE name) dir subExpr
+    let ohNo = zutAlors (FieldNotFound name subVal)
     case subVal of
       Record rec ->
-        let ohNo = zutAlors (FieldNotFound name subVal)
-        in maybe ohNo return (Map.lookup (fromName name) rec)
+        maybe ohNo return (Map.lookup (fromName name) rec)
+      ExternalRecord ft path -> do
+        mb_val <- lift $ lookupField ft path (fromName name)
+        maybe ohNo return mb_val
       _ ->
         zutAlors (NotARecord subVal)
 
@@ -66,14 +69,13 @@ evalExpr mContext dir expr =
       _ ->
         zutAlors (error "oh no!!!")
 
-  FileE (Id subExpr) -> do
-    path <- evalSubExpr (FileE) dir subExpr
+  FileE ft (Id subExpr) -> do
+    path <- evalSubExpr (FileE ft) dir subExpr
     case path of
       String str ->
-        zutAlors (error "urk!")
+        pure (ExternalRecord ft (Text.unpack str))
       _ ->
         zutAlors (error "ack!")
-
 
 literalToValue :: Literal -> Value
 literalToValue = \case
@@ -116,5 +118,6 @@ evalStatement = \case
       for_ body $ \stmt ->
         maybe id (`addLocalBinding` val) mb_var $
         evalStatement stmt
+
   where
     sourceDir = takeDirectory . sourceName

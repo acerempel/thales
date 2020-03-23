@@ -19,6 +19,7 @@ import Data.Scientific
 import Text.Megaparsec
 import Text.Show
 
+import {-# SOURCE #-} DependencyMonad
 import NonEmptyText
 import List (List)
 
@@ -67,13 +68,15 @@ data ExprH f
   -- | A bare name, like @potato@.
   | NameE Name
   | ListDirectoryE (f (ExprH f))
-  | FileE (f (ExprH f))
+  | FileE FileType (f (ExprH f))
 
 identifyFunction :: Name -> Maybe (Expr -> Expr)
 identifyFunction (Name name) =
   case name of
-    "file" ->
-      Just (FileE . Id)
+    "yaml-file" ->
+      Just (FileE YamlFile . Id)
+    "markdown-file" ->
+      Just (FileE MarkdownFile . Id)
     "list-directory" ->
       Just (ListDirectoryE . Id)
     _ ->
