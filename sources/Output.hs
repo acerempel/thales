@@ -1,5 +1,5 @@
 module Output
-  ( Output, toBuilder, write
+  ( Output, fromBuilder, toBuilder, write
   , fromText, preEscapedFromText
   , singleton, preEscapedSingleton
   )
@@ -12,6 +12,9 @@ import qualified Data.Text.Encoding as Text
 newtype Output = Output
   { fromOutput :: Builder }
   deriving newtype ( IsString, Semigroup, Monoid )
+
+fromBuilder :: Builder -> Output
+fromBuilder = Output
 
 fromText :: Text -> Output
 fromText = Output . escape
