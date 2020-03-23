@@ -16,6 +16,7 @@ import Development.Shake
 import Development.Shake.Classes hiding (show)
 import Development.Shake.Rule
 import qualified Lucid
+import qualified System.Directory as System
 import Text.Megaparsec
 import Text.MMark as MMark
 
@@ -52,7 +53,7 @@ data Options = Options
 data RebuildUnconditionally
   = SomeThings (NonEmpty FilePattern)
   | Everything
-  deriving stock ( Show )
+  deriving stock ( Show, Eq )
 
 run :: Options -> Rules () -> IO ()
 run options rules =
@@ -85,10 +86,14 @@ run options rules =
 
     readYaml path = do
       need [path]
+      pathAbs <- liftIO $ System.makeAbsolute path
+      putInfo $ "Reading YAML from " <> pathAbs
       YamlValue <$> Yaml.decodeFileThrow path
 
     readMarkdown path = do
       need [path]
+      pathAbs <- liftIO $ System.makeAbsolute path
+      putInfo $ "Reading Markdown from " <> pathAbs
       contents <- liftIO $ Text.readFile path
       let parsed = MMark.parse path contents
       mmark <-
@@ -113,6 +118,8 @@ run options rules =
 
     readTemplate dependDelimiters templatePath = do
       need [templatePath]
+      pathAbs <- liftIO $ System.makeAbsolute templatePath
+      putInfo $ "Reading template from " <> pathAbs
       input <- liftIO $ Text.readFile templatePath
       _ <- dependDelimiters (optDelimiters options)
       parsed <- eitherThrow $
@@ -188,6 +195,12 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
                         then ChangedRecomputeSame else ChangedRecomputeDiff
                 in (hash val, changed)
       putVerbose (show fa <> ": " <> show did_change <> " " <> show new_hash)
+      case fa of
+        FieldAccessQ (TemplateFile _) path "body" ->
+          when (did_change == ChangedNothing) $ do
+            pathAbs <- liftIO $ System.makeAbsolute path
+            putInfo $ "Template body of" <> pathAbs <> " is unchanged"
+        _ -> pure ()
       return $ RunResult
         did_change
         (toStrict (encode new_hash))

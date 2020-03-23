@@ -22,13 +22,17 @@ main = do
   options@Options{..} <- customExecParser cliPrefs cli
   when (optVerbosity >= Verbose) $
     print options
+  when (optVerbosity >= Info && optRebuildUnconditionally == Just Everything) $
+    hPutStrLn stderr "Rebuilding all targets."
   run options $ do
     want optTargets
     (`elem` optTargets) ?> \targetPath -> do
       let templatePath = targetPath <.> templateExtension
       val <- lookupField (TemplateFile Bindings.empty) templatePath "body"
       case val of
-        Just (Output outp) ->
+        Just (Output outp) -> do
+          absTarget <- liftIO $ makeAbsolute targetPath
+          putInfo $ "Writing result of " <> templatePath <> " to " <> absTarget
           liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
             hSetBuffering hdl (BlockBuffering Nothing)
             Output.write hdl (Output.fromStorable outp)
