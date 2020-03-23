@@ -9,7 +9,6 @@ import Text.MMark.Extension as MMark
 import Text.URI
 
 import List (List)
-import Output (Output)
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
 Effectively, templates are dynamically typed. Aside from the absence of null,
