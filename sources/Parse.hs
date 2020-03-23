@@ -58,6 +58,7 @@ deriving newtype instance MonadParsec CustomError Text Parser
 data CustomError
   = UnknownFunction Text
   | IsFunctionName Text
+  | WrongNumberOfArguments Text
   deriving stock ( Ord, Eq, Show )
 
 instance ShowErrorComponent CustomError where
@@ -65,6 +66,8 @@ instance ShowErrorComponent CustomError where
     Text.unpack name <> " is not a known function."
   showErrorComponent (IsFunctionName name) =
     Text.unpack name <> " is the name of a function!"
+  showErrorComponent (WrongNumberOfArguments name) =
+    Text.unpack name <> " was given the wrong number of arguments."
 
 {-| A default set of delimiters – @{{ ... }}@, same as what Mustache templates
 use (and Jinja2 and Liquid, for expression splices). -}
@@ -169,14 +172,7 @@ keywordP ident = do
 nameP :: Parser Name
 nameP = label "name" $ do
   ident <- takeWhile1P (Just "identifier character") isIdChar <* space
-  whenJust (identifyFunction ident) $ \_ ->
-    customFailure (IsFunctionName ident)
   return $ Name ident
-
-functionP :: Parser Function
-functionP = try $ do
-  ident <- takeWhile1P (Just "identifier character") isIdChar <* space
-  maybe empty pure (identifyFunction ident)
 
 forP :: SourcePos -> Parser PartialStatement
 forP sp = do
@@ -217,16 +213,25 @@ exportP sp = do
 {-| Parse an expression. Only exported for testing purposes. -}
 exprP :: Parser Expr
 exprP =
-  applicationP <|> atomicExprP
+  applicationOrNameP <|> atomicExprP
  where
   -- TODO: Rewrite to improve error messages.
-  applicationP = do
-    func <- functionP
-    case func of
-      OneArgumentFunction f ->
-        f <$> atomicExprP
-      TwoArgumentFunction f ->
-        f <$> atomicExprP <*> atomicExprP
+  applicationOrNameP = do
+    Name name <- nameP
+    arguments <- many atomicExprP
+    case (identifyFunction name, arguments) of
+      (Nothing, []) ->
+        pure $ NameE (Name name)
+      (Just (OneArgumentFunction f), [arg1]) ->
+        pure $ f arg1
+      (Just (TwoArgumentFunction f), [arg1, arg2]) ->
+        pure $ f arg1 arg2
+      (Just _, (_ : _)) ->
+        customFailure (WrongNumberOfArguments name)
+      (Just _, []) ->
+        customFailure (IsFunctionName name)
+      (Nothing, (_ : _)) ->
+        customFailure (UnknownFunction name)
 
 atomicExprP :: Parser Expr
 atomicExprP = do
@@ -237,7 +242,6 @@ atomicExprP = do
     <|> RecordE <$> bracesP (sepEndBy recordBindingP comma)
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
-    <|> NameE <$> nameP
   fields <- many (dot *> nameP)
   return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
  where
