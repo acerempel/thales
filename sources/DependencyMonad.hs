@@ -1,13 +1,20 @@
-module DependencyMonad where
+module DependencyMonad
+  ( DependencyMonad(..)
+  , Options(..)
+  , run
+  )
+where
 
 import Control.Exception
 import Data.Binary
 import qualified Data.HashMap.Strict as Map
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Yaml as Yaml
 import Development.Shake
 import Development.Shake.Rule
 import qualified System.Directory as System
 
+import Parse
 import Value
 
 class Monad m => DependencyMonad m where
@@ -24,7 +31,19 @@ instance DependencyMonad Action where
 
   lookupYaml path key = apply1 (YamlQ path key)
 
-data Options = Options { optPotato :: () }
+-- | The command-line options.
+data Options = Options
+  { optTemplateFileExtension :: String
+  , optOutputFileExtension :: String
+  , optInputDirectory :: FilePath
+  , optOutputDirectory :: FilePath
+  , optRebuildUnconditionally :: Maybe RebuildUnconditionally
+  , optDelimiters :: Delimiters
+  , optTimings :: Bool }
+
+data RebuildUnconditionally
+  = SomeThings (NonEmpty FilePattern)
+  | Everything
 
 run :: Options -> Rules () -> IO ()
 run options rules =
@@ -37,6 +56,16 @@ run options rules =
   where
     optionsToShakeOptions Options{..} =
       shakeOptions
+        { shakeRebuild = translateRebuild optRebuildUnconditionally
+        , shakeTimings = optTimings }
+    translateRebuild optRebuild =
+      case optRebuild of
+        Just Everything ->
+          [(RebuildNow, "**/*")]
+        Just (SomeThings patterns) ->
+          NonEmpty.toList $ fmap (RebuildNow,) patterns
+        Nothing ->
+          []
 
 data YamlQ = YamlQ
   { yamlPath :: FilePath
