@@ -15,7 +15,6 @@ import qualified Data.Text.IO as Text
 import qualified Data.Yaml as Yaml
 import Development.Shake
 import Development.Shake.Rule
-import qualified System.Directory as System
 import Text.Megaparsec
 import Text.MMark as MMark
 
@@ -176,10 +175,6 @@ newtype MMarkException = MMarkException (ParseErrorBundle Text MMarkErr)
 instance Exception MMarkException where
   displayException (MMarkException err) =
     errorBundlePretty err
-
-instance DependencyMonad IO where
-  listDirectory dir = sort <$> System.listDirectory dir
-  lookupField _ft _fp _t = fail "zrop"
 
 hash :: Hashable a => a -> Int
 hash = hashWithSalt defaultSalt
