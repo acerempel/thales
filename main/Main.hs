@@ -104,11 +104,20 @@ optionsParser =
         help "A pair of strings, separated by a comma, that delimit template directives."
     verbosityOption =
       flag' Silent (long "silent" <> short 's' <> help "Print no messages.") <|>
-      flag' Warn (long "warn" <> short 'w' <> help "Print errors and warnings only. (This is the default.)") <|>
-      flag' Info (long "info" <> short 'i' <> help "Print errors, warnings, and possibly a handful of discretionary messages.") <|>
-      flag' Verbose (long "verbose" <> short 'v' <> help "Print a message for everything that happens, plus errors and warnings.") <|>
-      flag' Diagnostic (long "diagnostic" <> help "Print all manner of debugging info, plus everything that --verbose prints.") <|>
-      pure Warn
+      flag' Warn (long "warn" <> short 'w' <> help "Print errors and warnings only.") <|>
+      flag' Info (
+        long "info" <> short 'i' <>
+        help ("Print brief messages telling you what Thales is up to, plus errors and warnings. " <>
+              "(This is the default.)")) <|>
+      flag' Verbose (
+        long "verbose" <> short 'v' <>
+        help ("Print message for essentially everything that happens, " <>
+              "plus everything that --info prints.")) <|>
+      flag' Diagnostic (
+        long "diagnostic" <>
+        help ("Print all manner of debugging info, " <>
+              "plus everything that --verbose prints.")) <|>
+      pure Info
     timingsOption =
       switch $
         long "timings" <>
