@@ -19,7 +19,7 @@ import Syntax
 import Value
 
 main = do
-  options@Options{..} <- execParser cli
+  options@Options{..} <- customExecParser cliPrefs cli
   when (optVerbosity >= Verbose) $
     print options
   run options $ do
@@ -38,14 +38,33 @@ main = do
 cli =
   info (optionsParser <**> helper) $
     fullDesc <>
-    progDesc "A nice templating engine." <>
-    headerDoc (Just
-      (vsep
-        [ "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        , "--- The Thales templating system ---"
-        , "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" ]
-      `flatAlt`
-      "~~~ The Thales templating system ~~~"))
+    progDesc cliDescription <>
+    headerDoc (Just cliHeader) <>
+    footer cliFooter
+
+cliPrefs =
+  prefs $
+    showHelpOnEmpty <> columns 72
+
+cliHeader =
+  vsep
+    [ "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    , "––– The Thales templating system –––"
+    , "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" ]
+  `flatAlt`
+  "~~~ The Thales templating system ~~~"
+
+cliDescription =
+  "Thales takes template files, containing text of whatever shape you like interspersed " <>
+  "with specially delimited template directives, and interprets the directives, " <>
+  "substituting their results back into the template to produce the target file. " <>
+  "Template directives allow for inclusion of values from YAML files, Markdown files, " <>
+  "and from other templates. Thales tracks the dependencies of each template, so that if " <>
+  "a target is requested which has been built before and whose dependencies have not " <>
+  "since changed, it will not be rebuilt."
+
+cliFooter =
+  "For further documentation, see the README on GitHub at https://github.com/parsonyorick/thales-templating#readme."
 
 optionsParser =
   Options
@@ -57,38 +76,41 @@ optionsParser =
   where
     targetArguments =
       some $ strArgument $
-        metavar "TARGET" <>
-        help "File to build from corresponding template" <>
+        metavar "TARGETS" <>
+        help ("Files to be built from the corresponding templates. The template for a " <>
+             "given FILE is assumed to be called \"FILE.template\".") <>
         completer (listIOCompleter getPossibleTargets)
     rebuildOption =
       (Just . SomeThings <$> NE.some (strOption $
         metavar "PATTERN" <>
         long "rebuild" <>
         short 'r' <>
-        help "Rebuild targets matching this glob pattern")) <|>
+        help ("Rebuild targets matching this glob pattern, regardless of whether their " <>
+              "dependencies have changed. This option may be given multiple times."))) <|>
       (flag Nothing (Just Everything) (
         long "rebuild-all" <> short 'R' <>
-        help "Rebuild everything"))
+        help "Rebuild all targets, regardless of whether dependencies have changed."))
     delimitersOption =
       option (eitherReader parseDelimiters) $
         long "delimiters" <>
         short 'd' <>
-        metavar "DELIMITERS" <>
+        metavar "BEGIN,END" <>
         value defaultDelimiters <>
         showDefaultWith showDelimiters <>
-        help "Delimiters for template directives"
+        help "A pair of strings, separated by a comma, that delimit template directives."
     verbosityOption =
-      flag' Silent (long "silent" <> short 's') <|>
-      flag' Warn (long "warn" <> short 'w') <|>
-      flag' Info (long "info") <|>
-      flag' Verbose (long "verbose" <> short 'v') <|>
-      flag' Diagnostic (long "diagnostic") <|>
+      flag' Silent (long "silent" <> short 's' <> help "Print no messages.") <|>
+      flag' Warn (long "warn" <> short 'w' <> help "Print errors and warnings only. (This is the default.)") <|>
+      flag' Info (long "info" <> short 'i' <> help "Print errors, warnings, and possibly a handful of discretionary messages.") <|>
+      flag' Verbose (long "verbose" <> short 'v' <> help "Print a message for everything that happens, plus errors and warnings.") <|>
+      flag' Diagnostic (long "diagnostic" <> help "Print all manner of debugging info, plus everything that --verbose prints.") <|>
       pure Warn
     timingsOption =
       switch $
         long "timings" <>
         short 't' <>
-        help "Print timings"
+        hidden <>
+        help "Print some coarse-grained timing information that Shake calculates."
 
 getPossibleTargets :: IO [String]
 getPossibleTargets =
