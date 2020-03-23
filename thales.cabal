@@ -54,7 +54,7 @@ library
   import:          stuff
   hs-source-dirs:  sources
   exposed-modules:
-      BaseMonad
+      DependencyMonad
     , Bindings
     , Display
     , Eval

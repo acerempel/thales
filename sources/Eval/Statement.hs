@@ -13,7 +13,7 @@ import Control.Applicative.Trans.Writer
 import Data.DList (DList)
 import qualified Data.DList as DList
 
-import BaseMonad
+import DependencyMonad
 import Bindings
 import Eval.Expr
 import Output
@@ -60,7 +60,7 @@ addBindings :: Monad m => [(Name, Value)] -> StmtT m ()
 addBindings binds =
   StmtT (lift (tell (Result (Bindings.fromList binds) mempty)))
 
-liftExprT :: BaseMonad m => ExprT m a -> StmtT m a
+liftExprT :: DependencyMonad m => ExprT m a -> StmtT m a
 liftExprT expr =
   StmtT $ ReaderT $ \bindings ->
     let mE = runExprT expr bindings
