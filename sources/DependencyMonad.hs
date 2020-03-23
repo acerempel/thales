@@ -41,10 +41,12 @@ data Options = Options
   , optDelimiters :: Delimiters
   , optVerbosity :: Verbosity
   , optTimings :: Bool }
+  deriving stock ( Show )
 
 data RebuildUnconditionally
   = SomeThings (NonEmpty FilePattern)
   | Everything
+  deriving stock ( Show )
 
 run :: Options -> Rules () -> IO ()
 run options rules =
@@ -130,7 +132,7 @@ fieldAccessRuleRun ::
   Maybe ByteString ->
   RunMode ->
   Action (RunResult (Maybe Value))
-fieldAccessRuleRun getYaml getMarkdown FieldAccessQ{..} mb_stored mode = do
+fieldAccessRuleRun getYaml getMarkdown fa@FieldAccessQ{..} mb_stored mode = do
   mb_record <-
     case faFileType of
       YamlFile -> fromYaml <$> getYaml faFilePath
@@ -142,7 +144,8 @@ fieldAccessRuleRun getYaml getMarkdown FieldAccessQ{..} mb_stored mode = do
       _ ->
         liftIO $ throwIO $ NotAnObject faFileType faFilePath
   case mb_stored of
-    Nothing ->
+    Nothing -> do
+      putVerbose (show fa <> ": first run")
       return $ RunResult
         ChangedRecomputeDiff
         (toStrict (encode (hash val)))
@@ -159,10 +162,12 @@ fieldAccessRuleRun getYaml getMarkdown FieldAccessQ{..} mb_stored mode = do
                     if new_hash == previous_hash
                       then ChangedRecomputeSame else ChangedRecomputeDiff
               in (hash val, changed)
-      in return $ RunResult
-        did_change
-        (toStrict (encode new_hash))
-        val
+      in do
+        putVerbose (show fa <> ": " <> show did_change <> " " <> show new_hash)
+        return $ RunResult
+          did_change
+          (toStrict (encode new_hash))
+          val
 
 data NotAnObject = NotAnObject FileType FilePath
   deriving stock ( Show, Typeable )

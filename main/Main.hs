@@ -10,7 +10,7 @@ import Options.Applicative
 import Options.Applicative.Help.Pretty
 import System.Directory
 import System.FilePath
-import System.IO
+import System.IO hiding (print)
 import Text.Megaparsec (errorBundlePretty)
 
 import qualified Bindings
@@ -22,6 +22,8 @@ import Parse
 
 main = do
   options@Options{..} <- execParser cli
+  when (optVerbosity >= Verbose) $
+    print options
   run options $ do
     want optTargets
     dependDelimiters <- addOracle pure
