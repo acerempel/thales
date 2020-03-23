@@ -87,15 +87,14 @@ optionsParser =
         metavar "TARGET" <>
         completer (listIOCompleter getPossibleTargets)
     rebuildOption =
-      Just . SomeThings <$> NE.some (strOption $
+      (Just . SomeThings <$> NE.some (strOption $
         metavar "PATTERN" <>
         long "rebuild" <>
         short 'r' <>
-        help "Rebuild targets matching this glob pattern") <|>
-      Just Everything <$ switch (
+        help "Rebuild targets matching this glob pattern")) <|>
+      (flag Nothing (Just Everything) (
         long "rebuild-all" <> short 'R' <>
-        help "Rebuild everything") <|>
-      pure Nothing
+        help "Rebuild everything"))
     delimitersOption =
       option (eitherReader parseDelimiters) $
         long "delimiters" <>
