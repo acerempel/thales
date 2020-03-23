@@ -18,3 +18,7 @@ imapA :: Monad f => (Int -> a -> f b) -> Vec.Vector a -> f (Vec.Vector b)
 imapA = Vec.imapM
 
 concat = Vec.concat . Vec.toList
+
+instance Hashable a => Hashable (Vec.Vector a) where
+  hashWithSalt salt vec =
+    hashWithSalt salt (Vec.toList vec)
