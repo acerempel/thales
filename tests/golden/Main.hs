@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wno-missing-signatures #-}
+{-# OPTIONS_GHC -Wno-missing-signatures -Wno-orphans #-}
 module Main where
 
 import Control.Exception
@@ -75,23 +75,7 @@ runTemplate tplPath yamlPath = do
 instance Yaml.FromJSON Bindings where
   parseJSON =
     Yaml.withObject "Bindings"
-    (fmap Bindings . traverse yamlValueToValue)
-
-yamlValueToValue :: Yaml.Value -> Yaml.Parser Value
-yamlValueToValue val =
-  case val of
-    Yaml.Object obj ->
-      Record <$> traverse yamlValueToValue obj
-    Yaml.Array arr ->
-      Array <$> traverse yamlValueToValue arr
-    Yaml.String str ->
-      pure $ String str
-    Yaml.Number num ->
-      pure $ Number num
-    Yaml.Bool boo ->
-      pure $ Boolean boo
-    Yaml.Null ->
-      fail "Null not supported!"
+    (fmap Bindings . traverse Yaml.parseJSON)
 
 newtype TplParseError =
   ParseError String

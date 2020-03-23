@@ -1,10 +1,15 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Value ( Value(..) ) where
 
-import qualified Data.HashMap.Strict as Map
+import Control.Foldl as Fold
 import Data.Scientific
-import Text.Show
+import qualified Data.Yaml as Yaml
+import Text.MMark as MMark
+import Text.MMark.Extension as MMark
+import Text.URI
 
 import List (List)
+import Output (Output)
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
 Effectively, templates are dynamically typed. Aside from the absence of null,
@@ -17,30 +22,49 @@ data Value where
   Boolean :: Bool -> Value
   Array :: List Value -> Value
   Record :: HashMap Text Value -> Value
+  -- | A Markdown document.
+  Markdown :: MMark -> Value
+  -- | A reference to a 'Record'-like value that is found in a file somewhere –
+  -- like a YAML file. We just have the path to the file here, and retrieve the
+  -- value for a given key on demand.
+  ExternalRecord :: FilePath -> Value
+  deriving stock ( Generic, Typeable, Show, Eq )
+  deriving anyclass ( NFData, Hashable )
 
-instance Eq Value where
-  (Number a1) == (Number a2) =
-    a1 == a2
-  (String a1) == (String a2) =
-    a1 == a2
-  (Verbatim a1) == (Verbatim a2) =
-    a1 == a2
-  (Array a1) == (Array a2) =
-    a1 == a2
-  (Record a1) == (Record a2) =
-    a1 == a2
-  _ == _ =
-    False
+-- | Orphan instance, necessary for @Eq 'Value'@.
+instance Eq MMark where
+  (==) =
+    (==) `on` flip MMark.runScanner Fold.list
 
-instance Show Value where
-  showsPrec prec = \case
-    Number  s -> showsPrec prec s
-    String  t -> showsPrec prec t
-    Boolean b -> showsPrec prec b
-    Record  h ->
-        ('{' :)
-      . Map.foldrWithKey
-        (\k v s -> showsPrec prec k . (':':) . showsPrec prec v . s) id h
-      . ('}' :)
-    Array   a -> showList (toList a)
-    Verbatim _v -> ("..." <>)
+instance Hashable a => Hashable (MMark.Block a)
+instance Hashable MMark.Inline
+instance Hashable MMark.CellAlign
+instance Hashable URI
+instance Hashable (RText label)
+instance Hashable Authority
+instance Hashable UserInfo
+instance Hashable QueryParam
+
+-- | Orphan instance, needed for @Hashable 'Value'@.
+instance Hashable MMark where
+  hashWithSalt salt mmark =
+    hashWithSalt salt (MMark.runScanner mmark Fold.list)
+
+instance Yaml.FromJSON Value where
+  parseJSON = yamlValueToValue
+
+yamlValueToValue :: Yaml.Value -> Yaml.Parser Value
+yamlValueToValue val =
+  case val of
+    Yaml.Object obj ->
+      Record <$> traverse yamlValueToValue obj
+    Yaml.Array arr ->
+      Array <$> traverse yamlValueToValue arr
+    Yaml.String str ->
+      pure $ String str
+    Yaml.Number num ->
+      pure $ Number num
+    Yaml.Bool boo ->
+      pure $ Boolean boo
+    Yaml.Null ->
+      fail "Null not supported!"
