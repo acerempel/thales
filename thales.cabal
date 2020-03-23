@@ -120,7 +120,7 @@ library list-sig
 
 library basemonad-io
   hs-source-dirs: basemonad/io
-  build-depends:  base
+  build-depends:  base, directory, syntax
   exposed-modules: BaseMonad
   default-language: Haskell2010
 

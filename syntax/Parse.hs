@@ -14,12 +14,13 @@ module Parse
   ( Parser, runParser, parse, parseTemplate
   , templateP, exprP
   , Delimiters(..), defaultDelimiters
-  , InternalError(..)
+  , CustomError(..)
   )
 where
 
 import Prelude hiding (many)
 import Data.Char
+import qualified Data.Text as Text
 import Text.Megaparsec hiding (parse, runParser)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (scientific)
@@ -47,18 +48,22 @@ data PartialStatement
 
 {-| Our parser monad. This is a newtype over Megaparsec's 'ParsecT' type. -}
 newtype Parser a = Parser
-  { unParser :: ParsecT InternalError Text (Reader Delimiters) a }
+  { unParser :: ParsecT CustomError Text (Reader Delimiters) a }
   deriving newtype ( Monad, Applicative, Functor, Alternative, MonadPlus )
 
-deriving newtype instance MonadParsec InternalError Text Parser
+deriving newtype instance MonadParsec CustomError Text Parser
 
--- | This error type signifies that an internal invariant in the parser was
--- broken. If you ever see it in an error message, it's a bug in the parser.
-data InternalError = InternalError
+data CustomError
+  -- | This error constructor signifies that an internal invariant in the parser was
+  -- broken. If you ever see it in an error message, it's a bug in the parser.
+  = InternalError
+  | UnknownFunction Text
   deriving stock ( Ord, Eq, Show )
 
-instance ShowErrorComponent InternalError where
+instance ShowErrorComponent CustomError where
   showErrorComponent InternalError = "Internal error!"
+  showErrorComponent (UnknownFunction name) =
+    Text.unpack name <> " is not a known function."
 
 {-| A default set of delimiters – @{{ ... }}@, same as what Mustache templates
 use (and Jinja2 and Liquid, for expression splices). -}
@@ -79,7 +84,7 @@ parseTemplate ::
   FilePath ->
   -- | The input.
   Text ->
-  Either (ParseErrorBundle Text InternalError) [Statement]
+  Either (ParseErrorBundle Text CustomError) [Statement]
 parseTemplate =
   runParser templateP
 
@@ -94,7 +99,7 @@ runParser ::
   FilePath ->
   -- | The input to the parser.
   Text ->
-  Either (ParseErrorBundle Text InternalError) a
+  Either (ParseErrorBundle Text CustomError) a
 runParser parser delims name input =
   let r = runParserT (unParser parser) name input
   in runReader r delims
@@ -191,12 +196,23 @@ exprP = do
         <$> bracketsP (sepEndBy exprP (specialCharP ','))
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
-    <|> NameE <$> nameP
+    <|> applicationOrNameP
   fields <- many (specialCharP '.' *> nameP)
   return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
  where
   parensP = between (specialCharP '(') (specialCharP ')')
   bracketsP = between (specialCharP '[') (specialCharP ']')
+  applicationOrNameP = do
+    name <- nameP
+    mb_arg <- optional exprP
+    case mb_arg of
+      Nothing ->
+        pure (NameE name)
+      Just arg
+        | Just funcConstr <- identifyFunction name ->
+          pure (funcConstr arg)
+        | otherwise ->
+          customFailure (UnknownFunction (NonEmptyText.toText (fromName name)))
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space

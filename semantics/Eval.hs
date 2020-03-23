@@ -5,8 +5,10 @@ module Eval
   )
 where
 
+import qualified Data.Text as Text
 import qualified Data.HashMap.Strict as Map
 
+import BaseMonad
 import Bindings
 import Eval.Expr
 import Eval.Statement
@@ -52,6 +54,25 @@ evalExpr mContext expr =
         evalArrayElement index (Id subExpr) =
           evalSubExpr (addArrayProblemContext index) subExpr
     Array <$> List.imapA evalArrayElement arr
+
+  ListDirectoryE (Id subExpr) -> do
+    path <- evalSubExpr (ListDirectoryE) subExpr
+    case path of
+      String str ->
+        liftEval
+        $ Array . List.map (String . Text.pack) . List.fromList
+        <$> listDirectory (Text.unpack str)
+      _ ->
+        zutAlors (error "oh no!!!")
+
+  FileE (Id subExpr) -> do
+    path <- evalSubExpr (FileE) subExpr
+    case path of
+      String str ->
+        zutAlors (error "urk!")
+      _ ->
+        zutAlors (error "ack!")
+
 
 literalToValue :: Literal -> Value
 literalToValue = \case
