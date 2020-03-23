@@ -58,7 +58,7 @@ cliHeader =
   `flatAlt`
   "~~~ The Thales templating system ~~~"
 
-cliDescription =
+cliFooter =
   "Thales takes template files, containing text of whatever shape you like interspersed " <>
   "with specially delimited template directives, and interprets the directives, " <>
   "substituting their results back into the template to produce the target file. " <>
@@ -67,7 +67,8 @@ cliDescription =
   "a target is requested which has been built before and whose dependencies have not " <>
   "since changed, it will not be rebuilt."
 
-cliFooter =
+cliDescription =
+  "Thales is a simple textual templating system with dependency tracking. " <>
   "For further documentation, see the README on GitHub at https://github.com/parsonyorick/thales-templating#readme."
 
 optionsParser =
