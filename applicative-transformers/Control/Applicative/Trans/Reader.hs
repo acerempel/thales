@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Safe #-}
-{-# LANGUAGE AutoDeriveTypeable #-}
+{-# OPTIONS_GHC -Wno-orphans  #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Control.Monad.Trans.Reader
@@ -36,6 +36,7 @@ module Control.Applicative.Trans.Reader (
     asks,
     ) where
 
+import Control.Applicative.Trans.Class
 import Control.Monad.Trans.Reader (ReaderT(..), Reader)
 import Data.Functor.Identity
 
@@ -52,6 +53,9 @@ runReader
     -> a
 runReader m = runIdentity . runReaderT m
 {-# INLINE runReader #-}
+
+instance ApplicativeTrans (ReaderT r) where
+  liftApplicative = ReaderT . const
 
 -- | Transform the value returned by a @Reader@.
 --

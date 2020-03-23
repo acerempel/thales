@@ -91,7 +91,8 @@ library thales-shake
 library applicative-transformers
   hs-source-dirs:   applicative-transformers
   exposed-modules:
-      Control.Applicative.Trans.Reader
+      Control.Applicative.Trans.Class
+    , Control.Applicative.Trans.Reader
     , Control.Applicative.Trans.Writer
   build-depends:
       base >= 4.8 && < 4.14

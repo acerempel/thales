@@ -1,4 +1,6 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Control.Monad.Trans.Writer.Strict
@@ -42,6 +44,7 @@ module Control.Applicative.Trans.Writer (
 import Data.Functor.Identity
 
 import Control.Applicative
+import Control.Applicative.Trans.Class
 import Control.Monad
 import Control.Monad.Trans.Writer.Strict (WriterT(..), Writer)
 import Prelude hiding (null, length)
@@ -64,6 +67,9 @@ runWriter = runIdentity . runWriterT
 execWriter :: Writer w a -> w
 execWriter m = snd (runWriter m)
 {-# INLINE execWriter #-}
+
+instance Monoid w => ApplicativeTrans (WriterT w) where
+  liftApplicative = WriterT . fmap (,mempty)
 
 -- | Map both the return value and output of a computation using
 -- the given function.
