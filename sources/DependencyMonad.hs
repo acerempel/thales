@@ -1,8 +1,10 @@
 module DependencyMonad
   ( DependencyMonad(..)
   , Options(..)
+  , Verbosity(..)
   , RebuildUnconditionally(..)
   , templateExtension
+  , toShakeOptions
   , rules
   , run
   )
@@ -63,10 +65,14 @@ data RebuildUnconditionally
 
 run :: Options -> IO ()
 run options =
-  shake (optionsToShakeOptions options) $ rules options
+  shake (toShakeOptions options) $ do
+    want (optTargets options)
+    rules options
 
-  where
-    optionsToShakeOptions Options{..} =
+{-# INLINEABLE run #-}
+
+toShakeOptions :: Options -> ShakeOptions
+toShakeOptions Options{..} =
       shakeOptions
         { shakeRebuild = translateRebuild optRebuildUnconditionally
         , shakeTimings = optTimings
@@ -75,6 +81,7 @@ run options =
         , shakeThreads = 0
         , shakeVersion = "2" }
 
+  where
     translateRebuild optRebuild =
       case optRebuild of
         Just Everything ->
@@ -84,9 +91,10 @@ run options =
         Nothing ->
           []
 
+{-# INLINE toShakeOptions #-}
+
 fileRules :: Options -> Rules ()
 fileRules options = do
-    want (optTargets options)
     (`elem` optTargets options) ?> \targetPath -> do
       let templatePath = targetPath <.> templateExtension
       val <- lookupField (TemplateFile Bindings.empty) templatePath "body"
