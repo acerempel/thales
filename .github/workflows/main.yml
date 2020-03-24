@@ -42,5 +42,5 @@ jobs:
     - name: Check cabal version
       run: cabal --version
     # Runs a single command using the runners shell
-    - name: Build the project
-      run: cabal build -w ghc-${{ matrix.ghc }} -O0 --project-file cabal.ghc-${{ matrix.ghc }}.project
+    # - name: Build the project
+    #   run: cabal build -w ghc-${{ matrix.ghc }} -O0 --project-file cabal.ghc-${{ matrix.ghc }}.project
