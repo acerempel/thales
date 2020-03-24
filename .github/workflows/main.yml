@@ -44,6 +44,9 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: '3.0'
+    # Would be nice not to do this every time …
+    - name: Update the hackage index
+      run: cabal update
     # Runs a single command using the runners shell
     - name: Build the project
       run: cabal build -w ghc-${{ matrix.ghc }} -O0 --project-file cabal.ghc-${{ matrix.ghc }}.project
