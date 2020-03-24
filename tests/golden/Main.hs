@@ -1,38 +1,40 @@
 {-# OPTIONS_GHC -Wno-missing-signatures -Wno-orphans #-}
 module Main where
 
-import Control.Exception
-import qualified Data.ByteString.Builder as Builder
-import qualified Data.Text.IO as Text
-import qualified Data.Yaml as Yaml
-import System.FilePath
+import Development.Shake (need)
+import Development.Shake.Database
+import Development.Shake.FilePath
 import System.Directory
 import Test.Tasty
 import Test.Tasty.Golden
-import Text.Megaparsec
 
-import Eval
-import Bindings
-import qualified Output
+import DependencyMonad
 import Parse
-import Value
 
 main = do
   let dir = "tests/golden/files"
   templateFiles <- findByExtension [".tpl"] dir
   mb_tests <- runMaybeT $ traverse (liftA2 (<|>) goldenTestFile goldenTestDir) templateFiles
   let tests =  fromMaybe (error "No output files found!") mb_tests
-  let goldenTests = testGroup "Golden tests" tests
-  defaultMain goldenTests
+  shakeWithDatabase (toShakeOptions options) (rules options) $ \db ->
+    defaultMain $ testGroup "Golden tests" (traverse runShakeTest tests $ db)
+ where
+  options =
+    Options
+      { optTargets = []
+      , optRebuildUnconditionally = Nothing
+      , optDelimiters = Delimiters "{" "}"
+      , optVerbosity = Info
+      , optTimings = False
+      , optCacheDirectory = "/dev/null" }
 
 goldenTestFile templateFile = do
-  let outputPath = templateFile -<.> "out"
-  outExists <- liftIO $ doesFileExist outputPath
+  let goldenFile = templateFile -<.> "out"
+  goldenExists <- liftIO $ doesFileExist goldenFile
   MaybeT $ return $
-    if outExists
+    if goldenExists
       then let testName = takeBaseName templateFile
-               bindingsFile = templateFile -<.> "yaml"
-           in Just $ createGoldenTest testName templateFile outputPath bindingsFile
+           in Just $ createGoldenTest testName goldenFile
       else Nothing
 
 goldenTestDir templateFile = do
@@ -41,50 +43,24 @@ goldenTestDir templateFile = do
   MaybeT $
     if dirExists
       then do
-        outFiles <- findByExtension [".out"] dir
-        let tests = map createTest outFiles
+        goldenFiles <- findByExtension [".out"] dir
+        let tests = traverse (runShakeTest . createTest) goldenFiles
             groupName = takeBaseName dir
-        return (Just (testGroup groupName tests))
+        return (Just (ShakeTest (\db -> testGroup groupName (tests db))))
       else return Nothing
   where
-    createTest outFile =
-      let testName = takeBaseName outFile
-          bindingsFile = outFile -<.> "yaml"
-      in createGoldenTest testName templateFile outFile bindingsFile
+    createTest goldenFile =
+      let testName = takeBaseName goldenFile
+      in createGoldenTest testName goldenFile
 
+newtype ShakeTest = ShakeTest { runShakeTest :: ShakeDatabase -> TestTree }
 
-createGoldenTest testName templateFile outputFile bindingsFile =
-  goldenVsString testName outputFile (runTemplate templateFile bindingsFile)
+createGoldenTest testName goldenFile =
+  ShakeTest $ \database ->
+    goldenVsFile testName goldenFile outputFile (runTemplate database outputFile)
+ where
+  outputFile = dropExtension goldenFile
 
-runTemplate tplPath yamlPath = do
-  input  <- Text.readFile tplPath
-  let delimiters = Delimiters "{" "}"
-  parsed <- either throwIO pure $
-            first (ParseError . errorBundlePretty) $
-            parseTemplate delimiters tplPath input
-  yamlExists <- doesFileExist yamlPath
-  bindings <-
-    if yamlExists
-      then Yaml.decodeFileThrow yamlPath
-      else pure mempty
-  eval'd <- (>>= either throwIO pure) $
-            first (EvalError . toList) . second snd <$>
-            runStmtT (for_ parsed evalStatement) bindings
-  return $ Builder.toLazyByteString $ Output.toBuilder eval'd
-
-instance Yaml.FromJSON Bindings where
-  parseJSON =
-    Yaml.withObject "Bindings"
-    (fmap Bindings . traverse Yaml.parseJSON)
-
-newtype TplParseError =
-  ParseError String
-  deriving newtype Show
-
-instance Exception TplParseError where
-  displayException (ParseError err) = err
-
-newtype EvalError = EvalError [Problem]
-  deriving stock Show
-
-instance Exception EvalError
+runTemplate database outputPath = do
+  ([()], []) <- shakeRunDatabase database [need [outputPath]]
+  return ()
