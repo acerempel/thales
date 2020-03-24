@@ -29,7 +29,6 @@ import Text.MMark as MMark
 import Eval
 import Bindings (Bindings(..))
 import qualified Bindings
-import Output (Output)
 import qualified Output
 import Parse
 import Syntax
@@ -259,14 +258,6 @@ newtype MMarkException = MMarkException (ParseErrorBundle Text MMarkErr)
 instance Exception MMarkException where
   displayException (MMarkException err) =
     errorBundlePretty err
-
-data TemplateQ = TemplateQ
-  { templateParameters :: Bindings
-  , templatePath :: FilePath }
-  deriving stock ( Eq, Show, Generic )
-  deriving anyclass ( Hashable, NFData, Typeable, Binary )
-
-type instance RuleResult TemplateQ = (Bindings, Output)
 
 eitherThrow :: (MonadIO m, Exception e) => Either e a -> m a
 eitherThrow = either (liftIO . throwIO) pure
