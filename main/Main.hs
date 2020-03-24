@@ -10,13 +10,9 @@ import System.Directory
 import System.FilePath
 import System.IO hiding (print)
 
-import qualified Bindings
 import DependencyMonad hiding (listDirectory)
 import qualified NonEmptyText
-import qualified Output
 import Parse
-import Syntax
-import Value
 
 main = do
   options@Options{..} <- customExecParser cliPrefs cli
@@ -24,20 +20,7 @@ main = do
     print options
   when (optVerbosity >= Info && optRebuildUnconditionally == Just Everything) $
     hPutStrLn stderr "Rebuilding all targets."
-  run options $ do
-    want optTargets
-    (`elem` optTargets) ?> \targetPath -> do
-      let templatePath = targetPath <.> templateExtension
-      val <- lookupField (TemplateFile Bindings.empty) templatePath "body"
-      case val of
-        Just (Output outp) -> do
-          absTarget <- liftIO $ makeAbsolute targetPath
-          putInfo $ "Writing result of " <> templatePath <> " to " <> absTarget
-          liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
-            hSetBuffering hdl (BlockBuffering Nothing)
-            Output.write hdl (Output.fromStorable outp)
-        _ ->
-          error "Oh no!!!"
+  run options
 
 cli =
   info (optionsParser <**> helper) $
@@ -129,8 +112,6 @@ optionsParser =
 getPossibleTargets :: IO [String]
 getPossibleTargets =
   map dropExtension . filter (templateExtension `isExtensionOf`) <$> listDirectory "."
-
-templateExtension = "template"
 
 parseDelimiters :: String -> Either String Delimiters
 parseDelimiters s = maybe (Left errMsg) Right $ do

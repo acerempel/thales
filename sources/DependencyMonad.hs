@@ -2,6 +2,8 @@ module DependencyMonad
   ( DependencyMonad(..)
   , Options(..)
   , RebuildUnconditionally(..)
+  , templateExtension
+  , rules
   , run
   )
 where
@@ -14,14 +16,17 @@ import qualified Data.Text.IO as Text
 import qualified Data.Yaml as Yaml
 import Development.Shake
 import Development.Shake.Classes hiding (show)
+import Development.Shake.FilePath
 import Development.Shake.Rule
 import qualified Lucid
 import qualified System.Directory as System
+import System.IO hiding (print)
 import Text.Megaparsec
 import Text.MMark as MMark
 
 import Eval
 import Bindings (Bindings(..))
+import qualified Bindings
 import Output (Output)
 import qualified Output
 import Parse
@@ -55,16 +60,9 @@ data RebuildUnconditionally
   | Everything
   deriving stock ( Show, Eq )
 
-run :: Options -> Rules () -> IO ()
-run options rules =
-  shake (optionsToShakeOptions options) $ do
-    readYamlCached <- newCache readYaml
-    readMarkdownCached <- newCache readMarkdown
-    dependDelimiters <- addOracle pure
-    readTemplateCached <- newCache (readTemplate dependDelimiters)
-    addBuiltinRule noLint noIdentity
-      (fieldAccessRuleRun readYamlCached readMarkdownCached readTemplateCached)
-    rules
+run :: Options -> IO ()
+run options =
+  shake (optionsToShakeOptions options) $ rules options
 
   where
     optionsToShakeOptions Options{..} =
@@ -84,6 +82,38 @@ run options rules =
         Nothing ->
           []
 
+fileRules :: Options -> Rules ()
+fileRules options = do
+    want (optTargets options)
+    (`elem` optTargets options) ?> \targetPath -> do
+      let templatePath = targetPath <.> templateExtension
+      val <- lookupField (TemplateFile Bindings.empty) templatePath "body"
+      case val of
+        Just (Output outp) -> do
+          absTarget <- liftIO $ System.makeAbsolute targetPath
+          putInfo $ "Writing result of " <> templatePath <> " to " <> absTarget
+          liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
+            hSetBuffering hdl (BlockBuffering Nothing)
+            Output.write hdl (Output.fromStorable outp)
+        _ ->
+          error "Oh no!!!"
+
+{-# INLINE fileRules #-}
+
+templateExtension :: String
+templateExtension = "template"
+
+rules :: Options -> Rules ()
+rules options = do
+    readYamlCached <- newCache readYaml
+    readMarkdownCached <- newCache readMarkdown
+    dependDelimiters <- addOracle pure
+    readTemplateCached <- newCache (readTemplate dependDelimiters)
+    addBuiltinRule noLint noIdentity
+      (fieldAccessRuleRun readYamlCached readMarkdownCached readTemplateCached)
+    fileRules options
+
+  where
     readYaml path = do
       need [path]
       pathAbs <- liftIO $ System.makeAbsolute path
@@ -132,9 +162,9 @@ run options rules =
         let record = Map.insert "body" (Output (Output.toStorable output)) bindings
         return $ Record record
 
-type instance RuleResult Delimiters = Delimiters
+{-# INLINE rules #-}
 
-{-# INLINEABLE run #-}
+type instance RuleResult Delimiters = Delimiters
 
 data FieldAccessQ = FieldAccessQ
   { faFileType :: FileType Bindings
