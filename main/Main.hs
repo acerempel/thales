@@ -61,6 +61,7 @@ optionsParser =
     <*> delimitersOption
     <*> verbosityOption
     <*> timingsOption
+    <*> ephemeralOption
   where
     targetArguments =
       some $ strArgument $
@@ -108,6 +109,11 @@ optionsParser =
         short 't' <>
         hidden <>
         help "Print some coarse-grained timing information that Shake calculates."
+    ephemeralOption =
+      flag ".thales" "/dev/null" $
+        long "ephemeral" <>
+        hidden <>
+        help "Do not use the build system metadata cache."
 
 getPossibleTargets :: IO [String]
 getPossibleTargets =

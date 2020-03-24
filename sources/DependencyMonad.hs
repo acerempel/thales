@@ -52,7 +52,8 @@ data Options = Options
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
   , optDelimiters :: Delimiters
   , optVerbosity :: Verbosity
-  , optTimings :: Bool }
+  , optTimings :: Bool
+  , optCacheDirectory :: FilePath }
   deriving stock ( Show )
 
 data RebuildUnconditionally
@@ -70,6 +71,7 @@ run options =
         { shakeRebuild = translateRebuild optRebuildUnconditionally
         , shakeTimings = optTimings
         , shakeVerbosity = optVerbosity
+        , shakeFiles = optCacheDirectory
         , shakeThreads = 0
         , shakeVersion = "2" }
 
