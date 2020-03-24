@@ -83,7 +83,7 @@ optionsParser =
       some $ strArgument $
         metavar "TARGETS" <>
         help ("Files to be built from the corresponding templates. The template for a " <>
-             "given FILE is assumed to be called \"FILE.template\".") <>
+             "given FILE is assumed to be called \"FILE." <> templateExtension <> "\".") <>
         completer (listIOCompleter getPossibleTargets)
     rebuildOption =
       (Just . SomeThings <$> NE.some (strOption $
@@ -91,7 +91,7 @@ optionsParser =
         long "rebuild" <>
         short 'r' <>
         help ("Rebuild targets matching this glob pattern, regardless of whether their " <>
-              "dependencies have changed. This option may be given multiple times."))) <|>
+              "dependencies have changed. This option may be given multiple times to specify multiple patterns."))) <|>
       (flag Nothing (Just Everything) (
         long "rebuild-all" <> short 'R' <>
         help "Rebuild all targets, regardless of whether dependencies have changed."))
