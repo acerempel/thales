@@ -39,6 +39,8 @@ jobs:
       with:
         path: dist-newstyle
         key: ${{ runner.os }}-${{ matrix.ghc }}-dist-newstyle
+    - name: Check cabal version
+      run: cabal --version
     # Runs a single command using the runners shell
     - name: Build the project
       run: cabal-3.0.1.0 build -w ghc-${{ matrix.ghc }} -O0 --project-file cabal.ghc-${{ matrix.ghc }}.project
