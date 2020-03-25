@@ -3,8 +3,8 @@ module DependencyMonad
   , Options(..)
   , Verbosity(..)
   , RebuildUnconditionally(..)
-  , templateExtension
   , toShakeOptions
+  , rules
   , run
   )
 where
@@ -13,6 +13,7 @@ import Control.Exception
 import Data.Binary
 import qualified Data.HashMap.Strict as Map
 import qualified Data.List.NonEmpty as NonEmpty
+import Data.Maybe (fromJust)
 import qualified Data.Text.IO as Text
 import qualified Data.Yaml as Yaml
 import Development.Shake
@@ -48,7 +49,8 @@ instance DependencyMonad Action where
 
 -- | The command-line options.
 data Options = Options
-  { optTargets :: [FilePath]
+  { optTemplates :: [Either FilePath FilePattern]
+  , optOutputExtension :: String
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
   , optDelimiters :: Delimiters
   , optVerbosity :: Verbosity
@@ -63,10 +65,19 @@ data RebuildUnconditionally
 
 run :: Options -> IO ()
 run options =
-  shake (toShakeOptions options) $ do
-    want (optTargets options)
+  shake (toShakeOptions options) $ rules options
+
+rules :: Options -> Rules ()
+rules options@Options{optTemplates, optOutputExtension} = do
+    let (templatePaths, templatePatterns) = partitionEithers optTemplates
+    templateMatches <- liftIO $ getDirectoryFilesIO "" templatePatterns
+    let targetToSourceMap =
+          Map.fromList
+          $ map (\template -> (template -<.> optOutputExtension, template))
+          $ templatePaths ++ templateMatches
     builtinRules options
-    fileRules options
+    fileRules targetToSourceMap
+    want $ Map.keys targetToSourceMap
 
 {-# INLINEABLE run #-}
 
@@ -92,10 +103,10 @@ toShakeOptions Options{..} =
 
 {-# INLINE toShakeOptions #-}
 
-fileRules :: Options -> Rules ()
-fileRules options = do
-    (`elem` optTargets options) ?> \targetPath -> do
-      let templatePath = targetPath <.> templateExtension
+fileRules :: HashMap FilePath FilePath -> Rules ()
+fileRules targetToSourceMap = do
+    (`Map.member` targetToSourceMap) ?> \targetPath -> do
+      let templatePath = fromJust $ Map.lookup targetPath targetToSourceMap
       val <- lookupField (TemplateFile Bindings.empty) templatePath "body"
       case val of
         Just (Output outp) -> do
@@ -108,9 +119,6 @@ fileRules options = do
           error "Oh no!!!"
 
 {-# INLINE fileRules #-}
-
-templateExtension :: String
-templateExtension = "template"
 
 builtinRules :: Options -> Rules ()
 builtinRules options = do

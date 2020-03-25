@@ -7,7 +7,6 @@ import qualified Data.Text as Text
 import Options.Applicative
 import Options.Applicative.Help.Pretty
 import System.Directory
-import System.FilePath
 import System.IO hiding (print)
 
 import DependencyMonad hiding (listDirectory)
@@ -56,19 +55,39 @@ cliDescription =
 
 optionsParser =
   Options
-    <$> targetArguments
+    <$> templatesOptions
+    <*> outputExtensionOption
     <*> rebuildOption
     <*> delimitersOption
     <*> verbosityOption
     <*> timingsOption
     <*> ephemeralOption
   where
-    targetArguments =
-      some $ strArgument $
-        metavar "TARGETS" <>
-        help ("Files to be built from the corresponding templates. The template for a " <>
-             "given FILE is assumed to be called \"FILE." <> templateExtension <> "\".") <>
-        completer (listIOCompleter getPossibleTargets)
+    templatesOptions =
+      some $
+        (fmap Left . strOption $
+          metavar "FILE" <>
+          long "template-file" <>
+          short 't' <>
+          completer (listIOCompleter (listDirectory ".")) <>
+          help ("A template file to be compiled. This option may be given multiple times to " <>
+                "compile multiple files.")) <|>
+        (fmap Right . strOption $
+          metavar "PATTERN" <>
+          long "template-pattern" <>
+          short 'p' <>
+          completer (listIOCompleter (listDirectory ".")) <>
+          help ("A glob pattern that should match the templates to be compiled. This option " <>
+                "may be given multiple times; all template files matching any of the patterns " <>
+                "will be built."))
+    outputExtensionOption =
+      strOption $
+        metavar "EXTENSION" <>
+        long "output-extension" <>
+        long "out-ext" <>
+        help ("The file extension for output files. The filename of an output file is constructed from " <>
+              "the filename of the corresponding template file by replacing all file extensions with " <>
+              "the output file extension.")
     rebuildOption =
       (Just . SomeThings <$> NE.some (strOption $
         metavar "PATTERN" <>
@@ -114,10 +133,6 @@ optionsParser =
         long "ephemeral" <>
         hidden <>
         help "Do not use the build system metadata cache."
-
-getPossibleTargets :: IO [String]
-getPossibleTargets =
-  map dropExtension . filter (templateExtension `isExtensionOf`) <$> listDirectory "."
 
 parseDelimiters :: String -> Either String Delimiters
 parseDelimiters s = maybe (Left errMsg) Right $ do
