@@ -62,7 +62,6 @@ optionsParser =
     <*> verbosityOption
     <*> timingsOption
     <*> ephemeralOption
-    <*> pure (RemoveExtensionSuffix templateExtension)
   where
     targetArguments =
       some $ strArgument $

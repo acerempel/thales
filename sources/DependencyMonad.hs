@@ -3,8 +3,6 @@ module DependencyMonad
   , Options(..)
   , Verbosity(..)
   , RebuildUnconditionally(..)
-  , FileExtensionTransformation(..)
-  , Extension
   , templateExtension
   , toShakeOptions
   , rules
@@ -26,7 +24,7 @@ import qualified Lucid
 import qualified System.Directory as System
 import System.IO hiding (print)
 import Text.Megaparsec
-import qualified Text.MMark as MMark
+import Text.MMark as MMark
 
 import Eval
 import Bindings (Bindings(..))
@@ -56,24 +54,13 @@ data Options = Options
   , optDelimiters :: Delimiters
   , optVerbosity :: Verbosity
   , optTimings :: Bool
-  , optCacheDirectory :: FilePath
-  , optExtensionTransformation :: FileExtensionTransformation }
+  , optCacheDirectory :: FilePath }
   deriving stock ( Show )
 
 data RebuildUnconditionally
   = SomeThings (NonEmpty FilePattern)
   | Everything
   deriving stock ( Show, Eq )
-
-data FileExtensionTransformation
-  = RemoveExtensionSuffix Extension
-  | RemoveExtensionPrefix Extension
-  | AddExtensionSuffix Extension
-  | AddExtensionPrefix Extension
-  | ReplaceExtension Extension Extension
-  deriving stock ( Show, Eq )
-
-type Extension = String
 
 run :: Options -> IO ()
 run options =
@@ -265,7 +252,7 @@ data NotAnObject = NotAnObject (FileType Bindings) FilePath
 
 instance Exception NotAnObject
 
-newtype MMarkException = MMarkException (ParseErrorBundle Text MMark.MMarkErr)
+newtype MMarkException = MMarkException (ParseErrorBundle Text MMarkErr)
   deriving stock ( Show, Typeable )
 
 instance Exception MMarkException where
