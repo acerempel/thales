@@ -60,7 +60,6 @@ executable thales
   build-depends:
       core
     , directory
-    , megaparsec >= 8.0 && < 9.0
     , optparse-applicative >= 0.14 && < 0.16
     , parser-combinators
     , shake >= 0.18 && < 0.19
