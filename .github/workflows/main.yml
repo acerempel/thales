@@ -50,6 +50,9 @@ jobs:
     # Would be nice not to do this every time …
     - name: Update the hackage index
       run: cabal update
-    # Runs a single command using the runners shell
+    - name: Save the build options
+      run: cabal configure -w ghc-${{ matrix.ghc }} -O1 --project-file cabal.ghc-${{ matrix.ghc }}.project
     - name: Build the project
-      run: cabal build -w ghc-${{ matrix.ghc }} -O0 --project-file cabal.ghc-${{ matrix.ghc }}.project
+      run: cabal build --project-file cabal.ghc-${{ matrix.ghc }}.project
+    - name: Run the golden tests
+      run: cabal test golden --project-file cabal.ghc-${{ matrix.ghc }}.project
