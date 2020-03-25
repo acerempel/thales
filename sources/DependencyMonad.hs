@@ -51,6 +51,7 @@ instance DependencyMonad Action where
 data Options = Options
   { optTemplates :: [Either FilePath FilePattern]
   , optOutputExtension :: String
+  , optOutputDirectory :: FilePath
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
   , optDelimiters :: Delimiters
   , optVerbosity :: Verbosity
@@ -68,16 +69,19 @@ run options =
   shake (toShakeOptions options) $ rules options
 
 rules :: Options -> Rules ()
-rules options@Options{optTemplates, optOutputExtension} = do
+rules options@Options{optTemplates, optOutputExtension, optOutputDirectory} = do
     let (templatePaths, templatePatterns) = partitionEithers optTemplates
     templateMatches <- liftIO $ getDirectoryFilesIO "" templatePatterns
     let targetToSourceMap =
           Map.fromList
-          $ map (\template -> (template -<.> optOutputExtension, template))
+          $ map (\template -> (sourceToTargetPath template, template))
           $ templatePaths ++ templateMatches
     builtinRules options
     fileRules targetToSourceMap
     want $ Map.keys targetToSourceMap
+  where
+    sourceToTargetPath source =
+      optOutputDirectory </> source <.> optOutputExtension
 
 {-# INLINEABLE run #-}
 

@@ -57,6 +57,7 @@ optionsParser =
   Options
     <$> templatesOptions
     <*> outputExtensionOption
+    <*> outputDirectoryOption
     <*> rebuildOption
     <*> delimitersOption
     <*> verbosityOption
@@ -88,6 +89,14 @@ optionsParser =
         help ("The file extension for output files. The filename of an output file is constructed from " <>
               "the filename of the corresponding template file by replacing all file extensions with " <>
               "the output file extension.")
+    outputDirectoryOption =
+      strOption $
+        metavar "DIRECTORY" <>
+        long "output-directory" <>
+        long "out-dir" <>
+        value "." <>
+        showDefaultWith (const "current directory") <>
+        help ("The directory in which to place output files.")
     rebuildOption =
       (Just . SomeThings <$> NE.some (strOption $
         metavar "PATTERN" <>

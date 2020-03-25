@@ -152,3 +152,4 @@ test-suite golden
     , shake >= 0.18 && < 0.19
     , tasty >= 1.1.0.3 && < 2.0
     , tasty-golden >= 2.3 && < 2.4
+    , temporary >= 1.2.1 && < 1.4
