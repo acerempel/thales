@@ -21,6 +21,7 @@ where
 import Prelude hiding (many)
 import Data.Binary
 import Data.Char
+import qualified Data.HashSet as Set
 import qualified Data.Text as Text
 import Text.Megaparsec hiding (parse, runParser)
 import Text.Megaparsec.Char
@@ -151,10 +152,10 @@ statementP = label "statement" $ do
 
 withinDelims :: Parser a -> Parser a
 withinDelims innerP = do
-  nonEmptyChunk =<< getBeginDelim
+  label "opening delimiter" $ nonEmptyChunk =<< getBeginDelim
   space
   inner <- innerP
-  nonEmptyChunk =<< getEndDelim
+  label "closing delimiter" $ nonEmptyChunk =<< getEndDelim
   return inner
  where
   nonEmptyChunk (NonEmptyText hd tl) =
@@ -169,10 +170,17 @@ keywordP ident = do
   notFollowedBy (satisfy isIdChar)
   space
 
-nameP :: Parser Name
-nameP = label "name" $ do
+anyNameP :: Parser Name
+anyNameP = do
   ident <- takeWhile1P (Just "identifier character") isIdChar <* space
   return $ Name ident
+
+nameP :: Parser Name
+nameP = label "name" $ do
+  Name name <- anyNameP
+  if isJust (identifyFunction name) || name `Set.member` keywords
+    then customFailure (IsFunctionName name) -- TODO better error message
+    else return (Name name)
 
 forP :: SourcePos -> Parser PartialStatement
 forP sp = do
@@ -213,11 +221,16 @@ exportP sp = do
 {-| Parse an expression. Only exported for testing purposes. -}
 exprP :: Parser Expr
 exprP =
-  applicationOrNameP <|> atomicExprP
+  -- TODO reorganize this, maybe
+  fieldAccessP <|> applicationOrNameP <|> atomicExprP
  where
+  fieldAccessP = do
+    name <- try nameP
+    fields <- many (dot *> nameP)
+    return (foldl' (\e f -> FieldAccessE f (Id e)) (NameE name) fields)
   -- TODO: Rewrite to improve error messages.
   applicationOrNameP = do
-    Name name <- nameP
+    Name name <- anyNameP
     arguments <- many atomicExprP
     case (identifyFunction name, arguments) of
       (Nothing, []) ->
@@ -234,16 +247,13 @@ exprP =
         customFailure (UnknownFunction name)
 
 atomicExprP :: Parser Expr
-atomicExprP = do
-  expr <-
+atomicExprP = label "an expression" $
     parensP exprP
     <|> ArrayE . coerce . List.fromList
         <$> bracketsP (sepEndBy exprP comma)
     <|> RecordE <$> bracesP (sepEndBy recordBindingP comma)
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
-  fields <- many (dot *> nameP)
-  return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
  where
   parensP = betweenChars '(' ')'
   bracketsP = betweenChars '[' ']'
@@ -275,6 +285,9 @@ identifyFunction name =
       Just $ TwoArgumentFunction (\path binds -> FileE (TemplateFile (Id binds)) (Id path))
     _ ->
       Nothing
+
+keywords :: HashSet Text
+keywords = Set.fromList ["let", "in", "export", "optionally", "for"]
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space
