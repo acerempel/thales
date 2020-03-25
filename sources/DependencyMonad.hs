@@ -88,7 +88,7 @@ rules options@Options{..} = do
     sourceToTargetPath source =
       normalise $ optOutputDirectory </> source `replaceExtensions` optOutputExtension
 
-{-# INLINEABLE run #-}
+{-# INLINE rules #-}
 
 toShakeOptions :: Options -> ShakeOptions
 toShakeOptions Options{..} =
