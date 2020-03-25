@@ -5,7 +5,6 @@ module DependencyMonad
   , RebuildUnconditionally(..)
   , templateExtension
   , toShakeOptions
-  , rules
   , run
   )
 where
@@ -66,7 +65,8 @@ run :: Options -> IO ()
 run options =
   shake (toShakeOptions options) $ do
     want (optTargets options)
-    rules options
+    builtinRules options
+    fileRules options
 
 {-# INLINEABLE run #-}
 
@@ -112,15 +112,14 @@ fileRules options = do
 templateExtension :: String
 templateExtension = "template"
 
-rules :: Options -> Rules ()
-rules options = do
+builtinRules :: Options -> Rules ()
+builtinRules options = do
     readYamlCached <- newCache readYaml
     readMarkdownCached <- newCache readMarkdown
     dependDelimiters <- addOracle pure
     readTemplateCached <- newCache (readTemplate dependDelimiters)
     addBuiltinRule noLint noIdentity
       (fieldAccessRuleRun readYamlCached readMarkdownCached readTemplateCached)
-    fileRules options
 
   where
     readYaml path = do
@@ -171,7 +170,7 @@ rules options = do
         let record = Map.insert "body" (Output (Output.toStorable output)) bindings
         return $ Record record
 
-{-# INLINE rules #-}
+{-# INLINE builtinRules #-}
 
 type instance RuleResult Delimiters = Delimiters
 
