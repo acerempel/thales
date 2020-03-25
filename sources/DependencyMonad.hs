@@ -69,13 +69,15 @@ run options =
   shake (toShakeOptions options) $ rules options
 
 rules :: Options -> Rules ()
-rules options@Options{optTemplates, optOutputExtension, optOutputDirectory} = do
+rules options@Options{..} = do
     let (templatePaths, templatePatterns) = partitionEithers optTemplates
     templateMatches <- liftIO $ getDirectoryFilesIO "" templatePatterns
     let targetToSourceMap =
           Map.fromList
           $ map (\template -> (sourceToTargetPath template, template))
           $ templatePaths ++ templateMatches
+    when (optVerbosity >= Verbose) $
+      liftIO $ hPrint stderr (targetToSourceMap)
     builtinRules options
     fileRules targetToSourceMap
     want $ Map.keys targetToSourceMap
