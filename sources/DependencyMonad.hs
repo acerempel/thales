@@ -83,7 +83,7 @@ rules options@Options{..} = do
     want $ Map.keys targetToSourceMap
   where
     sourceToTargetPath source =
-      optOutputDirectory </> source <.> optOutputExtension
+      optOutputDirectory </> source `replaceExtensions` optOutputExtension
 
 {-# INLINEABLE run #-}
 
