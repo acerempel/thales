@@ -82,7 +82,7 @@ evalExpr mContext dir expr =
     let ft'' = traverse (\val -> case val of { Record r -> Right r; _ -> Left "oh no!" }) ft'
     case (path, ft'') of
       (String str, Right rec) ->
-        pure (ExternalRecord rec (Text.unpack str))
+        pure (ExternalRecord rec (dir </> Text.unpack str))
       _ ->
         zutAlors (error "ack!")
 
