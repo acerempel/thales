@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-missing-signatures -Wno-orphans #-}
 module Main where
 
-import Development.Shake (need)
+import Development.Shake (need, withoutActions)
 import Development.Shake.Database
 import Development.Shake.FilePath
 import System.Directory
@@ -12,16 +12,17 @@ import DependencyMonad
 import Parse
 
 main = do
-  let dir = "tests/golden/files"
   templateFiles <- findByExtension [".tpl"] dir
   mb_tests <- runMaybeT $ traverse (liftA2 (<|>) goldenTestFile goldenTestDir) templateFiles
   let tests =  fromMaybe (error "No output files found!") mb_tests
-  shakeWithDatabase (toShakeOptions options) (rules options) $ \db ->
+  shakeWithDatabase (toShakeOptions options) (withoutActions (rules options)) $ \db ->
     defaultMain $ testGroup "Golden tests" (traverse runShakeTest tests $ db)
  where
+  dir = "tests/golden/files"
   options =
     Options
-      { optTargets = []
+      { optTemplates = [Right (dir </> "*" <.> "tpl")]
+      , optOutputExtension = "out"
       , optRebuildUnconditionally = Nothing
       , optDelimiters = Delimiters "{" "}"
       , optVerbosity = Info
