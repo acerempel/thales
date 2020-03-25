@@ -1,5 +1,5 @@
-{-# OPTIONS_GHC -Wno-missing-signatures -Wno-orphans #-}
-module Main where
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
+module Main (main) where
 
 import Development.Shake (need, withoutActions, getDirectoryFilesIO)
 import Development.Shake.Database
