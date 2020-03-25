@@ -7,19 +7,13 @@ import qualified Data.Text as Text
 import Options.Applicative
 import Options.Applicative.Help.Pretty
 import System.Directory
-import System.IO hiding (print)
 
 import DependencyMonad hiding (listDirectory)
 import qualified NonEmptyText
 import Parse
 
-main = do
-  options@Options{..} <- customExecParser cliPrefs cli
-  when (optVerbosity >= Verbose) $
-    print options
-  when (optVerbosity >= Info && optRebuildUnconditionally == Just Everything) $
-    hPutStrLn stderr "Rebuilding all targets."
-  run options
+main =
+  run =<< customExecParser cliPrefs cli
 
 cli =
   info (optionsParser <**> helper) $

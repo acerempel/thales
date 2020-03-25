@@ -76,8 +76,11 @@ rules options@Options{..} = do
           Map.fromList
           $ map (\template -> (sourceToTargetPath template, template))
           $ templatePaths ++ templateMatches
-    when (optVerbosity >= Verbose) $
-      liftIO $ hPrint stderr (targetToSourceMap)
+    when (optVerbosity >= Info && optRebuildUnconditionally == Just Everything) $
+      liftIO $ hPutStrLn stderr "Rebuilding all targets."
+    when (optVerbosity >= Verbose) $ liftIO $ do
+      hPrint stderr options
+      hPrint stderr targetToSourceMap
     builtinRules options
     fileRules targetToSourceMap
     want $ Map.keys targetToSourceMap
