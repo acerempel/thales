@@ -1,33 +1,33 @@
 # TODO
 
-## Stuff to do before this is usable
+## For v0.5
 
-- Test out the error reporting a bit
+- [ ] Implement base templates. Not hard.
+
+## For v0.6
+
+- [ ] Implement YAML config.
+  - Maybe start with just a YAML version of
+    what is already possible on the command line, and then amend it to
+    allow for more complex configuration.
+
+## Eventually, but essential
+
+- [ ] Test out the error reporting a bit
 
 - Parsing of:
 
-  - Record literals
-  - Array indexing
-  - Function application (but what shape is the data
-    structure? and how do we do dynamic typing?)
-  - Be able to compare syntax trees for equality ignoring
-    SourcePos.
+  - [ ] Array indexing
 
-- Getting environment from a yaml file.
+- [ ] Be able to compare syntax trees for equality ignoring
+      SourcePos.
 
-  - ~~Extend golden tests suitably.~~
+- [ ] Framework for negative golden tests.
 
-- Framework for negative golden tests.
+## Done
 
-- Implement "load-template".
-
-  - Just in IO for now.
-  - Requires figuring out what the internal function API
-    looks like.
-
-- Implement "load-markdown".
-
-- Implement the Shake backing monad.
-
-  - This will be interesting and fun. May involve writing
-    BuiltinRules.
+- [x] Record literals
+- [x] Getting environment from a yaml file.
+- [x] Implement "load-template".
+- [x] Implement "load-markdown".
+- [x] Implement the Shake backing monad.
