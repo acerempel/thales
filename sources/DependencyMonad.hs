@@ -49,7 +49,7 @@ instance DependencyMonad Action where
 
 -- | The command-line options.
 data Options = Options
-  { optTemplates :: [Either Path Pattern]
+  { optTemplates :: [Either FilePath FilePattern]
   , optOutputExtension :: String
   , optOutputDirectory :: FilePath
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
@@ -58,9 +58,6 @@ data Options = Options
   , optTimings :: Bool
   , optCacheDirectory :: FilePath }
   deriving stock ( Show )
-
-newtype Path = Path FilePath deriving newtype ( Show, Eq )
-newtype Pattern = Pattern FilePattern deriving newtype ( Show, Eq )
 
 data RebuildUnconditionally
   = SomeThings (NonEmpty FilePattern)
@@ -74,11 +71,11 @@ run options =
 rules :: Options -> Rules ()
 rules options@Options{..} = do
     let (templatePaths, templatePatterns) = partitionEithers optTemplates
-    templateMatches <- liftIO $ getDirectoryFilesIO "" (coerce templatePatterns)
+    templateMatches <- liftIO $ getDirectoryFilesIO "" templatePatterns
     let targetToSourceMap =
           Map.fromList
           $ map (\template -> (sourceToTargetPath template, template))
-          $ coerce templatePaths ++ templateMatches
+          $ templatePaths ++ templateMatches
     when (optVerbosity >= Info && optRebuildUnconditionally == Just Everything) $
       liftIO $ hPutStrLn stderr "Rebuilding all targets."
     when (optVerbosity >= Verbose) $ liftIO $ do
