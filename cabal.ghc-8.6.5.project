@@ -3,5 +3,6 @@ packages: thales.cabal
 optimization: 1
 
 package thales
-  ghc-options: -fhide-source-paths -ferror-spans -freverse-errors
+  ghc-options: -fhide-source-paths -ferror-spans -freverse-errors -fshow-warning-groups
                -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints -Widentities
+               -Wmissing-export-lists -Wpartial-fields
