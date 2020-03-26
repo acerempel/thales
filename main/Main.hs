@@ -59,7 +59,7 @@ optionsParser =
     <*> ephemeralOption
   where
     templatesOptions =
-      fmap ((: []) . pure) . some $
+      fmap ((: []) . defaultThingToBuild) . some $
         (fmap Left . strOption $
           metavar "FILE" <>
           long "template-file" <>

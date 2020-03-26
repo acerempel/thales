@@ -3,7 +3,7 @@ module DependencyMonad
   ( DependencyMonad(..)
   , Options(..)
   , Verbosity(..)
-  , ThingToBuild(..)
+  , ThingToBuild(..), defaultThingToBuild
   , RebuildUnconditionally(..)
   , toShakeOptions
   , rules
@@ -94,19 +94,9 @@ instance Traversable (ThingToBuild f) where
   traverse f ThingToBuild{buildWhat, ..} =
     (\a -> ThingToBuild{buildWhat = a, ..}) <$> f buildWhat
 
-instance Alternative f => Applicative (ThingToBuild f) where
-  pure a =
-    ThingToBuild a empty empty empty
-  thing_f <*> thing_a =
-    ThingToBuild
-      { buildWhat =
-          buildWhat thing_f $ buildWhat thing_a
-      , buildOutputExtension =
-          buildOutputExtension thing_f <|> buildOutputExtension thing_a
-      , buildOutputDirectory =
-          buildOutputDirectory thing_f <|> buildOutputDirectory thing_a
-      , buildDelimiters =
-          buildDelimiters thing_f <|> buildDelimiters thing_a }
+defaultThingToBuild :: a -> ThingToBuild Maybe a
+defaultThingToBuild a =
+  ThingToBuild a Nothing Nothing Nothing
 
 expand :: ThingToBuild f [Either SourcePath FilePattern] -> IO (ThingToBuild f [SourcePath])
 expand =
