@@ -24,7 +24,7 @@ main = do
   goldenExtension = "out"
   createOptions outputDirectory =
     Options
-      { optTemplates = [Right (dir </> "*" <.> templateExtension)]
+      { optTemplates = [pure [Right (dir </> "*" <.> templateExtension)]]
       , optOutputExtension = goldenExtension
       , optOutputDirectory = outputDirectory
       , optRebuildUnconditionally = Nothing
