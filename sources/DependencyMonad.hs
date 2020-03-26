@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 module DependencyMonad
   ( DependencyMonad(..)
   , Options(..)
@@ -50,7 +51,7 @@ instance DependencyMonad Action where
 
 -- | The command-line options.
 data Options = Options
-  { optTemplates :: [ThingToBuild [Either FilePath FilePattern]]
+  { optTemplates :: [ThingToBuild Maybe [Either FilePath FilePattern]]
   , optOutputExtension :: String
   , optOutputDirectory :: FilePath
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
@@ -66,48 +67,77 @@ data RebuildUnconditionally
   deriving stock ( Show, Eq )
 
 -- | A 'ThingToBuild' is a description of how to build a particular set of
--- templates. The type parameter is intended to be filled with a specification
--- of what templates to build – e.g., a 'FilePath', a 'FilePattern', a list of
--- either of those.
-data ThingToBuild a = ThingToBuild
-  { buildWhat :: a }
-  deriving ( Functor, Eq, Show )
+-- templates. The first type parameter is a functor – in practise, it is
+-- instanstiated to either 'Maybe' or 'Identity'. With 'Maybe', some fields can
+-- be left unspecified, to be filled in with defaults later; with defaults
+-- filled in, @f@ changes to 'Identity'. The second type parameter is intended
+-- to be filled with a specification of what templates to build – e.g., a
+-- 'FilePath', a 'FilePattern', a list of either of those.
+data ThingToBuild f a = ThingToBuild
+  { buildWhat :: a
+  , buildOutputExtension :: f String
+  , buildOutputDirectory :: f FilePath
+  , buildDelimiters :: f Delimiters }
+  deriving ( Functor )
+
+deriving instance (Show (f String), Show (f Delimiters), Show a) => Show (ThingToBuild f a)
 
 -- | For documentation purposes.
 type SourcePath = FilePath
 -- | For documentation purposes.
 type TargetPath = FilePath
 
-instance Foldable ThingToBuild where
+instance Foldable (ThingToBuild f) where
   foldMap f ThingToBuild{buildWhat} = f buildWhat
 
-instance Traversable ThingToBuild where
+instance Traversable (ThingToBuild f) where
   traverse f ThingToBuild{buildWhat, ..} =
     (\a -> ThingToBuild{buildWhat = a, ..}) <$> f buildWhat
 
-instance Applicative ThingToBuild where
-  pure =
+instance Alternative f => Applicative (ThingToBuild f) where
+  pure a =
+    ThingToBuild a empty empty empty
+  thing_f <*> thing_a =
     ThingToBuild
-  thingf <*> thinga =
-    ThingToBuild $ (buildWhat thingf) (buildWhat thinga)
+      { buildWhat =
+          buildWhat thing_f $ buildWhat thing_a
+      , buildOutputExtension =
+          buildOutputExtension thing_f <|> buildOutputExtension thing_a
+      , buildOutputDirectory =
+          buildOutputDirectory thing_f <|> buildOutputDirectory thing_a
+      , buildDelimiters =
+          buildDelimiters thing_f <|> buildDelimiters thing_a }
 
-expand :: ThingToBuild [Either SourcePath FilePattern] -> IO (ThingToBuild [SourcePath])
+expand :: ThingToBuild f [Either SourcePath FilePattern] -> IO (ThingToBuild f [SourcePath])
 expand =
     traverse expandPatterns . fmap partitionEithers
   where
     expandPatterns (paths, patterns) =
       (paths ++) <$> getDirectoryFilesIO "" patterns
 
-createTargetToSourceMap :: Options -> [ThingToBuild [SourcePath]] -> HashMap TargetPath (ThingToBuild SourcePath)
-createTargetToSourceMap Options{..} thingsToBuild =
+specify :: Options -> ThingToBuild Maybe a -> ThingToBuild Identity a
+specify Options{..} ThingToBuild{..} =
+  ThingToBuild
+    { buildWhat
+    , buildOutputExtension = Identity $
+        optOutputExtension `fromMaybe` buildOutputExtension
+    , buildOutputDirectory = Identity $
+        -- N.B. We /prepend/ the top-level output dir!
+        optOutputDirectory </> ("." `fromMaybe` buildOutputDirectory)
+    , buildDelimiters = Identity $
+        optDelimiters `fromMaybe` buildDelimiters }
+
+deriveTargetPath :: ThingToBuild Identity SourcePath -> TargetPath
+deriveTargetPath ThingToBuild{..} =
+  normalise $ runIdentity buildOutputDirectory </> buildWhat `replaceExtensions` runIdentity buildOutputExtension
+
+createTargetToSourceMap :: [ThingToBuild Identity [SourcePath]] -> HashMap TargetPath (ThingToBuild Identity SourcePath)
+createTargetToSourceMap thingsToBuild =
     Map.fromList $ concatMap explode thingsToBuild
   where
-    explode :: ThingToBuild [SourcePath] -> [(TargetPath, ThingToBuild SourcePath)]
+    explode :: ThingToBuild Identity [SourcePath] -> [(TargetPath, ThingToBuild Identity SourcePath)]
     explode =
       map (\thing -> (deriveTargetPath thing, thing)) . sequence
-    deriveTargetPath :: ThingToBuild SourcePath -> TargetPath
-    deriveTargetPath ThingToBuild{..} =
-      normalise $ optOutputDirectory </> buildWhat `replaceExtensions` optOutputExtension
 
 run :: Options -> IO ()
 run options =
@@ -116,8 +146,10 @@ run options =
 rules :: Options -> Rules ()
 rules options@Options{..} = do
     thingsToBuild <- liftIO $ traverse expand optTemplates
-    let targetToSourceMap =
-          createTargetToSourceMap options thingsToBuild
+    let specifiedThingsToBuild =
+          map (specify options) thingsToBuild
+        targetToSourceMap =
+          createTargetToSourceMap specifiedThingsToBuild
     when (optVerbosity >= Info && optRebuildUnconditionally == Just Everything) $
       liftIO $ hPutStrLn stderr "Rebuilding all targets."
     when (optVerbosity >= Verbose) $ liftIO $ do
@@ -151,7 +183,7 @@ toShakeOptions Options{..} =
 
 {-# INLINE toShakeOptions #-}
 
-fileRules :: HashMap TargetPath (ThingToBuild SourcePath) -> Rules ()
+fileRules :: HashMap TargetPath (ThingToBuild Identity SourcePath) -> Rules ()
 fileRules targetToSourceMap = do
     (`Map.member` targetToSourceMap) ?> \targetPath -> do
       let thingToBuild = fromJust $ Map.lookup targetPath targetToSourceMap
