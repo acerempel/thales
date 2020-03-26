@@ -116,7 +116,7 @@ fileRules :: HashMap FilePath FilePath -> Rules ()
 fileRules targetToSourceMap = do
     (`Map.member` targetToSourceMap) ?> \targetPath -> do
       let templatePath = fromJust $ Map.lookup targetPath targetToSourceMap
-      val <- lookupField (TemplateFile Bindings.empty) templatePath "body"
+      val <- lookupField (TemplateFile Bindings.empty) templatePath specialBodyField
       case val of
         Just (Output outp) -> do
           absTarget <- liftIO $ System.makeAbsolute targetPath
@@ -168,7 +168,7 @@ builtinRules options = do
             . runIdentity
             . Lucid.execHtmlT
             . MMark.render ) mmark
-      let record' = Map.insert "body" (Output markdownOutput) record
+      let record' = Map.insert specialBodyField (Output markdownOutput) record
       return $ MarkdownValue $ Record record'
 
     readTemplate dependDelimiters templatePath = do
@@ -184,10 +184,15 @@ builtinRules options = do
         (Bindings bindings, output) <- (>>= eitherThrow) $
           first (EvalError . toList) <$>
           runStmtT (for_ parsed evalStatement) templateParameters
-        let record = Map.insert "body" (Output (Output.toStorable output)) bindings
+        let record = Map.insert specialBodyField (Output (Output.toStorable output)) bindings
         return $ Record record
 
 {-# INLINE builtinRules #-}
+
+-- | The field we put the output of a template or the body of a markdown file
+-- in.
+specialBodyField :: Text
+specialBodyField = "body"
 
 type instance RuleResult Delimiters = Delimiters
 
@@ -251,7 +256,7 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
                 in (hash val, changed)
       putVerbose (show fa <> ": " <> show did_change <> " " <> show new_hash)
       case fa of
-        FieldAccessQ (TemplateFile _) path "body" ->
+        FieldAccessQ (TemplateFile _) path field | field == specialBodyField ->
           when (did_change == ChangedNothing) $ do
             pathAbs <- liftIO $ System.makeAbsolute path
             putInfo $ "Template body of" <> pathAbs <> " is unchanged"
