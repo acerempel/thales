@@ -78,7 +78,7 @@ evalExpr mContext dir expr =
   FileE ft (Id subExpr) -> do
     -- TODO: make this comprehensible
     path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) dir subExpr
-    ft' <- traverse (evalSubExpr (\ft'' -> FileE (pure ft'') (NoProblem subExpr)) dir) (getId <$> ft)
+    ft' <- traverse (evalSubExpr (\ft'' -> FileE (ft'' <$ ft) (NoProblem subExpr)) dir) (getId <$> ft)
     let ft'' = traverse (\val -> case val of { Record r -> Right r; _ -> Left "oh no!" }) ft'
     case (path, ft'') of
       (String str, Right rec) ->

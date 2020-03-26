@@ -155,7 +155,7 @@ rules options@Options{..} = do
     when (optVerbosity >= Verbose) $ liftIO $ do
       hPrint stderr options
       hPrint stderr targetToSourceMap
-    builtinRules options
+    builtinRules
     fileRules targetToSourceMap
     want $ Map.keys targetToSourceMap
 
@@ -188,7 +188,8 @@ fileRules targetToSourceMap = do
     (`Map.member` targetToSourceMap) ?> \targetPath -> do
       let thingToBuild = fromJust $ Map.lookup targetPath targetToSourceMap
           templatePath = buildWhat thingToBuild
-      val <- lookupField (TemplateFile Bindings.empty) templatePath specialBodyField
+          delimiters = runIdentity (buildDelimiters thingToBuild)
+      val <- lookupField (TemplateFile delimiters Bindings.empty) templatePath specialBodyField
       case val of
         Just (Output outp) -> do
           absTarget <- liftIO $ System.makeAbsolute targetPath
@@ -201,12 +202,11 @@ fileRules targetToSourceMap = do
 
 {-# INLINE fileRules #-}
 
-builtinRules :: Options -> Rules ()
-builtinRules options = do
+builtinRules :: Rules ()
+builtinRules = do
     readYamlCached <- newCache readYaml
     readMarkdownCached <- newCache readMarkdown
-    dependDelimiters <- addOracle pure
-    readTemplateCached <- newCache (readTemplate dependDelimiters)
+    readTemplateCached <- newCache readTemplate
     addBuiltinRule noLint noIdentity
       (fieldAccessRuleRun readYamlCached readMarkdownCached readTemplateCached)
 
@@ -243,15 +243,14 @@ builtinRules options = do
       let record' = Map.insert specialBodyField (Output markdownOutput) record
       return $ MarkdownValue $ Record record'
 
-    readTemplate dependDelimiters templatePath = do
+    readTemplate (templatePath, delimiters) = do
       need [templatePath]
       pathAbs <- liftIO $ System.makeAbsolute templatePath
       putInfo $ "Reading template from " <> pathAbs
       input <- liftIO $ Text.readFile templatePath
-      _ <- dependDelimiters (optDelimiters options)
       parsed <- eitherThrow $
         first (ParseError . errorBundlePretty) $
-        parseTemplate (optDelimiters options) templatePath input
+        parseTemplate delimiters templatePath input
       return $ ExecTemplate $ \templateParameters -> do
         (Bindings bindings, output) <- (>>= eitherThrow) $
           first (EvalError . toList) <$>
@@ -265,8 +264,6 @@ builtinRules options = do
 -- in.
 specialBodyField :: Text
 specialBodyField = "body"
-
-type instance RuleResult Delimiters = Delimiters
 
 data FieldAccessQ = FieldAccessQ
   { faFileType :: FileType Bindings
@@ -293,7 +290,7 @@ newtype ExecTemplate = ExecTemplate (Bindings -> Action Value)
 fieldAccessRuleRun ::
   (FilePath -> Action YamlValue) ->
   (FilePath -> Action MarkdownValue) ->
-  (FilePath -> Action ExecTemplate) ->
+  ((FilePath, Delimiters) -> Action ExecTemplate) ->
   FieldAccessQ ->
   Maybe ByteString ->
   RunMode ->
@@ -303,8 +300,8 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
     case faFileType of
       YamlFile -> fromYaml <$> getYaml faFilePath
       MarkdownFile -> fromMarkdown <$> getMarkdown faFilePath
-      TemplateFile bindings -> do
-        ExecTemplate execTemplate <- getTemplate faFilePath
+      TemplateFile delimiters bindings -> do
+        ExecTemplate execTemplate <- getTemplate (faFilePath, delimiters)
         execTemplate bindings
   val <-
     case mb_record of
@@ -332,7 +329,7 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
                 in (hash val, changed)
       putVerbose (show fa <> ": " <> show did_change <> " " <> show new_hash)
       case fa of
-        FieldAccessQ (TemplateFile _) path field | field == specialBodyField ->
+        FieldAccessQ (TemplateFile _ _) path field | field == specialBodyField ->
           when (did_change == ChangedNothing) $ do
             pathAbs <- liftIO $ System.makeAbsolute path
             putInfo $ "Template body of" <> pathAbs <> " is unchanged"

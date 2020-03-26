@@ -13,13 +13,11 @@ tested; consumers of this module should not normally need them.
 module Parse
   ( Parser, runParser, parse, parseTemplate
   , templateP, exprP
-  , Delimiters(..), defaultDelimiters
   , CustomError(..)
   )
 where
 
 import Prelude hiding (many)
-import Data.Binary
 import Data.Char
 import qualified Data.HashSet as Set
 import qualified Data.Text as Text
@@ -31,15 +29,6 @@ import qualified List
 import NonEmptyText (NonEmptyText(..))
 import qualified NonEmptyText
 import Syntax
-
-{-| The strings that delimit bits of code, or directives, or whatever
-you want to call them, in a template. E.g. @Delimiters "{{" "}}"@,
-or @Delimiters { begin = "$(", end = ")" }@. -}
-data Delimiters = Delimiters
-  { begin :: NonEmptyText
-  , end :: NonEmptyText }
-  deriving stock ( Show, Eq, Generic, Typeable )
-  deriving anyclass ( Hashable, NFData, Binary )
 
 -- | A statement that may enclose a block of further statements (or may not).
 data PartialStatement
@@ -69,11 +58,6 @@ instance ShowErrorComponent CustomError where
     Text.unpack name <> " is the name of a function!"
   showErrorComponent (WrongNumberOfArguments name) =
     Text.unpack name <> " was given the wrong number of arguments."
-
-{-| A default set of delimiters – @{{ ... }}@, same as what Mustache templates
-use (and Jinja2 and Liquid, for expression splices). -}
-defaultDelimiters :: Delimiters
-defaultDelimiters = Delimiters "{{" "}}"
 
 -- TODO: put this somewhere else.
 {-| For ad-hoc manual testing purposes. -}
@@ -108,6 +92,10 @@ runParser ::
 runParser parser delims name input =
   let r = runParserT (unParser parser) name input
   in runReader r delims
+
+getDelimiters :: Parser Delimiters
+getDelimiters =
+  Parser ask
 
 getBeginDelim :: Parser NonEmptyText
 getBeginDelim =
@@ -237,8 +225,9 @@ exprP =
         pure $ NameE (Name name)
       (Just (OneArgumentFunction f), [arg1]) ->
         pure $ f arg1
-      (Just (TwoArgumentFunction f), [arg1, arg2]) ->
-        pure $ f arg1 arg2
+      (Just (TwoArgumentFunction f), [arg1, arg2]) -> do
+        delimiters <- getDelimiters
+        pure $ f delimiters arg1 arg2
       (Just _, (_ : _)) ->
         customFailure (WrongNumberOfArguments name)
       (Just _, []) ->
@@ -270,7 +259,8 @@ recordBindingP = do
 
 data Function
   = OneArgumentFunction (Expr -> Expr)
-  | TwoArgumentFunction (Expr -> Expr -> Expr)
+  -- This is silly, this 'Delimiters' parameter.
+  | TwoArgumentFunction (Delimiters -> Expr -> Expr -> Expr)
 
 identifyFunction :: Text -> Maybe Function
 identifyFunction name =
@@ -282,7 +272,9 @@ identifyFunction name =
     "list-directory" ->
       Just $ OneArgumentFunction (ListDirectoryE . Id)
     "load-template" ->
-      Just $ TwoArgumentFunction (\path binds -> FileE (TemplateFile (Id binds)) (Id path))
+      -- In principle it would be possible to amend load-template to take the
+      -- delimiters as an argument …
+      Just $ TwoArgumentFunction (\delimiters path binds -> FileE (TemplateFile delimiters (Id binds)) (Id path))
     _ ->
       Nothing
 

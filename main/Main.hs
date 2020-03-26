@@ -10,7 +10,7 @@ import System.Directory
 
 import DependencyMonad hiding (listDirectory)
 import qualified NonEmptyText
-import Parse
+import Syntax
 
 main =
   run =<< customExecParser cliPrefs cli

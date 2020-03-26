@@ -12,6 +12,7 @@ module Syntax
   , Literal(..)
   , SourcePos(..)
   , FileType(..)
+  , Delimiters(..), defaultDelimiters
   )
 where
 
@@ -106,25 +107,38 @@ data FileType a
   -- The argument to this constructor represents the parameters given to the
   -- template. In the abstract syntax tree ('Syntax'), this is an 'ExprH',
   -- and in a 'Value', this is a @'HashMap' 'Text' Value@.
-  | TemplateFile a
+  | TemplateFile Delimiters a
   deriving stock ( Eq, Show, Generic, Functor )
   deriving anyclass ( Hashable, NFData, Typeable, Binary )
 
+{-| The strings that delimit bits of code, or directives, or whatever
+you want to call them, in a template. E.g. @Delimiters "{{" "}}"@,
+or @Delimiters { begin = "$(", end = ")" }@. -}
+data Delimiters = Delimiters
+  { begin :: NonEmptyText
+  , end :: NonEmptyText }
+  deriving stock ( Show, Eq, Generic, Typeable )
+  deriving anyclass ( Hashable, NFData, Binary )
+
+{-| A default set of delimiters – @{{ ... }}@, same as what Mustache templates
+use (and Jinja2 and Liquid, for expression splices). -}
+defaultDelimiters :: Delimiters
+defaultDelimiters = Delimiters "{{" "}}"
 
 instance Foldable FileType where
-  foldMap f (TemplateFile a) = f a
+  foldMap f (TemplateFile _d a) = f a
   foldMap _f _ = mempty
 
-instance Applicative FileType where
-  (TemplateFile f) <*> (TemplateFile a) = TemplateFile (f a)
-  (TemplateFile _f) <*> YamlFile = YamlFile
-  (TemplateFile _f) <*> MarkdownFile = MarkdownFile
-  YamlFile <*> _ = YamlFile
-  MarkdownFile <*> _ = MarkdownFile
-  pure = TemplateFile
+-- instance Applicative FileType where
+--   (TemplateFile d f) <*> (TemplateFile d a) = TemplateFile (f a)
+--   (TemplateFile d _f) <*> YamlFile = YamlFile
+--   (TemplateFile d _f) <*> MarkdownFile = MarkdownFile
+--   YamlFile <*> _ = YamlFile
+--   MarkdownFile <*> _ = MarkdownFile
+--   pure = TemplateFile
 
 instance Traversable FileType where
-  traverse f (TemplateFile a) = TemplateFile <$> f a
+  traverse f (TemplateFile d a) = TemplateFile d <$> f a
   traverse _f YamlFile = pure YamlFile
   traverse _f MarkdownFile = pure MarkdownFile
 

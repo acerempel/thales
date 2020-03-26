@@ -9,7 +9,7 @@ import Test.Tasty
 import Test.Tasty.Golden
 
 import DependencyMonad
-import Parse
+import Syntax
 
 main = do
   goldenFiles <- getDirectoryFilesIO "" [dir </> "*" <.> goldenExtension]
