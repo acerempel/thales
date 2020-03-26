@@ -212,6 +212,10 @@ type instance RuleResult FieldAccessQ = Maybe Value
 newtype YamlValue = YamlValue { fromYaml :: Value }
 -- | See 'YamlValue'.
 newtype MarkdownValue = MarkdownValue { fromMarkdown :: Value }
+-- | See 'YamlValue'. Also, note that this is essentially equivalent to
+-- '[Statement]', i.e. it is the result of parsing a template — we've just
+-- partially applied @'traverse' 'evalStatement'@ or whatever. (I forget why I
+-- did it this way — just for symmetry with 'readMarkdownCached' etc.?)
 newtype ExecTemplate = ExecTemplate (Bindings -> Action Value)
 
 fieldAccessRuleRun ::
