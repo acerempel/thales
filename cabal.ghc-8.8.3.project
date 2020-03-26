@@ -6,4 +6,3 @@ package thales
   ghc-options: -fhide-source-paths -ferror-spans -freverse-errors
                -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
                -Widentities -Wmissing-deriving-strategies
-  optimization: 0
