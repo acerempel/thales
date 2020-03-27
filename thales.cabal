@@ -104,6 +104,9 @@ library core
     , unordered-containers
     , vector >= 0.12 && < 0.13
     , yaml >= 0.11.1.2 && < 0.12
+  other-extensions:
+      QuantifiedConstraints
+    , UndecidableInstances
 
 library applicative-transformers
   hs-source-dirs:   applicative-transformers

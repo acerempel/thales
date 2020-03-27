@@ -1,3 +1,4 @@
+{-# LANGUAGE QuantifiedConstraints, UndecidableInstances #-}
 {-|
 Description : The definition of the abstract syntax tree.
 
@@ -53,7 +54,9 @@ data Statement
   | OptionallyS SourcePos Expr (Maybe Name) [Statement]
   | LetS SourcePos [(Name, Expr)] [Statement]
   | ExportS SourcePos [RecordBinding Id]
-  deriving ( Show, Eq )
+  deriving ( Eq, Show )
+
+-- deriving instance Show (RecordBinding Id) => Show Statement
 
 -- | An expression. The expression language is quite limited at the moment, but
 -- I imagine I will expand it a bit. The H in 'ExprH' stands for "higher-order"
@@ -74,6 +77,9 @@ data ExprH f
   | ListDirectoryE (f (ExprH f))
   | FileE (FileType (f (ExprH f))) (f (ExprH f))
 
+deriving instance (forall a. Show a => Show (f a)) => Show (ExprH f)
+deriving instance (forall a. Eq a => Eq (f a)) => Eq (ExprH f)
+
 -- | The sort of binding that may occur in a record literal – also used in the
 -- @export@ statement.
 data RecordBinding f
@@ -82,17 +88,8 @@ data RecordBinding f
   -- | E.g. @{ foo = [1, 2, 3] }@.
   | FieldAssignment Name (f (ExprH f))
 
-instance Eq1 f => Eq (RecordBinding f) where
-  FieldPun n1 == FieldPun n2 = n1 == n2
-  FieldAssignment n1 exp1 == FieldAssignment n2 exp2 =
-    n1 == n2 && liftEq (==) exp1 exp2
-  _ == _ = False
-
-instance Show1 f => Show (RecordBinding f) where
-  showsPrec prec (FieldPun name) =
-    ("FieldPun " ++) . showsPrec prec name
-  showsPrec prec (FieldAssignment name expr) =
-    ("FieldAssignment " ++) . showsPrec prec name . liftShowsPrec showsPrec showList prec expr
+deriving instance (forall a. Show a => Show (f a)) => Show (RecordBinding f)
+deriving instance (forall a. Eq a => Eq (f a)) => Eq (RecordBinding f)
 
 -- | A type of file that may be interpreted as a key-value mapping, i.e. a
 -- 'Record'.
@@ -133,37 +130,6 @@ instance Traversable FileType where
   traverse f (TemplateFile d a) = TemplateFile d <$> f a
   traverse _f YamlFile = pure YamlFile
   traverse _f MarkdownFile = pure MarkdownFile
-
-instance Show1 f => Show (ExprH f) where
-  -- TODO: use prec correctly!
-  showsPrec prec = \case
-    LiteralE lit ->
-      showsPrec prec lit
-    ArrayE arr ->
-      liftShowsPrec
-      (liftShowsPrec showsPrec showList)
-      (liftShowList showsPrec showList)
-      prec arr
-    FieldAccessE n e ->
-      ("FieldAccessE " <>)
-      . showsPrec prec n
-      . (" (" <>)
-      . liftShowsPrec showsPrec showList prec e
-      . (')' :)
-    NameE n ->
-      showsPrec prec n
-
-instance Eq1 f => Eq (ExprH f) where
-  (LiteralE l1) == (LiteralE l2) =
-    l1 == l2
-  (ArrayE v1) == (ArrayE v2) =
-    liftEq (liftEq (==)) v1 v2
-  (FieldAccessE n1 e1) == (FieldAccessE n2 e2) =
-    n1 == n2 && liftEq (==) e1 e2
-  (NameE n1) == (NameE n2) =
-    n1 == n2
-  _ == _ = -- TODO fix this!!
-    False
 
 -- | 'Id' is short for "Identity". This is like
 -- 'Data.Functor.Identity.Identity', but I redefined it here for some reason,
