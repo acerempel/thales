@@ -214,15 +214,11 @@ exportP sp = do
 exprP :: Parser Expr
 exprP =
   -- TODO reorganize this, maybe
-  fieldAccessP <|> applicationOrNameP <|> atomicExprP
+  applicationOrNameP <|> atomicExprP
  where
-  fieldAccessP = do
-    name <- try nameP
-    fields <- many (dot *> nameP)
-    return (foldl' (\e f -> FieldAccessE f (Id e)) (NameE name) fields)
   -- TODO: Rewrite to improve error messages.
   applicationOrNameP = do
-    Name name <- anyNameP
+    Name name <- try $ anyNameP <* notFollowedBy dot
     arguments <- many atomicExprP
     case (identifyFunction name, arguments) of
       (Nothing, []) ->
@@ -243,16 +239,22 @@ exprP =
 -- in parentheses to parse correctly.
 atomicExprP :: Parser Expr
 atomicExprP = label "an expression" $
-    parensP exprP
+    (parensP exprP >>= fieldAccessP)
     <|> ArrayE . coerce . List.fromList
         <$> bracketsP (sepEndBy exprP comma)
     <|> RecordE <$> bracesP (sepEndBy recordBindingP comma)
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
+    <|> (fmap NameE nameP >>= fieldAccessP)
  where
   parensP = betweenChars '(' ')'
   bracketsP = betweenChars '[' ']'
   bracesP = betweenChars '{' '}'
+
+fieldAccessP :: Expr -> Parser Expr
+fieldAccessP expr = do
+  fields <- many (dot *> nameP)
+  return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
 
 recordBindingP :: Parser (RecordBinding Id)
 recordBindingP = do
