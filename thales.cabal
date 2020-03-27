@@ -9,15 +9,15 @@ build-type:          Simple
 extra-doc-files:     README.md
 tested-with:         GHC == 8.6.5, GHC == 8.8.3
 homepage:            https://github.com/parsonyorick/thales-templating
-synopsis:            A nice and very simple textual templating system
+synopsis:            A static site generator with its own templating language
 category:            Text
 description:
-  A nice and very simple textual templating system, sort of like Mustache
-  or Jinja2.
+  A static website generator based on a very simple textual templating
+  system, reminiscent of Mustache or Jinja2. It has advanced dependency tracking using
+  the Shake build system.
   .
-  Hmmm, I should write more here!
-  .
-  See the README.md (<https://github.com/parsonyorick/thales#readme) for more info.
+  See the README in the source tarball or on GitHub
+  (<https://github.com/parsonyorick/thales#readme>) for more info.
 
 source-repository head
   location: https://github.com/parsonyorick/thales
