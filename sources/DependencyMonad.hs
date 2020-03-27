@@ -66,6 +66,11 @@ data RebuildUnconditionally
   | Everything
   deriving stock ( Show, Eq )
 
+instance Semigroup RebuildUnconditionally where
+  SomeThings a <> SomeThings b = SomeThings (a <> b)
+  _ <> Everything = Everything
+  Everything <> _ = Everything
+
 -- | A 'ThingToBuild' is a description of how to build a particular set of
 -- templates. The first type parameter is a functor – in practise, it is
 -- instanstiated to either 'Maybe' or 'Identity'. With 'Maybe', some fields can
