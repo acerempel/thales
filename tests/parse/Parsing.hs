@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 import Test.Hspec
 import Test.Hspec.Megaparsec
-import Text.Megaparsec (SourcePos(..), mkPos)
+import Text.Megaparsec (mkPos)
 
 import qualified NonEmptyText
 import Parse
