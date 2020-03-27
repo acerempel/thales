@@ -158,11 +158,14 @@ keywordP ident = do
   notFollowedBy (satisfy isIdChar)
   space
 
+-- | Parse an arbitrary identifier.
 anyNameP :: Parser Name
 anyNameP = do
   ident <- takeWhile1P (Just "identifier character") isIdChar <* space
   return $ Name ident
 
+-- | Parse a user-defined identifier, i.e., cannot be a built-in function or
+-- keyword.
 nameP :: Parser Name
 nameP = label "name" $ do
   Name name <- anyNameP
@@ -200,6 +203,7 @@ letP sp = do
   binding =
     (,) <$> (nameP <* equals) <*> exprP
 
+-- | Parse an 'export' statement with some bindings – puns work too.
 exportP :: SourcePos -> Parser PartialStatement
 exportP sp = do
   keywordP "export"
@@ -235,6 +239,8 @@ exprP =
       (Nothing, (_ : _)) ->
         customFailure (UnknownFunction name)
 
+-- | Parse an atomic expression, i.e., an expression that never needs to be
+-- in parentheses to parse correctly.
 atomicExprP :: Parser Expr
 atomicExprP = label "an expression" $
     parensP exprP

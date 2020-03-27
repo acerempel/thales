@@ -52,7 +52,11 @@ data Statement
   -- | If evaluating the expression is successful, bind the
   -- result to the 'Name', and evaluate the '[Statement]'s in that context.
   | OptionallyS SourcePos Expr (Maybe Name) [Statement]
+  -- | Evaluate some expressions, bind the result of each to the respective
+  -- 'Name', and evaluate the 'Statement's with those names in scope.
   | LetS SourcePos [(Name, Expr)] [Statement]
+  -- | Evaluate the given bindings and provide them as part of the result of
+  -- executing the template, as an associative array.
   | ExportS SourcePos [RecordBinding Id]
   deriving ( Eq, Show )
 
@@ -103,7 +107,8 @@ data FileType a
   -- | The output of executing the template is available under the "body" key.
   -- The argument to this constructor represents the parameters given to the
   -- template. In the abstract syntax tree ('Syntax'), this is an 'ExprH',
-  -- and in a 'Value', this is a @'HashMap' 'Text' Value@.
+  -- and in a 'Value', this is a @'HashMap' 'Text' 'Value'@. The template will
+  -- be parsed with the provided 'Delimiters'.
   | TemplateFile Delimiters a
   deriving stock ( Eq, Show, Generic, Functor )
   deriving anyclass ( Hashable, NFData, Typeable, Binary )
