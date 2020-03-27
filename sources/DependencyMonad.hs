@@ -71,6 +71,48 @@ instance Semigroup RebuildUnconditionally where
   _ <> Everything = Everything
   Everything <> _ = Everything
 
+data WithProvenance a
+  = FromCommandLine a
+  | FromConfigFile FilePath a
+  deriving ( Functor, Eq, Show )
+
+instance Foldable WithProvenance where
+  foldMap f (FromCommandLine a) = f a
+  foldMap f (FromConfigFile _ a) = f a
+
+unwrapProvenance :: WithProvenance a -> a
+unwrapProvenance = \case
+  (FromCommandLine a) -> a
+  (FromConfigFile _ a) -> a
+
+instance Semigroup (WithProvenance a) where
+  FromCommandLine _ <> b@(FromCommandLine _) = b
+  a@(FromCommandLine _) <> FromConfigFile _ _ = a
+  FromConfigFile _ _ <> b@(FromCommandLine _) = b
+  FromConfigFile _ _ <> b@(FromConfigFile _ _) = b
+
+data WithPlicity a
+  = With Plicity (WithProvenance a)
+  deriving ( Functor, Eq, Show )
+
+instance Foldable WithPlicity where
+  foldMap f (With _ prov) = foldMap f prov
+
+unwrapPlicity :: WithPlicity a -> a
+unwrapPlicity (With _ prov) = unwrapProvenance prov
+
+data Plicity
+  = Explicit | Implicit
+  deriving ( Eq, Show )
+
+instance Semigroup (WithPlicity a) where
+  With Explicit a <> With Explicit b = With Explicit (a <> b)
+  With Explicit a <> With Implicit _b = With Explicit a
+  With Implicit _a <> With Explicit b = With Explicit b
+  a@(With Implicit (FromConfigFile _ _)) <> With Implicit (FromCommandLine _) = a
+  With Implicit (FromCommandLine _) <> b@(With Implicit (FromConfigFile _ _)) = b
+  With Implicit a <> With Implicit b = With Implicit (a <> b)
+
 -- | A 'ThingToBuild' is a description of how to build a particular set of
 -- templates. The first type parameter is a functor – in practise, it is
 -- instanstiated to either 'Maybe' or 'Identity'. With 'Maybe', some fields can
