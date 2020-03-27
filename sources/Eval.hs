@@ -81,9 +81,9 @@ evalExpr mContext expr =
     path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) subExpr
     dir <- getTemplateDirectory
     ft' <- traverse (evalSubExpr (\ft'' -> FileE (ft'' <$ ft) (NoProblem subExpr))) (getId <$> ft)
-    let ft'' = traverse (\val -> case val of { Record r -> Right r; _ -> Left "oh no!" }) ft'
+    let ft'' = traverse (\val -> case val of { Record r -> Just r; _ -> Nothing }) ft'
     case (path, ft'') of
-      (String str, Right rec) ->
+      (String str, Just rec) ->
         pure (ExternalRecord rec (dir </> Text.unpack str))
       _ ->
         zutAlors (error "ack!")
