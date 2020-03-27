@@ -80,7 +80,9 @@ evalExpr mContext expr =
     -- TODO: make this comprehensible
     path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) subExpr
     dir <- getTemplateDirectory
-    ft' <- traverse (evalSubExpr (\ft'' -> FileE (ft'' <$ ft) (NoProblem subExpr))) (getId <$> ft)
+    let addFileTypeProblemContext a =
+          FileE (a <$ ft) (NoProblem subExpr)
+    ft' <- traverse (evalSubExpr addFileTypeProblemContext) (getId <$> ft)
     let ft'' = traverse (\val -> case val of { Record r -> Just r; _ -> Nothing }) ft'
     case (path, ft'') of
       (String str, Just rec) ->
