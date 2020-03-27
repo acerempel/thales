@@ -136,19 +136,6 @@ test-suite parsing
     , scientific
     , vector
 
-test-suite evaluation
-  import:         stuff
-  type:           exitcode-stdio-1.0
-  hs-source-dirs: tests/eval
-  main-is:        Evaluation.hs
-  build-depends:
-      core
-    , bytestring >= 0.10.8 && < 0.11
-    , filepath
-    , megaparsec
-    , hspec >= 2.5 && < 3
-    , unordered-containers
-
 test-suite golden
   import:         stuff
   type:           exitcode-stdio-1.0
