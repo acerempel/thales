@@ -29,7 +29,7 @@ main = do
       , optOutputDirectory = outputDirectory
       , optRebuildUnconditionally = Nothing
       , optDelimiters = Delimiters "{" "}"
-      , optVerbosity = Info
+      , optVerbosity = Silent
       , optTimings = False
       , optCacheDirectory = "/dev/null" }
 
