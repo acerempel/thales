@@ -60,8 +60,6 @@ data Statement
   | ExportS SourcePos [RecordBinding Id]
   deriving ( Eq, Show )
 
--- deriving instance Show (RecordBinding Id) => Show Statement
-
 -- | An expression. The expression language is quite limited at the moment, but
 -- I imagine I will expand it a bit. The H in 'ExprH' stands for "higher-order"
 -- -- in reference to the @f@ type parameter, which has the kind @'Type' ->
