@@ -1,75 +1,73 @@
-{-# OPTIONS_GHC -Wno-missing-signatures #-}
-import Test.Hspec
-import Test.Hspec.Megaparsec
-import Text.Megaparsec (mkPos)
+{-# OPTIONS_GHC -Wno-missing-signatures -Wno-orphans #-}
+{-# LANGUAGE FlexibleInstances, QuantifiedConstraints, UndecidableInstances #-}
+module Main (main) where
 
-import qualified NonEmptyText
+import Data.Scientific
+import qualified Data.Text as Text
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.Text
+import qualified Data.Vector as Vec
+import Test.SmallCheck.Series
+import Test.Tasty
+import Test.Tasty.SmallCheck
+import Text.Megaparsec (errorBundlePretty)
+
+import Display
+import NonEmptyText (NonEmptyText(..))
 import Parse
 import Syntax
 
-parseTestStmt =
-  parseTest templateP
+renderExpr =
+  renderStrict
+  . layoutPretty (LayoutOptions (AvailablePerLine 80 0.75))
+  . display Loose
 
-parseTestExpr =
-  parseTest exprP defaultDelimiters
+parseExpr =
+  runParser exprP defaultDelimiters "tests/Parsing.hs"
 
-parseTest p delims =
-  runParser p delims "tests/Parsing.hs"
+parseDisplayedExpr (Generated expr) =
+  let rendered = renderExpr expr
+  in bimap errorBundlePretty (const (Text.unpack rendered)) $
+      parseExpr rendered
 
-within Delimiters{..} a =
-  NonEmptyText.toText begin <> a <> NonEmptyText.toText end
+main =
+  defaultMain $
+    testProperty "parse/display roundtrip" parseDisplayedExpr
 
-delimSets =
-  [ Delimiters "{" "}"
-  , Delimiters "{{" "}}"
-  , Delimiters "${" "}"
-  , Delimiters "[|" "|]"
-  , Delimiters "|" "|"]
+newtype GeneratedExpr = Generated Expr
+  deriving newtype ( Show )
 
-main = hspec $ do
-  describe "Parser" $ do
-    testExprParser
-    foldl' (>>) (return ()) (map testStmtParser delimSets)
+instance Monad m => Serial m GeneratedExpr where
+  series = Generated <$> genericSeries
 
-testExprParser =
-  describe "expression parser" $ do
-    describe "number literals" $ do
-      it "parses decimal literals" $ do
-        parseTestExpr "12.3"
-        `shouldParse` LiteralE (NumberL 12.3)
-      it "parses integer literals" $ do
-        parseTestExpr "10"
-        `shouldParse` LiteralE (NumberL 10)
-    it "parses field accesses" $ do
-      parseTestExpr "grim.zim.zam"
-      `shouldParse`
-      FieldAccessE "zam"
-        (Id (FieldAccessE "zim"
-          (Id (NameE "grim"))))
+instance Serial m a => Serial m (Vec.Vector a) where
+  series =
+    cons0 Vec.empty \/
+    cons1 Vec.singleton \/
+    cons2 (\a b -> Vec.fromList [a, b]) \/
+    cons3 (\a b c -> Vec.fromList [a, b, c]) \/
+    cons4 (\a b c d -> Vec.fromList [a, b, c, d])
 
-testStmtParser delims =
-  describe ("with delimiters " <> show delims) $ do
-    let mkSP l c = SourcePos "tests/Parsing.hs" (mkPos l) (mkPos c)
-        beginDelimLength =
-          NonEmptyText.length (begin delims)
-        endDelimLength =
-          NonEmptyText.length (end delims)
-    describe "statement parser" $ do
-      it "parses 'for' blocks" $
-        let p1 = "<p>I am this potato: "
-            p2 = "! </p>"
-        in
-          parseTestStmt delims
-            (within delims "for potato in potatoes"
-            <> NonEmptyText.toText p1 <> within delims "potato"
-            <> NonEmptyText.toText p2 <> within delims "end")
-          `shouldParse`
-            -- TODO: these SourcePos's are just from the output of the failing
-            -- test. Should really make these correct by construction, or just
-            -- ignore them somehow. In fact, maybe the Eq instance *should*
-            -- ignore them.
-            [ ForS (mkSP 1 (1 + beginDelimLength)) "potato" (NameE "potatoes")
-              [ VerbatimS p1
-              , ExprS (mkSP 1 (44 + beginDelimLength + endDelimLength + beginDelimLength)) (NameE "potato")
-              , VerbatimS p2 ]
-            ]
+instance Serial m a => Serial m (Id a) where
+  series = newtypeCons Id
+
+instance Monad m => Serial m Name where
+  series = newtypeCons Name
+
+instance Monad m => Serial m Text.Text where
+  series = Text.pack <$> series
+
+instance Monad m => Serial m Literal
+
+instance Monad m => Serial m Scientific where
+  series = cons2 scientific
+
+instance (Monad m, (forall a. Serial m a => Serial m (f a))) => Serial m (ExprH f)
+instance (Monad m, (forall a. Serial m a => Serial m (f a))) => Serial m (RecordBinding f)
+instance (Monad m, Serial m a) => Serial m (FileType a)
+
+instance Monad m => Serial m Delimiters where
+  series = cons2 Delimiters
+
+instance Monad m => Serial m NonEmptyText where
+  series = cons2 NonEmptyText

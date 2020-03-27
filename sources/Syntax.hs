@@ -78,6 +78,7 @@ data ExprH f
   | NameE Name
   | ListDirectoryE (f (ExprH f))
   | FileE (FileType (f (ExprH f))) (f (ExprH f))
+  deriving ( Generic )
 
 deriving instance (forall a. Show a => Show (f a)) => Show (ExprH f)
 deriving instance (forall a. Eq a => Eq (f a)) => Eq (ExprH f)
@@ -89,6 +90,7 @@ data RecordBinding f
   = FieldPun Name
   -- | E.g. @{ foo = [1, 2, 3] }@.
   | FieldAssignment Name (f (ExprH f))
+  deriving ( Generic )
 
 deriving instance (forall a. Show a => Show (f a)) => Show (RecordBinding f)
 deriving instance (forall a. Eq a => Eq (f a)) => Eq (RecordBinding f)
@@ -160,4 +162,4 @@ data Literal
   = NumberL Scientific
   | StringL Text
   | BooleanL Bool
-  deriving ( Show, Eq )
+  deriving ( Show, Eq, Generic )
