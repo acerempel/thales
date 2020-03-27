@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-missing-methods #-}
 module DependencyMonad where
 
 import Bindings
