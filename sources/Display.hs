@@ -70,7 +70,7 @@ instance Display1 Id where
 instance Display Literal where
   display _prec = \case
     NumberL n -> unsafeViaShow n
-    StringL s -> pretty s
+    StringL s -> viaShow s
     BooleanL b -> unsafeViaShow b
 
 instance Display Name where
