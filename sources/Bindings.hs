@@ -1,6 +1,11 @@
-module Bindings where
+module Bindings
+  ( Bindings(..), union, insert, fromList
+  , singleton, empty, lookup
+  , HasLocalBindings(..)
+  )
+where
 
-import Prelude hiding (put, get)
+import Prelude hiding (put, get, fromList, empty)
 
 import Data.Binary
 import Data.Binary.Instances.UnorderedContainers ()

@@ -1,4 +1,8 @@
-module Display where
+module Display
+  ( Display(..), Display1(..), DisplayH(..)
+  , Markup(..), Precedence(..)
+  )
+where
 
 import Prelude hiding (group)
 

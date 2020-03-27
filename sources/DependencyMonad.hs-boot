@@ -1,4 +1,4 @@
-module DependencyMonad where
+module DependencyMonad ( DependencyMonad(..) ) where
 
 import Bindings
 import Syntax (FileType)
