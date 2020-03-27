@@ -25,7 +25,7 @@ source-repository head
 
 common stuff
   build-depends:
-      base >= 4.8 && < 4.14
+      base >= 4.9 && < 4.14
     , relude >= 0.6 && < 0.7
   mixins:
       relude (Relude as Prelude)
