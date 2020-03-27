@@ -60,10 +60,10 @@ addBindings :: Monad m => [(Name, Value)] -> StmtT m ()
 addBindings binds =
   StmtT (lift (tell (Result (Bindings.fromList binds) mempty)))
 
-liftExprT :: DependencyMonad m => ExprT m a -> StmtT m a
-liftExprT expr =
+liftExprT :: DependencyMonad m => FilePath -> ExprT m a -> StmtT m a
+liftExprT dir expr =
   StmtT $ ReaderT $ \bindings ->
-    let mE = runExprT expr bindings
+    let mE = runExprT expr dir bindings
         mD = fmap
                ( second (,mempty)
                . first DList.singleton)

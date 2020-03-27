@@ -21,14 +21,14 @@ import Output
 import Syntax
 import Value
 
-evalSubExpr :: DependencyMonad m => AddProblemContext -> FilePath -> Expr -> ExprT m Value
+evalSubExpr :: DependencyMonad m => AddProblemContext -> Expr -> ExprT m Value
 evalSubExpr f = evalExpr (Just f)
 
-evalTopExpr :: DependencyMonad m => FilePath -> Expr -> ExprT m Value
+evalTopExpr :: DependencyMonad m => Expr -> ExprT m Value
 evalTopExpr = evalExpr Nothing
 
-evalExpr :: DependencyMonad m => Maybe AddProblemContext -> FilePath -> Expr -> ExprT m Value
-evalExpr mContext dir expr =
+evalExpr :: DependencyMonad m => Maybe AddProblemContext -> Expr -> ExprT m Value
+evalExpr mContext expr =
  maybe id mapZut mContext . addProblemSource expr $ case expr of
 
   NameE name -> do
@@ -38,7 +38,7 @@ evalExpr mContext dir expr =
       Nothing -> zutAlors (NameNotFound name)
 
   FieldAccessE name (Id subExpr) -> do
-    subVal <- evalSubExpr (FieldAccessE name) dir subExpr
+    subVal <- evalSubExpr (FieldAccessE name) subExpr
     let ohNo = zutAlors (FieldNotFound name subVal)
     case subVal of
       Record rec ->
@@ -58,15 +58,16 @@ evalExpr mContext dir expr =
             ( List.unsafeUpdate index zut
             $ List.map (NoProblem . getId) arr )
         evalArrayElement index (Id subExpr) =
-          evalSubExpr (addArrayProblemContext index) dir subExpr
+          evalSubExpr (addArrayProblemContext index) subExpr
     Array <$> List.imapA evalArrayElement arr
 
   RecordE bindings -> do
     -- TODO: preserve context!
-    Record . Map.fromList <$> traverse (evalBinding dir) bindings
+    Record . Map.fromList <$> traverse evalBinding bindings
 
   ListDirectoryE (Id subExpr) -> do
-    path <- evalSubExpr ListDirectoryE dir subExpr
+    path <- evalSubExpr ListDirectoryE subExpr
+    dir <- getTemplateDirectory
     case path of
       String str ->
         lift
@@ -77,8 +78,9 @@ evalExpr mContext dir expr =
 
   FileE ft (Id subExpr) -> do
     -- TODO: make this comprehensible
-    path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) dir subExpr
-    ft' <- traverse (evalSubExpr (\ft'' -> FileE (ft'' <$ ft) (NoProblem subExpr)) dir) (getId <$> ft)
+    path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) subExpr
+    dir <- getTemplateDirectory
+    ft' <- traverse (evalSubExpr (\ft'' -> FileE (ft'' <$ ft) (NoProblem subExpr))) (getId <$> ft)
     let ft'' = traverse (\val -> case val of { Record r -> Right r; _ -> Left "oh no!" }) ft'
     case (path, ft'') of
       (String str, Right rec) ->
@@ -92,10 +94,10 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-evalBinding :: DependencyMonad m => FilePath -> RecordBinding Id -> ExprT m (Text, Value)
-evalBinding dir bind =
+evalBinding :: DependencyMonad m => RecordBinding Id -> ExprT m (Text, Value)
+evalBinding bind =
   let (name, expr) = expandBinding bind
-  in (fromName name,) <$> evalSubExpr (\e -> RecordE [FieldAssignment name e]) dir expr -- TODO
+  in (fromName name,) <$> evalSubExpr (\e -> RecordE [FieldAssignment name e]) expr -- TODO
  where
   expandBinding (FieldPun name) =
     (name, NameE name)
@@ -109,8 +111,8 @@ evalStatement = \case
     addOutput (Output.fromText (NonEmptyText.toText verb))
 
   ExprS sp expr -> do
-    text <- liftExprT $ do
-      val <- evalTopExpr (sourceDir sp) expr :: ExprT m Value
+    text <- liftExprT (sourceDir sp) $ do
+      val <- evalTopExpr expr :: ExprT m Value
       case val of
         String text ->
           return (Output.fromText text)
@@ -121,8 +123,8 @@ evalStatement = \case
     addOutput text
 
   ForS sp var expr body -> do
-    arr <- liftExprT $ do
-      val <- evalTopExpr (sourceDir sp) expr :: ExprT m Value
+    arr <- liftExprT (sourceDir sp) $ do
+      val <- evalTopExpr expr :: ExprT m Value
       case val of
         Array vec ->
           return vec
@@ -133,8 +135,8 @@ evalStatement = \case
         addLocalBinding var val $ evalStatement stmt
 
   OptionallyS sp expr mb_var body -> do
-    mb_val <- liftExprT $
-      handleZut (\_ -> return Nothing) (Just <$> evalTopExpr (sourceDir sp) expr :: ExprT m (Maybe Value))
+    mb_val <- liftExprT (sourceDir sp) $
+      handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr :: ExprT m (Maybe Value))
     whenJust mb_val $ \val ->
       for_ body $ \stmt ->
         maybe id (`addLocalBinding` val) mb_var $
@@ -142,15 +144,15 @@ evalStatement = \case
 
   LetS sp binds body -> do
     eval'd_binds <-
-      for binds $ \(name, expr) -> liftExprT $
-        (name,) <$> (evalTopExpr (sourceDir sp) expr :: ExprT m Value)
+      for binds $ \(name, expr) -> liftExprT (sourceDir sp) $
+        (name,) <$> (evalTopExpr expr :: ExprT m Value)
     addLocalBindings eval'd_binds $
       for_ body evalStatement
 
   ExportS sp binds -> do
     eval'd_binds <-
-      for binds $ \bind -> liftExprT $
-        first Name <$> evalBinding (sourceDir sp) bind :: StmtT m (Name, Value)
+      for binds $ \bind -> liftExprT (sourceDir sp) $
+        first Name <$> evalBinding bind :: StmtT m (Name, Value)
     addBindings eval'd_binds
 
   where
