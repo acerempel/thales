@@ -21,6 +21,7 @@ class Display a where
   display = hoistDisplay
 
 instance Display1 f => Display (ExprH f)
+instance Display1 f => Display (RecordBinding f)
 
 class Display1 (f :: Type -> Type) where
   liftDisplay :: (Precedence -> a -> Doc Markup) -> Precedence -> f a -> Doc Markup
@@ -41,6 +42,26 @@ instance DisplayH ExprH where
       group $ liftDisplay display Tight a <> line' <> dot <> display prec n
     NameE n ->
       display prec n
+    RecordE binds ->
+      lbrace <+> (nest 2 $ sep $ punctuate comma (map (display prec) binds)) <+> rbrace
+    ListDirectoryE expr ->
+      enclosePrec prec $
+        sep ["list-directory", nest 2 $ liftDisplay display Tight expr]
+    FileE ft expr ->
+      enclosePrec prec $
+        sep ["load-file-TODO", nest 2 $ liftDisplay display Tight expr]
+
+enclosePrec :: Precedence -> Doc ann -> Doc ann
+enclosePrec = \case
+  Loose -> id
+  Tight -> parens
+
+instance DisplayH RecordBinding where
+  hoistDisplay _prec = \case
+    FieldPun n ->
+      display Loose n
+    FieldAssignment n expr ->
+      display Loose n <+> equals <+> softline <+> nest 2 (liftDisplay display Loose expr)
 
 instance Display1 Id where
   liftDisplay displayA prec (Id a) =
