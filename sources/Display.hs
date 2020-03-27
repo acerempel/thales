@@ -24,7 +24,7 @@ instance Display1 f => Display (ExprH f)
 instance Display1 f => Display (RecordBinding f)
 
 class Display1 (f :: Type -> Type) where
-  liftDisplay :: (Precedence -> a -> Doc Markup) -> Precedence -> f a -> Doc Markup
+  liftedDisplay :: Display a => Precedence -> f a -> Doc Markup
 
 class DisplayH (h :: (Type -> Type) -> Type) where
   hoistDisplay :: Display1 f => Precedence -> h f -> Doc Markup
@@ -36,20 +36,20 @@ instance DisplayH ExprH where
     ArrayE vec ->
           lbracket
       <+> (align . group . vsep . punctuate comma)
-          ((toList . List.map (liftDisplay display Loose)) vec)
+          ((toList . List.map (liftedDisplay Loose)) vec)
       <+> rbracket
     FieldAccessE n a ->
-      group $ liftDisplay display Tight a <> line' <> dot <> display prec n
+      group $ liftedDisplay Tight a <> line' <> dot <> display prec n
     NameE n ->
       display prec n
     RecordE binds ->
       lbrace <+> (nest 2 $ sep $ punctuate comma (map (display prec) binds)) <+> rbrace
     ListDirectoryE expr ->
       enclosePrec prec $
-        sep ["list-directory", nest 2 $ liftDisplay display Tight expr]
+        sep ["list-directory", nest 2 $ liftedDisplay Tight expr]
     FileE ft expr ->
       enclosePrec prec $
-        sep ["load-file-TODO", nest 2 $ liftDisplay display Tight expr]
+        sep ["load-file-TODO", nest 2 $ liftedDisplay Tight expr]
 
 enclosePrec :: Precedence -> Doc ann -> Doc ann
 enclosePrec = \case
@@ -61,11 +61,11 @@ instance DisplayH RecordBinding where
     FieldPun n ->
       display Loose n
     FieldAssignment n expr ->
-      display Loose n <+> equals <+> softline <+> nest 2 (liftDisplay display Loose expr)
+      display Loose n <+> equals <+> softline <+> nest 2 (liftedDisplay Loose expr)
 
 instance Display1 Id where
-  liftDisplay displayA prec (Id a) =
-    displayA prec a
+  liftedDisplay prec (Id a) =
+    display prec a
 
 instance Display Literal where
   display _prec = \case
