@@ -9,7 +9,7 @@ is the 'Delimiters' datatype.
 A small handful of other names are exported – these are just so that they can be
 tested; consumers of this module should not normally need them.
 -}
-{-# OPTIONS_GHC -Wno-unused-do-bind #-}
+{-# OPTIONS_GHC -Wno-unused-do-bind -Wno-missing-signatures -Wmissing-exported-signatures #-}
 module Parse
   ( Parser, runParser, parse, parseTemplate
   , templateP, exprP
@@ -93,10 +93,6 @@ runParser parser delims name input =
   let r = runParserT (unParser parser) name input
   in runReader r delims
 
-getDelimiters :: Parser Delimiters
-getDelimiters =
-  Parser ask
-
 getBeginDelim :: Parser NonEmptyText
 getBeginDelim =
   Parser (asks begin)
@@ -169,7 +165,7 @@ anyNameP = do
 nameP :: Parser Name
 nameP = label "name" $ do
   Name name <- anyNameP
-  if isJust (identifyFunction name) || name `Set.member` keywords
+  if name `Set.member` keywords
     then customFailure (IsFunctionName name) -- TODO better error message
     else return (Name name)
 
@@ -212,44 +208,25 @@ exportP sp = do
 -- TODO: Parsing of record updates, array indexes
 {-| Parse an expression. Only exported for testing purposes. -}
 exprP :: Parser Expr
-exprP =
-  -- TODO reorganize this, maybe
-  applicationOrNameP <|> atomicExprP
- where
-  -- TODO: Rewrite to improve error messages.
-  applicationOrNameP = do
-    Name name <- try $ anyNameP <* notFollowedBy dot
-    arguments <- many atomicExprP
-    case (identifyFunction name, arguments) of
-      (Nothing, []) ->
-        pure $ NameE (Name name)
-      (Just (OneArgumentFunction f), [arg1]) ->
-        pure $ f arg1
-      (Just (TwoArgumentFunction f), [arg1, arg2]) -> do
-        delimiters <- getDelimiters
-        pure $ f delimiters arg1 arg2
-      (Just _, (_ : _)) ->
-        customFailure (WrongNumberOfArguments name)
-      (Just _, []) ->
-        customFailure (IsFunctionName name)
-      (Nothing, (_ : _)) ->
-        customFailure (UnknownFunction name)
-
--- | Parse an atomic expression, i.e., an expression that never needs to be
--- in parentheses to parse correctly.
-atomicExprP :: Parser Expr
-atomicExprP = label "an expression" $
+exprP = label "an expression" $
     (parensP exprP >>= fieldAccessP)
     <|> ArrayE . coerce . List.fromList
         <$> bracketsP (sepEndBy exprP comma)
     <|> RecordE <$> bracesP (sepEndBy recordBindingP comma)
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
+    <|> (functionCallP >>= fieldAccessP)
     <|> (fmap NameE nameP >>= fieldAccessP)
- where
-  parensP = betweenChars '(' ')'
-  bracketsP = betweenChars '[' ']'
-  bracesP = betweenChars '{' '}'
+
+parensP = betweenChars '(' ')'
+bracketsP = betweenChars '[' ']'
+bracesP = betweenChars '{' '}'
+
+functionCallP :: Parser Expr
+functionCallP = do
+  name <- try $ nameP <* lookAhead (char '(')
+  args <- parensP (sepEndBy exprP comma)
+  pure (FunctionCallE name (coerce (List.fromList args)))
 
 fieldAccessP :: Expr -> Parser Expr
 fieldAccessP expr = do
@@ -264,27 +241,6 @@ recordBindingP = do
     case mb_val of
       Just val -> FieldAssignment name (Id val)
       Nothing  -> FieldPun name
-
-data Function
-  = OneArgumentFunction (Expr -> Expr)
-  -- This is silly, this 'Delimiters' parameter.
-  | TwoArgumentFunction (Delimiters -> Expr -> Expr -> Expr)
-
-identifyFunction :: Text -> Maybe Function
-identifyFunction name =
-  case name of
-    "load-yaml" ->
-      Just $ OneArgumentFunction (FileE YamlFile . Id)
-    "load-markdown" ->
-      Just $ OneArgumentFunction (FileE MarkdownFile . Id)
-    "list-directory" ->
-      Just $ OneArgumentFunction (ListDirectoryE . Id)
-    "load-template" ->
-      -- In principle it would be possible to amend load-template to take the
-      -- delimiters as an argument …
-      Just $ TwoArgumentFunction (\delimiters path binds -> FileE (TemplateFile delimiters (Id binds)) (Id path))
-    _ ->
-      Nothing
 
 keywords :: HashSet Text
 keywords = Set.fromList ["let", "in", "export", "optionally", "for"]

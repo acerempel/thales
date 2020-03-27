@@ -76,8 +76,7 @@ data ExprH f
   | FieldAccessE Name (f (ExprH f))
   -- | A bare name, like @potato@.
   | NameE Name
-  | ListDirectoryE (f (ExprH f))
-  | FileE (FileType (f (ExprH f))) (f (ExprH f))
+  | FunctionCallE Name (List (f (ExprH f)))
   deriving ( Generic )
 
 deriving instance (forall a. Show a => Show (f a)) => Show (ExprH f)
