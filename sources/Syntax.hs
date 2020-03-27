@@ -129,14 +129,6 @@ instance Foldable FileType where
   foldMap f (TemplateFile _d a) = f a
   foldMap _f _ = mempty
 
--- instance Applicative FileType where
---   (TemplateFile d f) <*> (TemplateFile d a) = TemplateFile (f a)
---   (TemplateFile d _f) <*> YamlFile = YamlFile
---   (TemplateFile d _f) <*> MarkdownFile = MarkdownFile
---   YamlFile <*> _ = YamlFile
---   MarkdownFile <*> _ = MarkdownFile
---   pure = TemplateFile
-
 instance Traversable FileType where
   traverse f (TemplateFile d a) = TemplateFile d <$> f a
   traverse _f YamlFile = pure YamlFile
