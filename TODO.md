@@ -3,21 +3,17 @@
 ## For v0.5
 
 - [ ] Implement base templates. Not hard.
+- [ ] Implement YAML config.
+- [ ] Allow specifying extra template parameters in config (YAML or
+      command line).
 
 ## For v0.6
-
-- [ ] Implement YAML config.
-  - Maybe start with just a YAML version of
-    what is already possible on the command line, and then amend it to
-    allow for more complex configuration.
 
 ## Eventually, but essential
 
 - [ ] Test out the error reporting a bit
 
-- Parsing of:
-
-  - [ ] Array indexing
+- [ ] Array indexing
 
 - [ ] Be able to compare syntax trees for equality ignoring
       SourcePos.
