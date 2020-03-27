@@ -17,10 +17,10 @@ description:
   .
   Hmmm, I should write more here!
   .
-  See the README.md (<https://github.com/parsonyorick/thales-templating#readme) for more info.
+  See the README.md (<https://github.com/parsonyorick/thales#readme) for more info.
 
 source-repository head
-  location: https://github.com/parsonyorick/thales-templating
+  location: https://github.com/parsonyorick/thales
   type: git
 
 common stuff
