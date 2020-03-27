@@ -1,4 +1,4 @@
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE QuantifiedConstraints, UndecidableInstances #-}
 module DependencyMonad
   ( DependencyMonad(..)
   , Options(..)
@@ -85,7 +85,7 @@ data ThingToBuild f a = ThingToBuild
   , buildDelimiters :: f Delimiters }
   deriving ( Functor )
 
-deriving instance (Show (f String), Show (f Delimiters), Show a) => Show (ThingToBuild f a)
+deriving instance ((forall b. Show b => Show (f b)), Show a) => Show (ThingToBuild f a)
 
 -- | For documentation purposes.
 type SourcePath = FilePath
