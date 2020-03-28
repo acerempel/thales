@@ -49,11 +49,11 @@ jobs:
         cabal-version: '3.0'
     # Would be nice not to do this every time …
     - name: Update the hackage index
-      run: cabal update
+      run: cabal v2-update
     - name: Save the build options
       # TODO: enable -Werror here
-      run: cabal configure -w ghc-${{ matrix.ghc }} -O1 --project-file cabal.ghc-${{ matrix.ghc }}.project
+      run: cabal v2-configure -w ghc-${{ matrix.ghc }} -O1 --project-file cabal.ghc-${{ matrix.ghc }}.project
     - name: Build the project
-      run: cabal build --project-file cabal.ghc-${{ matrix.ghc }}.project
+      run: cabal v2-build --project-file cabal.ghc-${{ matrix.ghc }}.project
     - name: Run the tests
-      run: cabal test --project-file cabal.ghc-${{ matrix.ghc }}.project
+      run: cabal v2-test --project-file cabal.ghc-${{ matrix.ghc }}.project
