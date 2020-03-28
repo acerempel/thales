@@ -1,4 +1,4 @@
-{-# LANGUAGE QuantifiedConstraints, UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-|
 Description : The definition of the abstract syntax tree.
 

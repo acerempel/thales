@@ -1,4 +1,4 @@
-{-# LANGUAGE QuantifiedConstraints, UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 module DependencyMonad
   ( DependencyMonad(..)
   , Options(..)
