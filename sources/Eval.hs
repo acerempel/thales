@@ -3,13 +3,14 @@ module Eval
   ( ExprT, Bindings
   , Problem(..), ProblemWhere(..), ProblemDescription(..)
   , evalTopExpr, evalStatement, runExprT, runStmtT
+  , evalTemplate
   )
 where
 
+import Data.DList (DList)
 import qualified Data.Text as Text
 import Data.Traversable
 import qualified Data.HashMap.Strict as Map
-import System.FilePath
 
 import {-# SOURCE #-} DependencyMonad
 import Bindings
@@ -18,6 +19,7 @@ import Eval.Statement
 import qualified List
 import qualified NonEmptyText
 import Output
+import Parse
 import Syntax
 import Value
 
@@ -112,8 +114,8 @@ evalStatement = \case
   VerbatimS verb ->
     addOutput (Output.fromText (NonEmptyText.toText verb))
 
-  ExprS sp expr -> do
-    text <- liftExprT (sourceDir sp) $ do
+  ExprS _sp expr -> do
+    text <- liftExprT $ do
       val <- evalTopExpr expr :: ExprT m Value
       case val of
         String text ->
@@ -124,8 +126,8 @@ evalStatement = \case
           zutAlors (NotText val)
     addOutput text
 
-  ForS sp var expr body -> do
-    arr <- liftExprT (sourceDir sp) $ do
+  ForS _sp var expr body -> do
+    arr <- liftExprT $ do
       val <- evalTopExpr expr :: ExprT m Value
       case val of
         Array vec ->
@@ -136,26 +138,27 @@ evalStatement = \case
       for_ body $ \stmt ->
         addLocalBinding var val $ evalStatement stmt
 
-  OptionallyS sp expr mb_var body -> do
-    mb_val <- liftExprT (sourceDir sp) $
+  OptionallyS _sp expr mb_var body -> do
+    mb_val <- liftExprT $
       handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr :: ExprT m (Maybe Value))
     whenJust mb_val $ \val ->
       for_ body $ \stmt ->
         maybe id (`addLocalBinding` val) mb_var $
         evalStatement stmt
 
-  LetS sp binds body -> do
+  LetS _sp binds body -> do
     eval'd_binds <-
-      for binds $ \(name, expr) -> liftExprT (sourceDir sp) $
+      for binds $ \(name, expr) -> liftExprT $
         (name,) <$> (evalTopExpr expr :: ExprT m Value)
     addLocalBindings eval'd_binds $
       for_ body evalStatement
 
-  ExportS sp binds -> do
+  ExportS _sp binds -> do
     eval'd_binds <-
-      for binds $ \bind -> liftExprT (sourceDir sp) $
+      for binds $ \bind -> liftExprT $
         first Name <$> evalBinding bind :: StmtT m (Name, Value)
     addBindings eval'd_binds
 
-  where
-    sourceDir = takeDirectory . sourceName
+evalTemplate :: DependencyMonad m => ParsedTemplate -> Bindings -> m (Either (DList Problem) (Bindings, Output))
+evalTemplate ParsedTemplate{..} =
+  runStmtT (traverse_ evalStatement templateStatements) templatePath templateDelimiters

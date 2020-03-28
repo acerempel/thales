@@ -12,16 +12,32 @@ import Control.Applicative.Trans.Validation
 import Control.Applicative.Trans.Writer
 import Data.DList (DList)
 import qualified Data.DList as DList
+import Development.Shake.FilePath
 
 import {-# SOURCE #-} DependencyMonad
 import Bindings
 import Eval.Expr
 import Output
+import Syntax
 import Value
 
 newtype StmtT m a = StmtT
-  { unStmtT :: ReaderT Bindings (WriterT ResultAccum (ValidationT (DList Problem) m)) a }
+  { unStmtT :: ReaderT Env (WriterT ResultAccum (ValidationT (DList Problem) m)) a }
   deriving newtype (Functor, Applicative, Alternative, Monad)
+
+-- | The environment for evaluation of a template statement.
+data Env = Env
+  { envLocalBindings :: Bindings
+  -- ^ The bindings that are in scope when evaluating this expression.
+  , envTemplatePath :: FilePath
+  -- ^ The file from which we got the template we are evaluating.
+  , envTemplateDelimiters :: Delimiters
+  -- ^ The delimiters with which the template was parsed.
+  }
+
+overBindings :: (Bindings -> Bindings) -> Env -> Env
+overBindings f Env{envLocalBindings, ..} =
+  Env{envLocalBindings = f envLocalBindings, ..}
 
 data ResultAccum = Result
   { tplBindings :: Bindings
@@ -34,11 +50,12 @@ instance Semigroup ResultAccum where
 instance Monoid ResultAccum where
   mempty = Result Bindings.empty mempty
 
-runStmtT :: Monad m => StmtT m () -> Bindings -> m (Either (DList Problem) (Bindings, Output))
-runStmtT stm b =
-  let massage ((), Result { tplBindings, tplOutput }) =
+runStmtT :: Monad m => StmtT m () -> FilePath -> Delimiters -> Bindings -> m (Either (DList Problem) (Bindings, Output))
+runStmtT stm path delimiters bindings =
+  let env = Env bindings path delimiters
+      massage ((), Result { tplBindings, tplOutput }) =
         (tplBindings, DList.foldr (<>) mempty tplOutput)
-  in fmap (fmap massage) $ runValidationT (runWriterT (runReaderT (unStmtT stm) b))
+  in fmap (fmap massage) $ runValidationT (runWriterT (runReaderT (unStmtT stm) env))
 
 addOutput :: Monad m => Output -> StmtT m ()
 addOutput o =
@@ -47,10 +64,10 @@ addOutput o =
 instance HasLocalBindings (StmtT m) where
 
   addLocalBindings binds (StmtT m) =
-    StmtT (local (Bindings.fromList binds `Bindings.union`) m)
+    StmtT (local (overBindings (Bindings.fromList binds `Bindings.union`)) m)
 
   addLocalBinding n v (StmtT m) =
-    StmtT (local (Bindings.insert n v) m)
+    StmtT (local (overBindings (Bindings.insert n v)) m)
 
 addBinding :: Monad m => Name -> Value -> StmtT m ()
 addBinding n v =
@@ -60,10 +77,12 @@ addBindings :: Monad m => [(Name, Value)] -> StmtT m ()
 addBindings binds =
   StmtT (lift (tell (Result (Bindings.fromList binds) mempty)))
 
-liftExprT :: DependencyMonad m => FilePath -> ExprT m a -> StmtT m a
-liftExprT dir expr =
-  StmtT $ ReaderT $ \bindings ->
-    let mE = runExprT expr dir bindings
+liftExprT :: DependencyMonad m => ExprT m a -> StmtT m a
+liftExprT expr =
+  StmtT $ ReaderT $ \env ->
+    let mE = runExprT expr
+              (takeDirectory (envTemplatePath env))
+              (envLocalBindings env)
         mD = fmap
                ( second (,mempty)
                . first DList.singleton)
