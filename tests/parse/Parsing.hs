@@ -26,7 +26,7 @@ renderExpr =
 parseExpr =
   runParser exprP defaultDelimiters "tests/Parsing.hs"
 
-parseDisplayedExpr (Generated expr) =
+parseDisplayedExpr (expr :: Expr) =
   let rendered = renderExpr expr
   in bimap errorBundlePretty (const (Text.unpack rendered)) $
       parseExpr rendered
@@ -37,14 +37,6 @@ main =
   -- 460 tests, which I think is enough.
   defaultMain $ localOption (SmallCheckDepth 4) $
     testProperty "parse/display roundtrip" parseDisplayedExpr
-
--- | Newtype to avoid defining orphan instance. (Why?? We define a bunch of
--- orphan instances below … Seems silly.)
-newtype GeneratedExpr = Generated Expr
-  deriving newtype ( Show )
-
-instance Monad m => Serial m GeneratedExpr where
-  series = Generated <$> genericSeries
 
 -- | Only generates 'Vector's from 0 through 4 elements in length.
 instance Serial m a => Serial m (Vec.Vector a) where
