@@ -51,8 +51,9 @@ jobs:
     - name: Update the hackage index
       run: cabal update
     - name: Save the build options
+      # TODO: enable -Werror here
       run: cabal configure -w ghc-${{ matrix.ghc }} -O1 --project-file cabal.ghc-${{ matrix.ghc }}.project
     - name: Build the project
       run: cabal build --project-file cabal.ghc-${{ matrix.ghc }}.project
-    - name: Run the golden tests
-      run: cabal test golden --project-file cabal.ghc-${{ matrix.ghc }}.project
+    - name: Run the tests
+      run: cabal test --project-file cabal.ghc-${{ matrix.ghc }}.project
