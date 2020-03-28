@@ -65,30 +65,30 @@ evalExpr mContext expr =
     -- TODO: preserve context!
     Record . Map.fromList <$> traverse evalBinding bindings
 
-  ListDirectoryE (Id subExpr) -> do
-    path <- evalSubExpr ListDirectoryE subExpr
-    dir <- getTemplateDirectory
-    case path of
-      String str ->
-        lift
-        $ Array . List.map (String . Text.pack) . List.fromList
-        <$> listDirectory (dir </> Text.unpack str)
-      _ ->
-        zutAlors (error "oh no!!!")
+  -- ListDirectoryE (Id subExpr) -> do
+  --   path <- evalSubExpr ListDirectoryE subExpr
+  --   dir <- getTemplateDirectory
+  --   case path of
+  --     String str ->
+  --       lift
+  --       $ Array . List.map (String . Text.pack) . List.fromList
+  --       <$> listDirectory (dir </> Text.unpack str)
+  --     _ ->
+  --       zutAlors (error "oh no!!!")
 
-  FileE ft (Id subExpr) -> do
-    -- TODO: make this comprehensible
-    path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) subExpr
-    dir <- getTemplateDirectory
-    let addFileTypeProblemContext a =
-          FileE (a <$ ft) (NoProblem subExpr)
-    ft' <- traverse (evalSubExpr addFileTypeProblemContext) (getId <$> ft)
-    let ft'' = traverse (\val -> case val of { Record r -> Just r; _ -> Nothing }) ft'
-    case (path, ft'') of
-      (String str, Just rec) ->
-        pure (ExternalRecord rec (dir </> Text.unpack str))
-      _ ->
-        zutAlors (error "ack!")
+  -- FileE ft (Id subExpr) -> do
+  --   -- TODO: make this comprehensible
+  --   path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) subExpr
+  --   dir <- getTemplateDirectory
+  --   let addFileTypeProblemContext a =
+  --         FileE (a <$ ft) (NoProblem subExpr)
+  --   ft' <- traverse (evalSubExpr addFileTypeProblemContext) (getId <$> ft)
+  --   let ft'' = traverse (\val -> case val of { Record r -> Just r; _ -> Nothing }) ft'
+  --   case (path, ft'') of
+  --     (String str, Just rec) ->
+  --       pure (ExternalRecord rec (dir </> Text.unpack str))
+  --     _ ->
+  --       zutAlors (error "ack!")
 
 literalToValue :: Literal -> Value
 literalToValue = \case
