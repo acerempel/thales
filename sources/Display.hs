@@ -34,10 +34,9 @@ instance DisplayH ExprH where
     LiteralE lit ->
       display prec lit
     ArrayE vec ->
-          lbracket
-      <+> (align . group . vsep . punctuate comma)
-          ((toList . List.map (liftedDisplay Loose)) vec)
-      <+> rbracket
+      brackets $
+        align . sep . punctuate comma $
+        toList . List.map (liftedDisplay Loose) $ vec
     FieldAccessE n a ->
       group $ liftedDisplay Tight a <> line' <> dot <> display prec n
     NameE n ->
@@ -47,8 +46,8 @@ instance DisplayH ExprH where
     FunctionCallE name args ->
       cat [ display prec name
           , nest 2 $ parens $
-            (align . sep . punctuate comma)
-            ((toList . List.map (liftedDisplay Loose)) args)
+            align . sep . punctuate comma $
+            toList . List.map (liftedDisplay Loose) $ args
           ]
 
 enclosePrec :: Precedence -> Doc ann -> Doc ann
