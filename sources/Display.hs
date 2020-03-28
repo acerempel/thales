@@ -67,4 +67,4 @@ instance Display Literal where
 
 instance Display Name where
   display (Name net) =
-    unsafeViaShow net
+    pretty net
