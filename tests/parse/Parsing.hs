@@ -20,7 +20,7 @@ import Syntax
 renderExpr =
   renderStrict
   . layoutPretty (LayoutOptions (AvailablePerLine 80 0.75))
-  . display Loose
+  . display
 
 parseExpr =
   runParser exprP defaultDelimiters "tests/Parsing.hs"
