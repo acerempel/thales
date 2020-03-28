@@ -56,7 +56,8 @@ instance Serial m a => Serial m (Id a) where
   series = newtypeCons Id
 
 instance Monad m => Serial m Name where
-  series = newtypeCons Name
+  -- We never parse an empty Name, so make sure we never generate one!
+  series = newtypeCons (Name . Text.pack . getNonEmpty)
 
 instance Monad m => Serial m Text.Text where
   series = Text.pack <$> series
