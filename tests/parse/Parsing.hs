@@ -32,7 +32,10 @@ parseDisplayedExpr (Generated expr) =
       parseExpr rendered
 
 main =
-  defaultMain $
+  -- If the smallcheck depth is 5 or more, the tests take longer to terminate
+  -- than I wanted to wait, viz., longer than 20 seconds! At depth 4, it runs
+  -- 460 tests, which I think is enough.
+  defaultMain $ localOption (SmallCheckDepth 4) $
     testProperty "parse/display roundtrip" parseDisplayedExpr
 
 -- | Newtype to avoid defining orphan instance. (Why?? We define a bunch of
