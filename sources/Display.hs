@@ -44,12 +44,12 @@ instance DisplayH ExprH where
       display prec n
     RecordE binds ->
       lbrace <+> (nest 2 $ sep $ punctuate comma (map (display prec) binds)) <+> rbrace
-    ListDirectoryE expr ->
-      enclosePrec prec $
-        sep ["list-directory", nest 2 $ liftedDisplay Tight expr]
-    FileE ft expr ->
-      enclosePrec prec $
-        sep ["load-file-TODO", nest 2 $ liftedDisplay Tight expr]
+    FunctionCallE name args ->
+      cat [ display prec name
+          , nest 2 $ parens $
+            (align . sep . punctuate comma)
+            ((toList . List.map (liftedDisplay Loose)) args)
+          ]
 
 enclosePrec :: Precedence -> Doc ann -> Doc ann
 enclosePrec = \case
