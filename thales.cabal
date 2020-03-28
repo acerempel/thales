@@ -51,6 +51,7 @@ common stuff
     , ScopedTypeVariables
     , TupleSections
     , TypeFamilies
+    , FlexibleInstances
 
 executable thales
   import:         stuff
@@ -136,6 +137,8 @@ test-suite parsing
     , prettyprinter
     , scientific
     , vector
+  default-extensions:
+      QuantifiedConstraints
 
 test-suite golden
   import:         stuff

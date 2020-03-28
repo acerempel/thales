@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-missing-signatures -Wno-orphans #-}
-{-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Main (main) where
 
 import Data.Scientific
