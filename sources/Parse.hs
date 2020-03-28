@@ -14,6 +14,7 @@ module Parse
   ( Parser, runParser, parse, parseTemplate
   , templateP, exprP
   , CustomError(..)
+  , ParsedTemplate(..)
   )
 where
 
@@ -66,6 +67,12 @@ parse =
   first errorBundlePretty .
   runParser templateP defaultDelimiters "goof"
 
+data ParsedTemplate = ParsedTemplate
+  { templateDelimiters :: Delimiters
+  , templatePath :: FilePath
+  , templateStatements :: [Statement] }
+  deriving ( Show )
+
 {-| Parse a template. This is simple @'runParser' 'templateP'@. -}
 parseTemplate ::
   Delimiters ->
@@ -73,9 +80,9 @@ parseTemplate ::
   FilePath ->
   -- | The input.
   Text ->
-  Either (ParseErrorBundle Text CustomError) [Statement]
-parseTemplate =
-  runParser templateP
+  Either (ParseErrorBundle Text CustomError) ParsedTemplate
+parseTemplate delimiters path input =
+  ParsedTemplate delimiters path <$> runParser templateP delimiters path input
 
 {-| Run an arbitrary parser. Currently this module only exports two parsers,
 namely 'templateP' and 'exprP', for parsing an entire template and an

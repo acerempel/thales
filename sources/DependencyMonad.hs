@@ -285,13 +285,13 @@ builtinRules = do
       pathAbs <- liftIO $ System.makeAbsolute templatePath
       putInfo $ "Reading template from " <> pathAbs
       input <- liftIO $ Text.readFile templatePath
-      parsed <- eitherThrow $
+      ParsedTemplate{templateStatements} <- eitherThrow $
         first (ParseError . errorBundlePretty) $
         parseTemplate delimiters templatePath input
       return $ ExecTemplate $ \templateParameters -> do
         (Bindings bindings, output) <- (>>= eitherThrow) $
           first (EvalError . toList) <$>
-          runStmtT (for_ parsed evalStatement) templateParameters
+          runStmtT (for_ templateStatements evalStatement) templateParameters
         let record = Map.insert specialBodyField (Output (Output.toStorable output)) bindings
         return $ Record record
 
