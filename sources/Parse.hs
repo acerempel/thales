@@ -167,8 +167,7 @@ anyNameP = do
   ident <- takeWhile1P (Just "identifier character") isIdChar <* space
   return $ Name ident
 
--- | Parse a user-defined identifier, i.e., cannot be a built-in function or
--- keyword.
+-- | Parse a user-defined identifier, i.e., cannot be a keyword.
 nameP :: Parser Name
 nameP = label "name" $ do
   Name name <- anyNameP
@@ -215,15 +214,18 @@ exportP sp = do
 -- TODO: Parsing of record updates, array indexes
 {-| Parse an expression. Only exported for testing purposes. -}
 exprP :: Parser Expr
-exprP = label "an expression" $
-    (parensP exprP >>= fieldAccessP)
+exprP = label "an expression" $ do
+  expr <-
+    parensP exprP
     <|> ArrayE . coerce . List.fromList
         <$> bracketsP (sepEndBy exprP comma)
     <|> RecordE <$> bracesP (sepEndBy recordBindingP comma)
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
-    <|> (functionCallP >>= fieldAccessP)
-    <|> (fmap NameE nameP >>= fieldAccessP)
+    <|> functionCallP
+    <|> NameE <$> nameP
+  fields <- many (dot *> nameP)
+  return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
 
 parensP = betweenChars '(' ')'
 bracketsP = betweenChars '[' ']'
@@ -234,11 +236,6 @@ functionCallP = do
   name <- try $ nameP <* lookAhead (char '(')
   args <- parensP (sepEndBy exprP comma)
   pure (FunctionCallE name (coerce (List.fromList args)))
-
-fieldAccessP :: Expr -> Parser Expr
-fieldAccessP expr = do
-  fields <- many (dot *> nameP)
-  return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
 
 recordBindingP :: Parser (RecordBinding Id)
 recordBindingP = do
