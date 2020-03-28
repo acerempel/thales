@@ -17,6 +17,7 @@ import NonEmptyText (NonEmptyText(..))
 import Parse
 import Syntax
 
+-- | Pretty-print an expression.
 renderExpr =
   renderStrict
   . layoutPretty (LayoutOptions (AvailablePerLine 80 0.75))
@@ -34,12 +35,15 @@ main =
   defaultMain $
     testProperty "parse/display roundtrip" parseDisplayedExpr
 
+-- | Newtype to avoid defining orphan instance. (Why?? We define a bunch of
+-- orphan instances below … Seems silly.)
 newtype GeneratedExpr = Generated Expr
   deriving newtype ( Show )
 
 instance Monad m => Serial m GeneratedExpr where
   series = Generated <$> genericSeries
 
+-- | Only generates 'Vector's from 0 through 4 elements in length.
 instance Serial m a => Serial m (Vec.Vector a) where
   series =
     cons0 Vec.empty \/
@@ -62,6 +66,7 @@ instance Monad m => Serial m Literal
 instance Monad m => Serial m Scientific where
   series = cons2 scientific
 
+-- Quantified constraints, wahoo!
 instance (Monad m, (forall a. Serial m a => Serial m (f a))) => Serial m (ExprH f)
 instance (Monad m, (forall a. Serial m a => Serial m (f a))) => Serial m (RecordBinding f)
 instance (Monad m, Serial m a) => Serial m (FileType a)
