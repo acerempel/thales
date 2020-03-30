@@ -2,13 +2,11 @@
 {-# LANGUAGE TypeApplications #-}
 module Value ( Value(..) ) where
 
-import Control.Foldl as Fold
 import Data.Binary.Instances.UnorderedContainers ()
 import Data.Binary.Instances.Vector ()
 import Data.Scientific
 import Development.Shake.Classes
 import qualified Data.Yaml as Yaml
-import Text.MMark as MMark
 
 import List (List)
 import Output (StorableOutput)
@@ -34,11 +32,6 @@ data Value where
   ExternalRecord :: FileType (HashMap Text Value) -> FilePath -> Value
   deriving stock ( Generic, Typeable, Show, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
-
--- | Orphan instance, necessary for @Eq 'Value'@.
-instance Eq MMark where
-  (==) =
-    (==) `on` flip MMark.runScanner Fold.list
 
 instance Yaml.FromJSON Value where
   parseJSON = parseYamlValue
