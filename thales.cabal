@@ -82,6 +82,7 @@ library core
     , Value
   other-modules:
       Eval.Expr
+    , Eval.Function
     , Eval.Statement
   build-depends:
     , applicative-transformers

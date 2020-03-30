@@ -1,4 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
+-- Remove the below when finished hacking on Eval.Function!
+{-# OPTIONS_GHC -w #-}
 module DependencyMonad
   ( DependencyMonad(..)
   , Options(..)
