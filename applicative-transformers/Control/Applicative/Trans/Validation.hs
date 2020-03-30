@@ -1,11 +1,13 @@
 module Control.Applicative.Trans.Validation
   ( ValidationT(..)
   , Validation
+  , mapFailures
   )
 where
 
 import Control.Applicative
 import Control.Applicative.Trans.Class
+import Data.Bifunctor
 import Data.Functor.Identity
 
 newtype ValidationT e f a = ValidationT
@@ -15,6 +17,13 @@ type Validation e = ValidationT e Identity
 
 instance ApplicativeTrans (ValidationT e) where
   liftApplicative = ValidationT . fmap Right
+
+-- | Map a function over all the 'Left's. (This is like 'first', but
+-- 'ValidationT' is not a 'Bifunctor', because the type parameters are not in
+-- the right order.)
+mapFailures :: Functor f => (e -> e') -> ValidationT e f a -> ValidationT e' f a
+mapFailures f (ValidationT v) =
+  ValidationT $ fmap (first f) v
 
 instance Functor f => Functor (ValidationT e f) where
   fmap f (ValidationT v) =
