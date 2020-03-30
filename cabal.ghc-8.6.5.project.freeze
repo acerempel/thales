@@ -1,4 +1,5 @@
 constraints: any.Cabal ==2.4.0.1,
+             any.Only ==0.1,
              any.QuickCheck ==2.13.2,
              QuickCheck +templatehaskell,
              any.StateVar ==1.2,

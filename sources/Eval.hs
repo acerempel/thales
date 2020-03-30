@@ -1,7 +1,7 @@
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-name-shadowing -Wno-missing-signatures -Wmissing-exported-signatures #-}
+{-# LANGUAGE OverloadedLists #-}
 module Eval
   ( ExprT, Bindings
-  , Problem(..), ProblemWhere(..), ProblemDescription(..)
   , evalTopExpr, evalStatement, runExprT, runStmtT
   , evalTemplate
   )
@@ -11,15 +11,19 @@ import Data.DList (DList)
 import qualified Data.Text as Text
 import Data.Traversable
 import qualified Data.HashMap.Strict as Map
+import Development.Shake.FilePath
 
 import {-# SOURCE #-} DependencyMonad
 import Bindings
 import Eval.Expr
+import Eval.Function
 import Eval.Statement
+import List (List)
 import qualified List
 import qualified NonEmptyText
 import Output
 import Parse
+import Problem
 import Syntax
 import Value
 
@@ -37,11 +41,11 @@ evalExpr mContext expr =
     mVal <- lookupName name
     case mVal of
       Just val -> return val
-      Nothing -> zutAlors (NameNotFound name)
+      Nothing -> zutAlors (ProblemNameNotFound name)
 
   FieldAccessE name (Id subExpr) -> do
     subVal <- evalSubExpr (FieldAccessE name) subExpr
-    let ohNo = zutAlors (FieldNotFound name subVal)
+    let ohNo = zutAlors (ProblemFieldNotFound name [] {- TODO -})
     case subVal of
       Record rec ->
         maybe ohNo return (Map.lookup (fromName name) rec)
@@ -49,54 +53,89 @@ evalExpr mContext expr =
         mb_val <- lift $ lookupField (Bindings <$> ft) path (fromName name)
         maybe ohNo return mb_val
       _ ->
-        zutAlors (NotARecord subVal)
+        typeMismatch subVal [RecordT]
 
   LiteralE lit ->
     return (literalToValue lit)
 
   ArrayE arr -> do
-    let addArrayProblemContext index = \zut ->
-          ArrayE
-            ( List.unsafeUpdate index zut
-            $ List.map (NoProblem . getId) arr )
-        evalArrayElement index (Id subExpr) =
-          evalSubExpr (addArrayProblemContext index) subExpr
-    Array <$> List.imapA evalArrayElement arr
+    Array <$> evalList ArrayE arr
 
   RecordE bindings -> do
     -- TODO: preserve context!
     Record . Map.fromList <$> traverse evalBinding bindings
 
-  -- ListDirectoryE (Id subExpr) -> do
-  --   path <- evalSubExpr ListDirectoryE subExpr
-  --   dir <- getTemplateDirectory
-  --   case path of
-  --     String str ->
-  --       lift
-  --       $ Array . List.map (String . Text.pack) . List.fromList
-  --       <$> listDirectory (dir </> Text.unpack str)
-  --     _ ->
-  --       zutAlors (error "oh no!!!")
-
-  -- FileE ft (Id subExpr) -> do
-  --   -- TODO: make this comprehensible
-  --   path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) subExpr
-  --   dir <- getTemplateDirectory
-  --   let addFileTypeProblemContext a =
-  --         FileE (a <$ ft) (NoProblem subExpr)
-  --   ft' <- traverse (evalSubExpr addFileTypeProblemContext) (getId <$> ft)
-  --   let ft'' = traverse (\val -> case val of { Record r -> Just r; _ -> Nothing }) ft'
-  --   case (path, ft'') of
-  --     (String str, Just rec) ->
-  --       pure (ExternalRecord rec (dir </> Text.unpack str))
-  --     _ ->
-  --       zutAlors (error "ack!")
+  FunctionCallE name args -> do
+    case find ((== name) . fst) knownFunctions of
+      Nothing ->
+        zutAlors (ProblemUnknownFunction name)
+      Just (_, func) -> do
+        arg_vals <- evalList (FunctionCallE name) args
+        result <- evalFunctionM func (toList arg_vals)
+        case result of
+          Pure val ->
+            pure val
+          Action act ->
+            case act of
+              ListDirectory dir -> do
+                tplDir <- getTemplateDirectory
+                lift $ Array . List.map (String . Text.pack) . List.fromList
+                  <$> listDirectory (tplDir </> dir)
+              LoadYaml fp -> do
+                tplDir <- getTemplateDirectory
+                pure $ ExternalRecord YamlFile (tplDir </> fp)
+              LoadMarkdown fp -> do
+                tplDir <- getTemplateDirectory
+                pure $ ExternalRecord MarkdownFile (tplDir </> fp)
+              LoadTemplate fp binds -> do
+                tplDir <- getTemplateDirectory
+                delims <- getTemplateDelimiters
+                pure $ ExternalRecord (TemplateFile delims binds) (tplDir </> fp)
 
 literalToValue :: Literal -> Value
 literalToValue = \case
   NumberL  n -> Number n
   StringL  s -> String s
   BooleanL b -> Boolean b
+
+knownFunctions :: [(Name, FunctionM [Value] ProblemDescription FunctionResult)]
+knownFunctions =
+  [ ("append", Pure <$> appendFunction)
+  , ("list-directory", Action <$> listDirectoryFunction)
+  ]
+
+appendFunction =
+  withTwoArguments $
+    String <$> liftF2 (<>) textArgument textArgument <|>
+    Array <$> liftF2 (<>) arrayArgument arrayArgument
+
+listDirectoryFunction =
+  withOneArgument $
+    ListDirectory . Text.unpack <$> liftF1 textArgument
+
+data FunctionResult
+  = Pure Value
+  | Action FunctionAction
+
+data FunctionAction
+  = ListDirectory FilePath
+  | LoadYaml FilePath
+  | LoadMarkdown FilePath
+  | LoadTemplate FilePath (HashMap Text Value)
+
+evalList ::
+  DependencyMonad m =>
+  (List (ProblemWhere (ExprH ProblemWhere)) -> ExprH ProblemWhere) ->
+  List (Id Expr) ->
+  ExprT m (List Value)
+evalList constr arr = List.imapA evalArrayElement arr
+ where
+  evalArrayElement index (Id subExpr) =
+    evalSubExpr (addArrayProblemContext index) subExpr
+  addArrayProblemContext index = \zut ->
+      constr
+        ( List.unsafeUpdate index zut
+        $ List.map (NoProblem . getId) arr )
 
 evalBinding :: DependencyMonad m => RecordBinding Id -> ExprT m (Text, Value)
 evalBinding bind =
@@ -123,7 +162,7 @@ evalStatement = \case
         Output out ->
           return (Output.fromStorable out)
         _ ->
-          zutAlors (NotText val)
+          typeMismatch val [TextT, OutputT]
     addOutput text
 
   ForS _sp var expr body -> do
@@ -133,7 +172,7 @@ evalStatement = \case
         Array vec ->
           return vec
         _ ->
-          zutAlors (NotAnArray val)
+          typeMismatch val [ArrayT]
     for_ arr $ \val ->
       for_ body $ \stmt ->
         addLocalBinding var val $ evalStatement stmt

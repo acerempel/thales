@@ -18,6 +18,7 @@ import {-# SOURCE #-} DependencyMonad
 import Bindings
 import Eval.Expr
 import Output
+import Problem
 import Syntax
 import Value
 
@@ -82,6 +83,7 @@ liftExprT expr =
   StmtT $ ReaderT $ \env ->
     let mE = runExprT expr
               (takeDirectory (envTemplatePath env))
+              (envTemplateDelimiters env)
               (envLocalBindings env)
         mD = fmap
                ( second (,mempty)
