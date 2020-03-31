@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE TypeApplications #-}
-module Value ( Value(..) ) where
+module Value ( Value(..), ValueType(..) ) where
 
 import Data.Binary.Instances.UnorderedContainers ()
 import Data.Binary.Instances.Vector ()
@@ -32,6 +32,14 @@ data Value where
   ExternalRecord :: FileType (HashMap Text Value) -> FilePath -> Value
   deriving stock ( Generic, Typeable, Show, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
+
+data ValueType
+  = NumberT
+  | StringT
+  | BooleanT
+  | ArrayT
+  | RecordT
+  | OutputT
 
 instance Yaml.FromJSON Value where
   parseJSON = parseYamlValue
