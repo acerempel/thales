@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-name-shadowing -Wno-missing-signatures -Wmissing-exported-signatures #-}
 {-# LANGUAGE OverloadedLists #-}
 module Eval
   ( ExprT, Bindings

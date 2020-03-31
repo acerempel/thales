@@ -7,7 +7,6 @@ module Problem
 where
 
 import Data.DList (DList)
-import qualified Data.DList as DList
 import qualified Data.IntMap.Strict as IntMap
 
 import Syntax

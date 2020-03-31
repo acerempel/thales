@@ -12,7 +12,6 @@ import Prelude hiding (withReaderT)
 import Control.Applicative.Trans.Reader
 import Control.Applicative.Trans.Validation
 import qualified Control.Applicative.Trans.Validation as Validation
-import Data.DList (DList)
 import qualified Data.DList as DList
 import qualified Data.IntMap.Strict as IntMap
 import Data.Tuple.Only
