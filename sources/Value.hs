@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeApplications #-}
-module Value ( Value(..) ) where
+module Value ( Value(..), ValueType(..) ) where
 
 import Data.Binary.Instances.UnorderedContainers ()
 import Data.Binary.Instances.Vector ()
@@ -31,6 +31,17 @@ data Value where
   ExternalRecord :: FileType (HashMap Text Value) -> FilePath -> Value
   deriving stock ( Generic, Typeable, Show, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
+
+-- | Represents the type of a 'Value' in the template language. Currently only
+-- used for error reporting.
+data ValueType
+  = NumberT
+  | TextT
+  | BooleanT
+  | ArrayT
+  | RecordT
+  | OutputT
+  deriving ( Eq, Show )
 
 instance Yaml.FromJSON Value where
   parseJSON = parseYamlValue
