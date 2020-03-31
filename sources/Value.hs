@@ -35,7 +35,7 @@ data Value where
 
 data ValueType
   = NumberT
-  | StringT
+  | TextT
   | BooleanT
   | ArrayT
   | RecordT
