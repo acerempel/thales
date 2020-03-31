@@ -78,6 +78,7 @@ library core
     , NonEmptyText
     , Output
     , Parse
+    , Problem
     , Syntax
     , Value
   other-modules:

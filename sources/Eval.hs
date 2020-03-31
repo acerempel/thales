@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 module Eval
   ( ExprT, Bindings
-  , Problem(..), ProblemWhere(..), ProblemDescription(..)
   , evalTopExpr, evalStatement, runExprT, runStmtT
   , evalTemplate
   )
