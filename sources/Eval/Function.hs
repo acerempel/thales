@@ -3,6 +3,7 @@ module Eval.Function
   , textArgument, arrayArgument
   , liftF1, liftF2
   , withOneArgument, withTwoArguments
+  , evalFunctionM
   )
 where
 
@@ -16,6 +17,7 @@ import qualified Data.DList as DList
 import qualified Data.IntMap.Strict as IntMap
 import Data.Tuple.Only
 
+import Eval.Expr
 import List (List)
 import Problem
 import Value
@@ -76,3 +78,18 @@ withTwoArguments (ReaderT func) = ReaderT $ \args ->
       Validation.mapFailures Right $ func (arg1, arg2)
     _ ->
       failure (Left (WrongNumberOfArguments { expected = 2, actual = length args }))
+
+evalFunctionM ::
+  Monad m =>
+  FunctionM args (Either WrongNumberOfArguments ArgumentErrors) result ->
+  args ->
+  ExprT m result
+evalFunctionM (ReaderT func) =
+  either zutAlors return
+  . first wrapProblems
+  . runIdentity
+  . runValidationT
+  . func
+  where
+    wrapProblems (Left wrongNumber) = ProblemWrongNumberOfArguments wrongNumber
+    wrapProblems (Right errors) = ProblemArgumentErrors errors
