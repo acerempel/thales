@@ -1,6 +1,7 @@
 module Problem
   ( Problem(..), ProblemWhere(..), ProblemDescription(..)
   , TypeMismatch(..), ArgumentErrors(..)
+  , problemAddContext, problemSetSource, AddProblemContext
   )
 where
 
@@ -12,6 +13,7 @@ import Syntax
 import Value
 
 data TypeMismatch = TypeMismatch Value (DList ValueType)
+  deriving ( Show, Eq )
 
 -- | Note that this instance assumes the 'Value' is the same!
 instance Semigroup TypeMismatch where
@@ -20,6 +22,7 @@ instance Semigroup TypeMismatch where
 
 newtype ArgumentErrors = ArgumentErrors
   { fromArgumentErrors :: IntMap TypeMismatch }
+  deriving ( Show, Eq )
 
 instance Semigroup ArgumentErrors where
   a1 <> a2 = ArgumentErrors $
@@ -29,8 +32,31 @@ instance Monoid ArgumentErrors where
   mempty = ArgumentErrors IntMap.empty
 
 data Problem = Problem
+  { problemWhere :: ProblemWhere (ExprH ProblemWhere)
+  , problemDescription :: ProblemDescription }
+  deriving ( Show, Eq )
 
-data ProblemWhere = ProblemWhere
+type AddProblemContext =
+  ProblemWhere (ExprH ProblemWhere) -> ExprH ProblemWhere
+
+problemAddContext :: AddProblemContext -> Problem -> Problem
+problemAddContext add Problem{..} =
+  Problem{problemWhere = ProblemWithin (add problemWhere), ..}
+
+problemSetSource :: Expr -> Problem -> Problem
+problemSetSource expr Problem{..} =
+  Problem{problemWhere =
+    case problemWhere of
+      Nowhere -> ProblemHere expr
+      _ -> problemWhere
+  , .. }
+
+data ProblemWhere a
+  = ProblemHere Expr
+  | ProblemWithin a
+  | NoProblem Expr
+  | Nowhere
+  deriving ( Show, Eq )
 
 data ProblemDescription
   = ProblemTypeMismatch TypeMismatch
@@ -39,3 +65,4 @@ data ProblemDescription
   | ProblemNameNotFound Name
   | ProblemUnknownFunction Name
   | ProblemFieldNotFound Name [Name]
+  deriving ( Show, Eq )

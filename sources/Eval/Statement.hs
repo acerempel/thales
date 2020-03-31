@@ -18,6 +18,7 @@ import {-# SOURCE #-} DependencyMonad
 import Bindings
 import Eval.Expr
 import Output
+import Problem
 import Syntax
 import Value
 

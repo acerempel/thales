@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# LANGUAGE OverloadedLists #-}
 module Eval
   ( ExprT, Bindings
   , evalTopExpr, evalStatement, runExprT, runStmtT
@@ -19,6 +20,7 @@ import qualified List
 import qualified NonEmptyText
 import Output
 import Parse
+import Problem
 import Syntax
 import Value
 
@@ -36,11 +38,11 @@ evalExpr mContext expr =
     mVal <- lookupName name
     case mVal of
       Just val -> return val
-      Nothing -> zutAlors (NameNotFound name)
+      Nothing -> zutAlors (ProblemNameNotFound name)
 
   FieldAccessE name (Id subExpr) -> do
     subVal <- evalSubExpr (FieldAccessE name) subExpr
-    let ohNo = zutAlors (FieldNotFound name subVal)
+    let ohNo = zutAlors (ProblemFieldNotFound name [] {- TODO -})
     case subVal of
       Record rec ->
         maybe ohNo return (Map.lookup (fromName name) rec)
@@ -48,7 +50,7 @@ evalExpr mContext expr =
         mb_val <- lift $ lookupField (Bindings <$> ft) path (fromName name)
         maybe ohNo return mb_val
       _ ->
-        zutAlors (NotARecord subVal)
+        typeMismatch subVal [RecordT]
 
   LiteralE lit ->
     return (literalToValue lit)
@@ -122,7 +124,7 @@ evalStatement = \case
         Output out ->
           return (Output.fromStorable out)
         _ ->
-          zutAlors (NotText val)
+          typeMismatch val [TextT, OutputT]
     addOutput text
 
   ForS _sp var expr body -> do
@@ -132,7 +134,7 @@ evalStatement = \case
         Array vec ->
           return vec
         _ ->
-          zutAlors (NotAnArray val)
+          typeMismatch val [ArrayT]
     for_ arr $ \val ->
       for_ body $ \stmt ->
         addLocalBinding var val $ evalStatement stmt

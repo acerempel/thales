@@ -35,6 +35,7 @@ import Bindings (Bindings(..))
 import qualified Bindings
 import qualified Output
 import Parse
+import Problem
 import Syntax
 import Value
 

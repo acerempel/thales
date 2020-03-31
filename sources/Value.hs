@@ -39,6 +39,7 @@ data ValueType
   | ArrayT
   | RecordT
   | OutputT
+  deriving ( Show, Eq, Generic )
 
 instance Yaml.FromJSON Value where
   parseJSON = parseYamlValue
