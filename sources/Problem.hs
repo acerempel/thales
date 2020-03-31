@@ -1,6 +1,7 @@
 module Problem
   ( Problem(..), ProblemWhere(..), ProblemDescription(..)
   , TypeMismatch(..), ArgumentErrors(..)
+  , WrongNumberOfArguments(..)
   , problemAddContext, problemSetSource, AddProblemContext
   )
 where
@@ -60,9 +61,13 @@ data ProblemWhere a
 
 data ProblemDescription
   = ProblemTypeMismatch TypeMismatch
-  | ProblemWrongNumberOfArguments Name Int Int
+  | ProblemWrongNumberOfArguments WrongNumberOfArguments
   | ProblemArgumentErrors ArgumentErrors
   | ProblemNameNotFound Name
   | ProblemUnknownFunction Name
   | ProblemFieldNotFound Name [Name]
   deriving ( Show, Eq )
+
+data WrongNumberOfArguments
+  = WrongNumberOfArguments { expected :: Int, actual :: Int }
+  deriving ( Eq, Show )

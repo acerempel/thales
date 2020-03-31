@@ -1,8 +1,8 @@
 module Eval.Function
   ( FunctionM
   , textArgument, arrayArgument
+  , liftF1, liftF2
   , withOneArgument, withTwoArguments
-  , ArgumentErrors(..)
   )
 where
 
@@ -38,16 +38,16 @@ arrayArgument = ReaderT $ \val ->
     _ ->
       failure (TypeMismatch val (DList.singleton ArrayT))
 
-withOneArgument :: FunctionM argument TypeMismatch result -> FunctionM (Only argument) ArgumentErrors result
-withOneArgument =
+liftF1 :: FunctionM argument TypeMismatch result -> FunctionM (Only argument) ArgumentErrors result
+liftF1 =
   withReaderT fromOnly . mapReaderT (Validation.mapFailures (argumentNumber 1))
 
-withTwoArguments ::
+liftF2 ::
   (a -> b -> c) ->
   FunctionM argument TypeMismatch a ->
   FunctionM argument TypeMismatch b ->
   FunctionM (argument, argument) ArgumentErrors c
-withTwoArguments f r1 r2 =
+liftF2 f r1 r2 =
   ReaderT $ \(a1, a2) ->
     liftA2 f
       (Validation.mapFailures (argumentNumber 1) (runReaderT r1 a1))
@@ -56,3 +56,23 @@ withTwoArguments f r1 r2 =
 argumentNumber :: Int -> TypeMismatch -> ArgumentErrors
 argumentNumber n e =
   ArgumentErrors (IntMap.singleton n e)
+
+withOneArgument ::
+  FunctionM (Only arg) error result ->
+  FunctionM [arg] (Either WrongNumberOfArguments error) result
+withOneArgument (ReaderT func) = ReaderT $ \args ->
+  case args of
+    [arg1] ->
+      Validation.mapFailures Right $ func (Only arg1)
+    _ ->
+      failure (Left (WrongNumberOfArguments { expected = 1, actual = length args }))
+
+withTwoArguments ::
+  FunctionM (arg, arg) error result ->
+  FunctionM [arg] (Either WrongNumberOfArguments error) result
+withTwoArguments (ReaderT func) = ReaderT $ \args ->
+  case args of
+    [arg1, arg2] ->
+      Validation.mapFailures Right $ func (arg1, arg2)
+    _ ->
+      failure (Left (WrongNumberOfArguments { expected = 2, actual = length args }))
