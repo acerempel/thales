@@ -15,7 +15,9 @@ import qualified Data.HashMap.Strict as Map
 import {-# SOURCE #-} DependencyMonad
 import Bindings
 import Eval.Expr
+import Eval.Function
 import Eval.Statement
+import List (List)
 import qualified List
 import qualified NonEmptyText
 import Output
@@ -56,18 +58,19 @@ evalExpr mContext expr =
     return (literalToValue lit)
 
   ArrayE arr -> do
-    let addArrayProblemContext index = \zut ->
-          ArrayE
-            ( List.unsafeUpdate index zut
-            $ List.map (NoProblem . getId) arr )
-        evalArrayElement index (Id subExpr) =
-          evalSubExpr (addArrayProblemContext index) subExpr
-    Array <$> List.imapA evalArrayElement arr
+    Array <$> evalList ArrayE arr
 
   RecordE bindings -> do
     -- TODO: preserve context!
     Record . Map.fromList <$> traverse evalBinding bindings
 
+  FunctionCallE name args -> do
+    case find ((== name) . fst) knownFunctions of
+      Just (_, func) -> do
+        arg_vals <- evalList (FunctionCallE name) args
+        evalFunctionM func (toList arg_vals)
+      Nothing ->
+        zutAlors (ProblemUnknownFunction name)
   -- ListDirectoryE (Id subExpr) -> do
   --   path <- evalSubExpr ListDirectoryE subExpr
   --   dir <- getTemplateDirectory
@@ -98,6 +101,29 @@ literalToValue = \case
   NumberL  n -> Number n
   StringL  s -> String s
   BooleanL b -> Boolean b
+
+knownFunctions :: [(Name, FunctionM [Value] (Either WrongNumberOfArguments ArgumentErrors) Value)]
+knownFunctions =
+  [ ("append", appendFunction) ]
+
+appendFunction =
+  withTwoArguments $
+    String <$> liftF2 (<>) textArgument textArgument <|>
+    Array <$> liftF2 (<>) arrayArgument arrayArgument
+
+evalList ::
+  DependencyMonad m =>
+  (List (ProblemWhere (ExprH ProblemWhere)) -> ExprH ProblemWhere) ->
+  List (Id Expr) ->
+  ExprT m (List Value)
+evalList constr arr = List.imapA evalArrayElement arr
+ where
+  evalArrayElement index (Id subExpr) =
+    evalSubExpr (addArrayProblemContext index) subExpr
+  addArrayProblemContext index = \zut ->
+      constr
+        ( List.unsafeUpdate index zut
+        $ List.map (NoProblem . getId) arr )
 
 evalBinding :: DependencyMonad m => RecordBinding Id -> ExprT m (Text, Value)
 evalBinding bind =
