@@ -59,36 +59,34 @@ argumentNumber n e =
   ArgumentErrors (IntMap.singleton n e)
 
 withOneArgument ::
-  FunctionM (Only arg) error result ->
-  FunctionM [arg] (Either WrongNumberOfArguments error) result
+  FunctionM (Only arg) ArgumentErrors result ->
+  FunctionM [arg] ProblemDescription result
 withOneArgument (ReaderT func) = ReaderT $ \args ->
   case args of
     [arg1] ->
-      Validation.mapFailures Right $ func (Only arg1)
+      Validation.mapFailures ProblemArgumentErrors $ func (Only arg1)
     _ ->
-      failure (Left (WrongNumberOfArguments { expected = 1, actual = length args }))
+      failure (ProblemWrongNumberOfArguments
+        (WrongNumberOfArguments { expected = 1, actual = length args }))
 
 withTwoArguments ::
-  FunctionM (arg, arg) error result ->
-  FunctionM [arg] (Either WrongNumberOfArguments error) result
+  FunctionM (arg, arg) ArgumentErrors result ->
+  FunctionM [arg] ProblemDescription result
 withTwoArguments (ReaderT func) = ReaderT $ \args ->
   case args of
     [arg1, arg2] ->
-      Validation.mapFailures Right $ func (arg1, arg2)
+      Validation.mapFailures ProblemArgumentErrors $ func (arg1, arg2)
     _ ->
-      failure (Left (WrongNumberOfArguments { expected = 2, actual = length args }))
+      failure (ProblemWrongNumberOfArguments
+        (WrongNumberOfArguments { expected = 2, actual = length args }))
 
 evalFunctionM ::
   Monad m =>
-  FunctionM args (Either WrongNumberOfArguments ArgumentErrors) result ->
+  FunctionM args ProblemDescription result ->
   args ->
   ExprT m result
 evalFunctionM (ReaderT func) =
   either zutAlors return
-  . first wrapProblems
   . runIdentity
   . runValidationT
   . func
-  where
-    wrapProblems (Left wrongNumber) = ProblemWrongNumberOfArguments wrongNumber
-    wrapProblems (Right errors) = ProblemArgumentErrors errors

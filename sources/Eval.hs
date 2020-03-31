@@ -102,7 +102,7 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-knownFunctions :: [(Name, FunctionM [Value] (Either WrongNumberOfArguments ArgumentErrors) Value)]
+knownFunctions :: [(Name, FunctionM [Value] ProblemDescription Value)]
 knownFunctions =
   [ ("append", appendFunction) ]
 
