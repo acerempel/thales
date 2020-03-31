@@ -1,6 +1,8 @@
 module Control.Applicative.Trans.Validation
   ( ValidationT(..)
   , Validation
+  , success
+  , failure
   , mapFailures
   )
 where
@@ -17,6 +19,12 @@ type Validation e = ValidationT e Identity
 
 instance ApplicativeTrans (ValidationT e) where
   liftApplicative = ValidationT . fmap Right
+
+success :: Applicative f => a -> ValidationT e f a
+success a = ValidationT (pure (Right a))
+
+failure :: Applicative f => e -> ValidationT e f a
+failure e = ValidationT (pure (Left e))
 
 mapFailures :: Functor f => (e -> e') -> ValidationT e f a -> ValidationT e' f a
 mapFailures f (ValidationT v) =
