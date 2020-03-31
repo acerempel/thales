@@ -1,6 +1,8 @@
 module Control.Applicative.Trans.Validation
   ( ValidationT(..)
   , Validation
+  , success
+  , failure
   , mapFailures
   )
 where
@@ -17,6 +19,14 @@ type Validation e = ValidationT e Identity
 
 instance ApplicativeTrans (ValidationT e) where
   liftApplicative = ValidationT . fmap Right
+
+-- | The same as 'pure'; provided for symmetry with 'failure'.
+success :: Applicative f => a -> ValidationT e f a
+success a = ValidationT (pure (Right a))
+
+-- | Inject a 'Left'.
+failure :: Applicative f => e -> ValidationT e f a
+failure e = ValidationT (pure (Left e))
 
 -- | Map a function over all the 'Left's. (This is like 'first', but
 -- 'ValidationT' is not a 'Bifunctor', because the type parameters are not in
