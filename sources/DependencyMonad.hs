@@ -1,6 +1,4 @@
 {-# LANGUAGE UndecidableInstances #-}
--- Remove the below when finished hacking on Eval.Function!
-{-# OPTIONS_GHC -w #-}
 module DependencyMonad
   ( DependencyMonad(..)
   , Options(..)
@@ -19,6 +17,8 @@ import qualified Data.HashMap.Strict as Map
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe (fromJust)
 import qualified Data.Text.IO as Text
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.String
 import qualified Data.Yaml as Yaml
 import Development.Shake
 import Development.Shake.Classes hiding (show)
@@ -30,9 +30,10 @@ import System.IO hiding (print)
 import Text.Megaparsec
 import Text.MMark as MMark
 
-import Eval
 import Bindings (Bindings(..))
 import qualified Bindings
+import Display
+import Eval
 import qualified Output
 import Parse
 import Problem
@@ -406,4 +407,9 @@ instance Exception TemplateParseError where
 newtype TemplateEvalError = EvalError [Problem]
   deriving stock Show
 
-instance Exception TemplateEvalError
+instance Exception TemplateEvalError where
+  displayException (EvalError problems) =
+    renderString
+      (layoutPretty
+        (LayoutOptions (AvailablePerLine 80 0.7))
+        (vsep (punctuate mempty (map display problems))))

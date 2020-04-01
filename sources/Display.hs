@@ -4,6 +4,7 @@ Description : Pretty-printing of abstract syntax trees.
 This module defines the 'Display' class for pretty-printing, and instances for
 template abstract syntax trees and their component types.
 -}
+{-# OPTIONS_GHC -Wno-missing-signatures -Wmissing-exported-signatures #-}
 module Display
   ( Display(..), Display1(..), DisplayH(..)
   , Markup(..)
@@ -15,9 +16,11 @@ import Prelude hiding (group)
 import Data.Text.Prettyprint.Doc
 
 import qualified List
+import Problem
 import Syntax
+import Value
 
-data Markup = Important | Emphasized
+data Markup = Problematic | Heading
 
 class Display a where
   -- | Display something.
@@ -78,8 +81,70 @@ instance Display Literal where
   display = \case
     NumberL n -> unsafeViaShow n
     StringL s -> viaShow s
-    BooleanL b -> unsafeViaShow b
+    BooleanL b -> pretty b
 
 instance Display Name where
   display (Name net) =
     pretty net
+
+instance Display Problem where
+  display Problem{ problemWhere, problemDescription } =
+    vsep
+      [ "Zut alors!"
+      , indent 2 $
+        vsep
+          [ display problemDescription
+          , nest 2 $ "In this expression:" <+> liftedDisplay problemWhere ]
+      ]
+
+instance Display1 ProblemWhere where
+  liftedDisplay = \case
+    ProblemHere expr ->
+      annotate Problematic $ display expr
+    NoProblem expr ->
+      display expr
+    ProblemWithin inner ->
+      display inner
+    Nowhere ->
+      mempty
+
+instance Display ProblemDescription where
+  display = \case
+    ProblemTypeMismatch tm -> display tm
+    ProblemWrongNumberOfArguments wn -> display wn
+
+instance Display TypeMismatch where
+  display (TypeMismatch val types) =
+    errorMessage "Type mismatch!" $
+      "The value" <+> nest 2 (display val)
+      <+> "is a " <> display (valueType val) <> ","
+      <+> "but was expected to have one of these types:"
+      <+> nest 2 (sep (punctuate comma (map display (toList types))))
+
+instance Display WrongNumberOfArguments where
+  display WrongNumberOfArguments{ expected, actual } =
+    errorMessage "Wrong number of arguments!" $
+      "Expected " <> pretty expected <> ","
+      <+> "but " <> pretty actual <> " were given."
+
+errorMessage heading body =
+  annotate Heading heading <+> nest 2 body
+
+instance Display Value where
+  display = \case
+    Number n -> unsafeViaShow n
+    String s -> viaShow s
+    Boolean b -> pretty b
+    Array a ->
+      brackets $
+        align . sep . punctuate comma $
+        toList . List.map display $ a
+
+instance Display ValueType where
+  display = \case
+    NumberT -> "number"
+    TextT -> "text"
+    BooleanT -> "boolean"
+    ArrayT -> "array"
+    RecordT -> "record"
+    OutputT -> "output"
