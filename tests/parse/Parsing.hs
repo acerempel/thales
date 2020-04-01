@@ -65,7 +65,6 @@ instance Monad m => Serial m Scientific where
 -- Quantified constraints, wahoo!
 instance (Monad m, (forall a. Serial m a => Serial m (f a))) => Serial m (ExprH f)
 instance (Monad m, (forall a. Serial m a => Serial m (f a))) => Serial m (RecordBinding f)
-instance (Monad m, Serial m a) => Serial m (FileType a)
 
 instance Monad m => Serial m Delimiters where
   series = cons2 Delimiters

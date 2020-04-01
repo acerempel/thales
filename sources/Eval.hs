@@ -50,7 +50,7 @@ evalExpr mContext expr =
       Record rec ->
         maybe ohNo return (Map.lookup (fromName name) rec)
       ExternalRecord ft path -> do
-        mb_val <- lift $ lookupField (Bindings <$> ft) path (fromName name)
+        mb_val <- lift $ lookupField ft path (fromName name)
         maybe ohNo return mb_val
       _ ->
         typeMismatch subVal [RecordT]

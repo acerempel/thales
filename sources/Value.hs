@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeApplications #-}
-module Value ( Value(..), ValueType(..) ) where
+module Value ( Value(..), ValueType(..), FileType(..) ) where
 
 import Data.Binary.Instances.UnorderedContainers ()
 import Data.Binary.Instances.Vector ()
@@ -28,7 +28,7 @@ data Value where
   -- like a YAML file. We just have the path to the file here, and retrieve the
   -- value for a given key on demand. The 'FileType' tells us how to interpret
   -- the file -- e.g. as YAML, or something else.
-  ExternalRecord :: FileType (HashMap Text Value) -> FilePath -> Value
+  ExternalRecord :: FileType -> FilePath -> Value
   deriving stock ( Generic, Typeable, Show, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
 
@@ -61,3 +61,21 @@ parseYamlValue val =
       pure $ Boolean boo
     Yaml.Null ->
       fail "Null not supported!"
+
+-- | A type of file that may be interpreted as a key-value mapping, i.e. a
+-- 'Record'.
+data FileType
+  -- | The YAML file is assumed to have an associative array at the top level
+  -- with string keys.
+  = YamlFile
+  -- | Any YAML front matter is treated as with 'YamlFile', and the document
+  -- body is available under the "body" key.
+  | MarkdownFile
+  -- | The output of executing the template is available under the "body" key.
+  -- The argument to this constructor represents the parameters given to the
+  -- template. In the abstract syntax tree ('Syntax'), this is an 'ExprH',
+  -- and in a 'Value', this is a @'HashMap' 'Text' 'Value'@. The template will
+  -- be parsed with the provided 'Delimiters'.
+  | TemplateFile Delimiters (HashMap Text Value)
+  deriving stock ( Eq, Show, Generic )
+  deriving anyclass ( Hashable, NFData, Typeable, Binary )
