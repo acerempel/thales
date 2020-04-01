@@ -75,6 +75,7 @@ library core
     , Configuration
     , Display
     , Eval
+    , KnownFunction
     , List
     , NonEmptyText
     , Output

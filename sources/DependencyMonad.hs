@@ -11,6 +11,8 @@ import Data.Binary
 import qualified Data.HashMap.Strict as Map
 import Data.Maybe (fromJust)
 import qualified Data.Text.IO as Text
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.String
 import qualified Data.Yaml as Yaml
 import Development.Shake
 import Development.Shake.Classes hiding (show)
@@ -23,6 +25,7 @@ import Text.MMark as MMark
 
 import Bindings (Bindings(..))
 import Configuration
+import Display
 import Eval
 import qualified Output
 import Parse
@@ -248,4 +251,9 @@ instance Exception TemplateParseError where
 newtype TemplateEvalError = EvalError [Problem]
   deriving stock Show
 
-instance Exception TemplateEvalError
+instance Exception TemplateEvalError where
+  displayException (EvalError problems) =
+    renderString
+      (layoutPretty
+        (LayoutOptions (AvailablePerLine 80 0.7))
+        (vsep (punctuate mempty (map display problems))))

@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeApplications #-}
-module Value ( Value(..), ValueType(..), FileType(..) ) where
+module Value ( Value(..), ValueType(..), valueType, FileType(..) ) where
 
 import Data.Binary.Instances.UnorderedContainers ()
 import Data.Binary.Instances.Vector ()
@@ -41,6 +41,16 @@ data ValueType
   | RecordT
   | OutputT
   deriving ( Eq, Show )
+
+valueType :: Value -> ValueType
+valueType = \case
+  Number _ -> NumberT
+  String _ -> TextT
+  Boolean _ -> BooleanT
+  Array _ -> ArrayT
+  Record _ -> RecordT
+  ExternalRecord {} -> RecordT
+  Output _ -> OutputT
 
 instance Yaml.FromJSON Value where
   parseJSON = parseYamlValue
