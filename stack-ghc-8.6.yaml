@@ -1,0 +1,9 @@
+resolver: lts-14.27
+packages:
+  - .
+extra-deps:
+  - binary-instances-1@sha256:b17565598b8df3241f9b46fa8e3a3368ecc8e3f2eb175d7c28f319042a6f5c79,2613
+  - megaparsec-8.0.0@sha256:362f85e243ecbcb550e1de6e5c74ba5a50c09edaa1208c99bc5b9fd242227fc6,3808
+  - prettyprinter-1.6.1@sha256:11876ec94a79048e1d2942a99bfaa6f2be5222eafeedac6a9545673a79465009,5459
+  - relude-0.6.0.0@sha256:094ad587b28fa8dcc78fd0fba8927b970e5e4a9bb10a3126c0ca32a7ee61f3ca,8681
+  - mmark-0.0.7.2
