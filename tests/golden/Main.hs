@@ -8,6 +8,7 @@ import System.IO.Temp
 import Test.Tasty
 import Test.Tasty.Golden
 
+import Configuration
 import DependencyMonad
 import Syntax
 

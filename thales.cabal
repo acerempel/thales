@@ -72,6 +72,7 @@ library core
   exposed-modules:
       DependencyMonad
     , Bindings
+    , Configuration
     , Display
     , Eval
     , List

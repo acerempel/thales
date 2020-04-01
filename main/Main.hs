@@ -8,6 +8,7 @@ import Options.Applicative
 import Options.Applicative.Help.Pretty
 import System.Directory
 
+import Configuration
 import DependencyMonad hiding (listDirectory)
 import qualified NonEmptyText
 import Syntax
