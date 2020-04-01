@@ -11,6 +11,7 @@ import Data.DList (DList)
 import qualified Data.Text as Text
 import Data.Traversable
 import qualified Data.HashMap.Strict as Map
+import Development.Shake.FilePath
 
 import {-# SOURCE #-} DependencyMonad
 import Bindings
@@ -66,35 +67,30 @@ evalExpr mContext expr =
 
   FunctionCallE name args -> do
     case find ((== name) . fst) knownFunctions of
-      Just (_, func) -> do
-        arg_vals <- evalList (FunctionCallE name) args
-        evalFunctionM func (toList arg_vals)
       Nothing ->
         zutAlors (ProblemUnknownFunction name)
-  -- ListDirectoryE (Id subExpr) -> do
-  --   path <- evalSubExpr ListDirectoryE subExpr
-  --   dir <- getTemplateDirectory
-  --   case path of
-  --     String str ->
-  --       lift
-  --       $ Array . List.map (String . Text.pack) . List.fromList
-  --       <$> listDirectory (dir </> Text.unpack str)
-  --     _ ->
-  --       zutAlors (error "oh no!!!")
-
-  -- FileE ft (Id subExpr) -> do
-  --   -- TODO: make this comprehensible
-  --   path <- evalSubExpr (FileE (NoProblem . getId <$> ft)) subExpr
-  --   dir <- getTemplateDirectory
-  --   let addFileTypeProblemContext a =
-  --         FileE (a <$ ft) (NoProblem subExpr)
-  --   ft' <- traverse (evalSubExpr addFileTypeProblemContext) (getId <$> ft)
-  --   let ft'' = traverse (\val -> case val of { Record r -> Just r; _ -> Nothing }) ft'
-  --   case (path, ft'') of
-  --     (String str, Just rec) ->
-  --       pure (ExternalRecord rec (dir </> Text.unpack str))
-  --     _ ->
-  --       zutAlors (error "ack!")
+      Just (_, func) -> do
+        arg_vals <- evalList (FunctionCallE name) args
+        result <- evalFunctionM func (toList arg_vals)
+        case result of
+          Pure val ->
+            pure val
+          Action act ->
+            case act of
+              ListDirectory dir -> do
+                tplDir <- getTemplateDirectory
+                lift $ Array . List.map (String . Text.pack) . List.fromList
+                  <$> listDirectory (tplDir </> dir)
+              LoadYaml fp -> do
+                tplDir <- getTemplateDirectory
+                pure $ ExternalRecord YamlFile (tplDir </> fp)
+              LoadMarkdown fp -> do
+                tplDir <- getTemplateDirectory
+                pure $ ExternalRecord MarkdownFile (tplDir </> fp)
+              LoadTemplate fp binds -> do
+                tplDir <- getTemplateDirectory
+                delims <- getTemplateDelimiters
+                pure $ ExternalRecord (TemplateFile delims binds) (tplDir </> fp)
 
 literalToValue :: Literal -> Value
 literalToValue = \case
@@ -102,14 +98,30 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-knownFunctions :: [(Name, FunctionM [Value] ProblemDescription Value)]
+knownFunctions :: [(Name, FunctionM [Value] ProblemDescription FunctionResult)]
 knownFunctions =
-  [ ("append", appendFunction) ]
+  [ ("append", Pure <$> appendFunction)
+  , ("list-directory", Action <$> listDirectoryFunction)
+  ]
 
 appendFunction =
   withTwoArguments $
     String <$> liftF2 (<>) textArgument textArgument <|>
     Array <$> liftF2 (<>) arrayArgument arrayArgument
+
+listDirectoryFunction =
+  withOneArgument $
+    ListDirectory . Text.unpack <$> liftF1 textArgument
+
+data FunctionResult
+  = Pure Value
+  | Action FunctionAction
+
+data FunctionAction
+  = ListDirectory FilePath
+  | LoadYaml FilePath
+  | LoadMarkdown FilePath
+  | LoadTemplate FilePath (HashMap Text Value)
 
 evalList ::
   DependencyMonad m =>

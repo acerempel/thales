@@ -83,6 +83,7 @@ liftExprT expr =
   StmtT $ ReaderT $ \env ->
     let mE = runExprT expr
               (takeDirectory (envTemplatePath env))
+              (envTemplateDelimiters env)
               (envLocalBindings env)
         mD = fmap
                ( second (,mempty)
