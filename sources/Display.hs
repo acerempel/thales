@@ -1,3 +1,9 @@
+{-|
+Description : Pretty-printing of abstract syntax trees.
+
+This module defines the 'Display' class for pretty-printing, and instances for
+template abstract syntax trees and their component types.
+-}
 module Display
   ( Display(..), Display1(..), DisplayH(..)
   , Markup(..)
@@ -14,6 +20,7 @@ import Syntax
 data Markup = Important | Emphasized
 
 class Display a where
+  -- | Display something.
   display :: a -> Doc Markup
   default display :: (a ~ h f, DisplayH h, Display1 f) => a -> Doc Markup
   display = hoistDisplay
@@ -21,9 +28,17 @@ class Display a where
 instance Display1 f => Display (ExprH f)
 instance Display1 f => Display (RecordBinding f)
 
+-- | For type constructors that can be displayed whenever their type parameter
+-- can be displayed. Cf. 'Data.Functor.Classes.Show1' and similar.
 class Display1 (f :: Type -> Type) where
   liftedDisplay :: Display a => f a -> Doc Markup
 
+-- | For type constructors which can be displayed wherever their type parameter
+-- is 'Display1'. The ‘H’ is for ‘higher-order’. It's needed for the sake of
+-- displaying an 'ExprH', which has a higher-kinded type parameter.
+--
+-- I wrote this before I was using @-XQuantifiedConstraints@ – with that
+-- language extension, this class would not be needed.
 class DisplayH (h :: (Type -> Type) -> Type) where
   hoistDisplay :: Display1 f => h f -> Doc Markup
 
