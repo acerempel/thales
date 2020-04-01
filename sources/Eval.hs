@@ -102,6 +102,7 @@ knownFunctions :: [(Name, FunctionM [Value] ProblemDescription FunctionResult)]
 knownFunctions =
   [ ("append", Pure <$> appendFunction)
   , ("list-directory", Action <$> listDirectoryFunction)
+  , ("load-yaml", Action <$> loadYamlFunction)
   ]
 
 appendFunction =
@@ -112,6 +113,10 @@ appendFunction =
 listDirectoryFunction =
   withOneArgument $
     ListDirectory . Text.unpack <$> liftF1 textArgument
+
+loadYamlFunction =
+  withOneArgument $
+    LoadYaml . Text.unpack <$> liftF1 textArgument
 
 data FunctionResult
   = Pure Value
