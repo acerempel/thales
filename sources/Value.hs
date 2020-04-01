@@ -18,7 +18,6 @@ type.-}
 data Value where
   Number :: Scientific -> Value
   String :: Text -> Value
-  Verbatim :: Text -> Value
   Boolean :: Bool -> Value
   Array :: List Value -> Value
   Record :: HashMap Text Value -> Value
