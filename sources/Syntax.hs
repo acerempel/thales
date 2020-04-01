@@ -12,7 +12,6 @@ module Syntax
   , RecordBinding(..)
   , Literal(..)
   , SourcePos(..)
-  , FileType(..)
   , Delimiters(..), defaultDelimiters
   )
 where
@@ -94,24 +93,6 @@ data RecordBinding f
 deriving instance (forall a. Show a => Show (f a)) => Show (RecordBinding f)
 deriving instance (forall a. Eq a => Eq (f a)) => Eq (RecordBinding f)
 
--- | A type of file that may be interpreted as a key-value mapping, i.e. a
--- 'Record'.
-data FileType a
-  -- | The YAML file is assumed to have an associative array at the top level
-  -- with string keys.
-  = YamlFile
-  -- | Any YAML front matter is treated as with 'YamlFile', and the document
-  -- body is available under the "body" key.
-  | MarkdownFile
-  -- | The output of executing the template is available under the "body" key.
-  -- The argument to this constructor represents the parameters given to the
-  -- template. In the abstract syntax tree ('Syntax'), this is an 'ExprH',
-  -- and in a 'Value', this is a @'HashMap' 'Text' 'Value'@. The template will
-  -- be parsed with the provided 'Delimiters'.
-  | TemplateFile Delimiters a
-  deriving stock ( Eq, Show, Generic, Functor )
-  deriving anyclass ( Hashable, NFData, Typeable, Binary )
-
 {-| The strings that delimit bits of code, or directives, or whatever
 you want to call them, in a template. E.g. @Delimiters "{{" "}}"@,
 or @Delimiters { begin = "$(", end = ")" }@. -}
@@ -125,15 +106,6 @@ data Delimiters = Delimiters
 use (and Jinja2 and Liquid, for expression splices). -}
 defaultDelimiters :: Delimiters
 defaultDelimiters = Delimiters "{{" "}}"
-
-instance Foldable FileType where
-  foldMap f (TemplateFile _d a) = f a
-  foldMap _f _ = mempty
-
-instance Traversable FileType where
-  traverse f (TemplateFile d a) = TemplateFile d <$> f a
-  traverse _f YamlFile = pure YamlFile
-  traverse _f MarkdownFile = pure MarkdownFile
 
 -- | 'Id' is short for "Identity". This is like
 -- 'Data.Functor.Identity.Identity', but I redefined it here for some reason,

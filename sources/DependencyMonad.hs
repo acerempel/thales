@@ -43,7 +43,7 @@ class Monad m => DependencyMonad m where
 
   listDirectory :: FilePath -> m [FilePath]
 
-  lookupField :: FileType Bindings -> FilePath -> Text -> m (Maybe Value)
+  lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
 
 instance DependencyMonad Action where
 
@@ -229,7 +229,7 @@ fileRules targetToSourceMap = do
       let thingToBuild = fromJust $ Map.lookup targetPath targetToSourceMap
           templatePath = buildWhat thingToBuild
           delimiters = runIdentity (buildDelimiters thingToBuild)
-      val <- lookupField (TemplateFile delimiters Bindings.empty) templatePath specialBodyField
+      val <- lookupField (TemplateFile delimiters Map.empty) templatePath specialBodyField
       case val of
         Just (Output outp) -> do
           absTarget <- liftIO $ System.makeAbsolute targetPath
@@ -306,7 +306,7 @@ specialBodyField :: Text
 specialBodyField = "body"
 
 data FieldAccessQ = FieldAccessQ
-  { faFileType :: FileType Bindings
+  { faFileType :: FileType
   , faFilePath :: FilePath
     -- ^ The path to a file containing key-value pairs. This is assumed to be an
     -- absolute path.
@@ -342,7 +342,7 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
       MarkdownFile -> fromMarkdown <$> getMarkdown faFilePath
       TemplateFile delimiters bindings -> do
         ExecTemplate execTemplate <- getTemplate (faFilePath, delimiters)
-        execTemplate bindings
+        execTemplate (Bindings bindings)
   val <-
     case mb_record of
       Record hashMap ->
@@ -381,7 +381,7 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
 
 {-# INLINE fieldAccessRuleRun #-}
 
-data NotAnObject = NotAnObject (FileType Bindings) FilePath
+data NotAnObject = NotAnObject FileType FilePath
   deriving stock ( Show, Typeable )
 
 instance Exception NotAnObject
