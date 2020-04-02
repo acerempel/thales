@@ -14,6 +14,7 @@ where
 import Prelude hiding (group)
 
 import Data.Text.Prettyprint.Doc
+import qualified Data.HashMap.Strict as Map
 
 import qualified List
 import List (List)
@@ -31,6 +32,9 @@ class Display a where
 
 instance Display1 f => Display (ExprH f)
 instance Display1 f => Display (RecordBinding f)
+
+instance Display a => Display1 (Const a) where
+  liftedDisplay = display . getConst
 
 -- | For type constructors that can be displayed whenever their type parameter
 -- can be displayed. Cf. 'Data.Functor.Classes.Show1' and similar.
@@ -57,7 +61,7 @@ instance DisplayH ExprH where
     NameE n ->
       display n
     RecordE binds ->
-      lbrace <+> (nest 2 $ sep $ punctuate comma (map display binds)) <+> rbrace
+      displayRecord binds
     FunctionCallE name args ->
       cat [ display name
           , nest 2 $ parens $
@@ -135,6 +139,10 @@ instance Display Value where
     String s -> viaShow s
     Boolean b -> pretty b
     Array a -> displayList display a
+    Record r ->
+      let pairToBinding (n,v) = FieldAssignment (Name n) (Const v)
+          binds = map pairToBinding $ Map.toList r
+      in displayRecord binds
 
 instance Display ValueType where
   display = \case
@@ -150,3 +158,7 @@ displayList disp lst =
   brackets $
     align . sep . punctuate comma $
     toList . List.map disp $ lst
+
+displayRecord :: Display1 f => [RecordBinding f] -> Doc Markup
+displayRecord binds =
+  lbrace <+> (nest 2 $ sep $ punctuate comma (map display binds)) <+> rbrace
