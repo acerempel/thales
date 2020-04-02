@@ -16,6 +16,7 @@ import Prelude hiding (group)
 import Data.Text.Prettyprint.Doc
 
 import qualified List
+import List (List)
 import Problem
 import Syntax
 import Value
@@ -50,9 +51,7 @@ instance DisplayH ExprH where
     LiteralE lit ->
       display lit
     ArrayE vec ->
-      brackets $
-        align . sep . punctuate comma $
-        toList . List.map liftedDisplay $ vec
+      displayList liftedDisplay vec
     FieldAccessE n a ->
       group $ liftedDisplay a <> line' <> dot <> display n
     NameE n ->
@@ -135,10 +134,7 @@ instance Display Value where
     Number n -> unsafeViaShow n
     String s -> viaShow s
     Boolean b -> pretty b
-    Array a ->
-      brackets $
-        align . sep . punctuate comma $
-        toList . List.map display $ a
+    Array a -> displayList display a
 
 instance Display ValueType where
   display = \case
@@ -148,3 +144,9 @@ instance Display ValueType where
     ArrayT -> "array"
     RecordT -> "record"
     OutputT -> "output"
+
+displayList :: (a -> Doc Markup) -> List a -> Doc Markup
+displayList disp lst =
+  brackets $
+    align . sep . punctuate comma $
+    toList . List.map disp $ lst
