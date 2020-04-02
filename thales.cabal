@@ -74,6 +74,7 @@ library core
     , Bindings
     , Display
     , Eval
+    , KnownFunction
     , List
     , NonEmptyText
     , Output

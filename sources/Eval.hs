@@ -18,6 +18,7 @@ import Bindings
 import Eval.Expr
 import Eval.Function
 import Eval.Statement
+import KnownFunction
 import List (List)
 import qualified List
 import qualified NonEmptyText
@@ -102,7 +103,7 @@ knownFunctions :: [(Name, FunctionM [Value] ProblemDescription FunctionResult)]
 knownFunctions =
   [ ("append", Pure <$> appendFunction)
   , ("list-directory", Action <$> listDirectoryFunction)
-  , ("load-yaml", Action <$> loadYamlFunction)
+  , (Name loadYamlFunctionName, Action <$> loadYamlFunction)
   ]
 
 appendFunction =

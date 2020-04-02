@@ -15,7 +15,9 @@ import Prelude hiding (group)
 
 import Data.Text.Prettyprint.Doc
 import qualified Data.HashMap.Strict as Map
+import qualified Data.Text as Text
 
+import KnownFunction
 import qualified List
 import List (List)
 import Problem
@@ -143,6 +145,16 @@ instance Display Value where
       let pairToBinding (n,v) = FieldAssignment (Name n) (Const v)
           binds = map pairToBinding $ Map.toList r
       in displayRecord binds
+    ExternalRecord ft fp ->
+      display $
+        case ft of
+          YamlFile ->
+            -- TODO FilePath Value
+            FunctionCallE (Name loadYamlFunctionName) (List.fromList [Const (String (Text.pack fp))])
+          MarkdownFile ->
+            FunctionCallE (Name loadMarkdownFunctionName) (List.fromList [Const (String (Text.pack fp))])
+          TemplateFile _delims binds ->
+            FunctionCallE (Name loadTemplateFunctionName) (List.fromList [Const (String (Text.pack fp)), Const (Record binds)])
 
 instance Display ValueType where
   display = \case
