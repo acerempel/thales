@@ -21,10 +21,12 @@ import List (List)
 import Problem
 import Value
 
-type FunctionM args errors result = ReaderT args (Validation errors) result
+newtype FunctionM args errors result = FunctionM
+  { runFunctionM :: ReaderT args (Validation errors) result }
+  deriving newtype (Functor, Applicative, Monad, Alternative)
 
 textArgument :: FunctionM Value TypeMismatch Text
-textArgument = ReaderT $ \val ->
+textArgument = FunctionM $ ReaderT $ \val ->
   case val of
     String text ->
       success text
@@ -32,7 +34,7 @@ textArgument = ReaderT $ \val ->
       failure (TypeMismatch val (DList.singleton TextT))
 
 arrayArgument :: FunctionM Value TypeMismatch (List Value)
-arrayArgument = ReaderT $ \val ->
+arrayArgument = FunctionM $ ReaderT $ \val ->
   case val of
     Array arr ->
       success arr
@@ -41,18 +43,21 @@ arrayArgument = ReaderT $ \val ->
 
 liftF1 :: FunctionM argument TypeMismatch result -> FunctionM (Only argument) ArgumentErrors result
 liftF1 =
-  withReaderT fromOnly . mapReaderT (Validation.mapFailures (argumentNumber 1))
+  FunctionM
+  . withReaderT fromOnly
+  . mapReaderT (Validation.mapFailures (argumentNumber 1))
+  . runFunctionM
 
 liftF2 ::
   (a -> b -> c) ->
   FunctionM argument TypeMismatch a ->
   FunctionM argument TypeMismatch b ->
   FunctionM (argument, argument) ArgumentErrors c
-liftF2 f r1 r2 =
+liftF2 f r1 r2 = FunctionM $
   ReaderT $ \(a1, a2) ->
     liftA2 f
-      (Validation.mapFailures (argumentNumber 1) (runReaderT r1 a1))
-      (Validation.mapFailures (argumentNumber 2) (runReaderT r2 a2))
+      (Validation.mapFailures (argumentNumber 1) (runReaderT (runFunctionM r1) a1))
+      (Validation.mapFailures (argumentNumber 2) (runReaderT (runFunctionM r2) a2))
 
 argumentNumber :: Int -> TypeMismatch -> ArgumentErrors
 argumentNumber n e =
@@ -61,7 +66,7 @@ argumentNumber n e =
 withOneArgument ::
   FunctionM (Only arg) ArgumentErrors result ->
   FunctionM [arg] ProblemDescription result
-withOneArgument (ReaderT func) = ReaderT $ \args ->
+withOneArgument (FunctionM (ReaderT func)) = FunctionM $ ReaderT $ \args ->
   case args of
     [arg1] ->
       Validation.mapFailures ProblemArgumentErrors $ func (Only arg1)
@@ -72,7 +77,7 @@ withOneArgument (ReaderT func) = ReaderT $ \args ->
 withTwoArguments ::
   FunctionM (arg, arg) ArgumentErrors result ->
   FunctionM [arg] ProblemDescription result
-withTwoArguments (ReaderT func) = ReaderT $ \args ->
+withTwoArguments (FunctionM (ReaderT func)) = FunctionM $ ReaderT $ \args ->
   case args of
     [arg1, arg2] ->
       Validation.mapFailures ProblemArgumentErrors $ func (arg1, arg2)
@@ -85,7 +90,7 @@ evalFunctionM ::
   FunctionM args ProblemDescription result ->
   args ->
   ExprT m result
-evalFunctionM (ReaderT func) =
+evalFunctionM (FunctionM (ReaderT func)) =
   either zutAlors return
   . runIdentity
   . runValidationT
