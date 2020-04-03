@@ -101,7 +101,7 @@ instance Display Problem where
       , indent 2 $
         vsep
           [ display problemDescription
-          , nest 2 $ "In this expression:" <> softline <> liftedDisplay problemWhere ]
+          , nest 2 $ "In this expression:" <> line <> liftedDisplay problemWhere ]
       ]
 
 instance Display1 ProblemWhere where
