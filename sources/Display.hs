@@ -59,14 +59,15 @@ instance DisplayH ExprH where
     ArrayE vec ->
       displayList liftedDisplay vec
     FieldAccessE n a ->
-      group $ liftedDisplay a <> line' <> dot <> display n
+      group $ nest 2 $ liftedDisplay a <> softline' <> dot <> display n
     NameE n ->
       display n
     RecordE binds ->
       displayRecord binds
     FunctionCallE name args ->
-      cat [ display name
-          , nest 2 $ parens $
+      nest 2 $ cat
+          [ display name
+          , parens $
             align . sep . punctuate comma $
             toList . List.map liftedDisplay $ args
           ]
@@ -76,7 +77,7 @@ instance DisplayH RecordBinding where
     FieldPun n ->
       display n
     FieldAssignment n expr ->
-      display n <+> equals <+> softline <+> nest 2 (liftedDisplay expr)
+      nest 2 $ display n <+> equals <+> softline <+> liftedDisplay expr
 
 instance Display1 Id where
   liftedDisplay (Id a) =
@@ -99,7 +100,7 @@ instance Display Problem where
       , indent 2 $
         vsep
           [ display problemDescription
-          , nest 2 $ "In this expression:" <+> liftedDisplay problemWhere ]
+          , nest 2 $ "In this expression:" <> softline <> liftedDisplay problemWhere ]
       ]
 
 instance Display1 ProblemWhere where
@@ -121,19 +122,20 @@ instance Display ProblemDescription where
 instance Display TypeMismatch where
   display (TypeMismatch val types) =
     errorMessage "Type mismatch!" $
-      "The value" <+> nest 2 (display val)
-      <+> "is a " <> display (valueType val) <> ","
-      <+> "but was expected to have one of these types:"
-      <+> nest 2 (sep (punctuate comma (map display (toList types))))
+      nest 2 ("The value" <+> display val)
+      <> softline <> "is a" <+> display (valueType val) <> ","
+      <> softline <> nest 2
+        ("but was expected to have one of these types:" <> softline
+         <> sep (punctuate comma (map display (toList types))))
 
 instance Display WrongNumberOfArguments where
   display WrongNumberOfArguments{ expected, actual } =
     errorMessage "Wrong number of arguments!" $
-      "Expected " <> pretty expected <> ","
-      <+> "but " <> pretty actual <> " were given."
+      "Expected" <+> pretty expected <> comma <> softline
+      <> "but" <+> pretty actual <+> "were given."
 
 errorMessage heading body =
-  annotate Heading heading <+> nest 2 body
+  nest 2 $ annotate Heading heading <> line <> body
 
 instance Display Value where
   display = \case
@@ -173,4 +175,4 @@ displayList disp lst =
 
 displayRecord :: Display1 f => [RecordBinding f] -> Doc Markup
 displayRecord binds =
-  lbrace <+> (nest 2 $ sep $ punctuate comma (map display binds)) <+> rbrace
+  nest 2 $ lbrace <+> (align $ sep $ punctuate comma (map display binds)) <+> rbrace
