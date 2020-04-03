@@ -15,6 +15,7 @@ import Prelude hiding (group)
 
 import Data.Text.Prettyprint.Doc
 import qualified Data.HashMap.Strict as Map
+import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Text as Text
 
 import KnownFunction
@@ -118,6 +119,7 @@ instance Display ProblemDescription where
   display = \case
     ProblemTypeMismatch tm -> display tm
     ProblemWrongNumberOfArguments wn -> display wn
+    ProblemArgumentErrors aes -> display aes
 
 instance Display TypeMismatch where
   display (TypeMismatch val types) =
@@ -133,6 +135,24 @@ instance Display WrongNumberOfArguments where
     errorMessage "Wrong number of arguments!" $
       "Expected" <+> pretty expected <> comma <> softline
       <> "but" <+> pretty actual <+> "were given."
+
+instance Display ArgumentErrors where
+  display (ArgumentErrors errors) =
+    vsep . map dispArgErr . IntMap.toList $ errors
+    where
+      dispArgErr = \(n, (TypeMismatch val types)) ->
+        nest 2 $ "The" <+> ordinal n <+> "argument," <> softline
+          <> nest 2 ("namely" <> softline <> display val <> comma) <> softline
+          <> "is a" <+> display (valueType val) <> comma <> softline
+          <> nest 2
+            ("but was expected to have one of these types:" <> softline
+             <> sep (punctuate comma (map display (toList types))))
+      ordinal n = case n of
+        1 -> "1st"; 2 -> "2nd"; 3 -> "3rd"
+        4 -> "4th"; 5 -> "5th"; 6 -> "6th"
+        7 -> "7th"; 8 -> "8th"; 9 -> "9th"
+        10 -> "10th"
+        _ -> error ("weird number of arguments: " <> show n)
 
 errorMessage heading body =
   nest 2 $ annotate Heading heading <> line <> body
