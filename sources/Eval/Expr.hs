@@ -3,6 +3,7 @@ module Eval.Expr
   , zutAlors, handleZut, mapZut, addProblemSource
   , typeMismatch
   , lookupName, addLocalBindings
+  , getLocalNames
   , getTemplateDirectory
   , getTemplateDelimiters
   )
@@ -13,6 +14,7 @@ import Prelude hiding (local, ask, asks)
 import Control.Monad.Trans.Except
 import Control.Applicative.Trans.Reader
 import Data.DList (DList)
+import qualified Data.HashMap.Strict as Map
 
 import Bindings
 import Problem
@@ -58,6 +60,11 @@ typeMismatch val types =
 
 lookupName :: Monad m => Name -> ExprT m (Maybe Value)
 lookupName n = ExprT $ lift $ asks (Bindings.lookup n . envLocalBindings)
+
+getLocalNames :: Monad m => ExprT m [Name]
+getLocalNames =
+  ExprT $ lift $ asks $
+    coerce . Map.keys . getBindings . envLocalBindings
 
 -- | Get the directory of the file the template under evaluation came from.
 getTemplateDirectory :: Monad m => ExprT m FilePath

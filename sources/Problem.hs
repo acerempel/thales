@@ -62,7 +62,7 @@ data ProblemDescription
   = ProblemTypeMismatch TypeMismatch
   | ProblemWrongNumberOfArguments WrongNumberOfArguments
   | ProblemArgumentErrors ArgumentErrors
-  | ProblemNameNotFound Name
+  | ProblemNameNotFound Name [Name]
   | ProblemUnknownFunction Name
   | ProblemFieldNotFound Name [Name]
   deriving ( Show, Eq )
