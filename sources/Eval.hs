@@ -42,7 +42,9 @@ evalExpr mContext expr =
     mVal <- lookupName name
     case mVal of
       Just val -> return val
-      Nothing -> zutAlors (ProblemNameNotFound name)
+      Nothing -> do
+        namesInScope <- getLocalNames
+        zutAlors (ProblemNameNotFound name namesInScope)
 
   FieldAccessE name (Id subExpr) -> do
     subVal <- evalSubExpr (FieldAccessE name) subExpr
