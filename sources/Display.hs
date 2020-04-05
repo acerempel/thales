@@ -120,6 +120,11 @@ instance Display ProblemDescription where
     ProblemTypeMismatch tm -> display tm
     ProblemWrongNumberOfArguments wn -> display wn
     ProblemArgumentErrors aes -> display aes
+    ProblemNameNotFound name namesInScope ->
+      errorMessage ("Name not found: " <> display name) $
+        "‘" <> display name <> "’" <+> "is not available here;" <> softline
+        <> nest 2 ("these names are available:" <> softline
+        <> fillSep (punctuate comma (map display namesInScope)))
 
 instance Display TypeMismatch where
   display (TypeMismatch val types) =
