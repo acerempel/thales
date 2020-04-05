@@ -125,10 +125,10 @@ instance Display TypeMismatch where
   display (TypeMismatch val types) =
     errorMessage "Type mismatch!" $
       nest 2 ("The value" <+> display val)
-      <> softline <> "is a" <+> display (valueType val) <> ","
+      <> softline <> "is a" <+> display (valueType val) <> comma
       <> softline <> nest 2
         ("but was expected to have one of these types:" <> softline
-         <> sep (punctuate comma (map display (toList types))))
+         <> fillSep (punctuate comma (map display (toList types))))
 
 instance Display WrongNumberOfArguments where
   display WrongNumberOfArguments{ expected, actual } =
