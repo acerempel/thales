@@ -70,7 +70,7 @@ evalExpr mContext expr =
   FunctionCallE name args -> do
     case find ((== name) . fst) knownFunctions of
       Nothing ->
-        zutAlors (ProblemUnknownFunction name)
+        zutAlors (ProblemUnknownFunction name (map fst knownFunctions))
       Just (_, func) -> do
         arg_vals <- evalList (FunctionCallE name) args
         result <- evalFunctionM func (toList arg_vals)
