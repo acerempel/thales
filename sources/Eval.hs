@@ -106,6 +106,7 @@ knownFunctions =
   [ ("append", Pure <$> appendFunction)
   , ("list-directory", Action <$> listDirectoryFunction)
   , (Name loadYamlFunctionName, Action <$> loadYamlFunction)
+  , (Name loadMarkdownFunctionName, Action <$> loadMarkdownFunction)
   ]
 
 appendFunction =
@@ -120,6 +121,10 @@ listDirectoryFunction =
 loadYamlFunction =
   withOneArgument $
     LoadYaml . Text.unpack <$> liftF1 textArgument
+
+loadMarkdownFunction =
+  withOneArgument $
+    LoadMarkdown . Text.unpack <$> liftF1 textArgument
 
 data FunctionResult
   = Pure Value
