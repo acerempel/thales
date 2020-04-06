@@ -63,7 +63,7 @@ data ProblemDescription
   | ProblemWrongNumberOfArguments WrongNumberOfArguments
   | ProblemArgumentErrors ArgumentErrors
   | ProblemNameNotFound Name [Name]
-  | ProblemUnknownFunction Name
+  | ProblemUnknownFunction Name [Name]
   | ProblemFieldNotFound Name [Name]
   deriving ( Show, Eq )
 
