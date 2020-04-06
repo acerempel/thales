@@ -39,12 +39,17 @@ class Monad m => DependencyMonad m where
 
   lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
 
+  listFields :: FileType -> FilePath -> m [Name]
+
 instance DependencyMonad Action where
 
   listDirectory = getDirectoryContents
+  {-# INLINE listDirectory #-}
 
   lookupField ft path key = apply1 (FieldAccessQ ft path key)
   {-# INLINE lookupField #-}
+
+  listFields ft path = apply1 (FieldListQ ft path)
 
 run :: Options -> IO ()
 run options =
@@ -94,6 +99,8 @@ builtinRules = do
     readTemplateCached <- newCache readTemplate
     addBuiltinRule noLint noIdentity
       (fieldAccessRuleRun readYamlCached readMarkdownCached readTemplateCached)
+    addBuiltinRule noLint noIdentity
+      (fieldListRuleRun readYamlCached readMarkdownCached readTemplateCached)
 
   where
     readYaml path = do
@@ -225,6 +232,62 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
         val
 
 {-# INLINE fieldAccessRuleRun #-}
+
+data FieldListQ = FieldListQ
+  { flFileType :: FileType
+  , flFilePath :: FilePath
+  } deriving stock ( Generic, Show, Eq, Typeable )
+    deriving anyclass ( Hashable, Binary, NFData )
+
+type instance RuleResult FieldListQ = [Name]
+
+fieldListRuleRun ::
+  (FilePath -> Action YamlValue) ->
+  (FilePath -> Action MarkdownValue) ->
+  ((FilePath, Delimiters) -> Action ExecTemplate) ->
+  FieldListQ ->
+  Maybe ByteString ->
+  RunMode ->
+  Action (RunResult [Name])
+fieldListRuleRun getYaml getMarkdown getTemplate FieldListQ{..} mb_stored mode = do
+  case mb_stored of
+    Nothing -> do
+      fields <- rebuild
+      return $ RunResult ChangedRecomputeDiff (toStrict (encode fields)) fields
+    Just stored -> do
+      let previous = decode (toLazy stored)
+      case mode of
+        RunDependenciesSame ->
+          return $ RunResult ChangedNothing stored previous
+        RunDependenciesChanged -> do
+          fields <- rebuild
+          return $ if fields == previous
+             then RunResult ChangedRecomputeSame stored fields
+             else RunResult ChangedRecomputeDiff (toStrict (encode fields)) fields
+ where
+  rebuild = do
+    mb_record <-
+      case flFileType of
+        YamlFile -> fromYaml <$> getYaml flFilePath
+        MarkdownFile -> fromMarkdown <$> getMarkdown flFilePath
+        TemplateFile delimiters bindings -> do
+          ExecTemplate execTemplate <- getTemplate (flFilePath, delimiters)
+          execTemplate (Bindings bindings)
+    let hasBodyField =
+          case flFileType of
+            YamlFile -> False
+            MarkdownFile -> True
+            TemplateFile {} -> True
+    case mb_record of
+      Record hashMap -> do
+        let keys = coerce (Map.keys hashMap)
+        return $
+          if hasBodyField
+             then Name specialBodyField : keys
+             else keys
+      _ ->
+        liftIO $ throwIO $ NotAnObject flFileType flFilePath
+
 
 data NotAnObject = NotAnObject FileType FilePath
   deriving stock ( Show, Typeable )
