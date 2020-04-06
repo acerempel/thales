@@ -125,6 +125,11 @@ instance Display ProblemDescription where
         "‘" <> display name <> "’" <+> "is not available here;" <> softline
         <> nest 2 ("these names are available:" <> softline
         <> fillSep (punctuate comma (map display namesInScope)))
+    ProblemUnknownFunction name knownFuncs ->
+      errorMessage ("Unknown function:" <+> display name) $
+        "‘" <> display name <> "’" <+> "is not a known function!"
+        <> nest 2 ("These functions are available:" <> softline
+        <> fillSep (punctuate comma (map display knownFuncs)))
 
 instance Display TypeMismatch where
   display (TypeMismatch val types) =
