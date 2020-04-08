@@ -50,13 +50,13 @@ evalExpr mContext expr =
     subVal <- evalSubExpr (FieldAccessE name) subExpr
     let ohNo available = zutAlors (ProblemFieldNotFound name available)
     case subVal of
-      Record rec ->
+      Record (Concrete rec) ->
         case Map.lookup (fromName name) rec of
           Nothing ->
             ohNo (coerce (Map.keys rec))
           Just val ->
             return val
-      ExternalRecord ft path -> do
+      Record (External ft path) -> do
         mb_val <- lift $ lookupField ft path (fromName name)
         case mb_val of
           Nothing -> do
@@ -75,7 +75,7 @@ evalExpr mContext expr =
 
   RecordE bindings -> do
     -- TODO: preserve context!
-    Record . Map.fromList <$> traverse evalBinding bindings
+    Record . Concrete . Map.fromList <$> traverse evalBinding bindings
 
   FunctionCallE name args -> do
     case find ((== name) . fst) knownFunctions of
@@ -95,14 +95,14 @@ evalExpr mContext expr =
                   <$> listDirectory (tplDir </> dir)
               LoadYaml fp -> do
                 tplDir <- getTemplateDirectory
-                pure $ ExternalRecord YamlFile (tplDir </> fp)
+                pure $ Record $ External YamlFile (tplDir </> fp)
               LoadMarkdown fp -> do
                 tplDir <- getTemplateDirectory
-                pure $ ExternalRecord MarkdownFile (tplDir </> fp)
+                pure $ Record $ External MarkdownFile (tplDir </> fp)
               LoadTemplate fp binds -> do
                 tplDir <- getTemplateDirectory
                 delims <- getTemplateDelimiters
-                pure $ ExternalRecord (TemplateFile delims binds) (tplDir </> fp)
+                pure $ Record $ External (TemplateFile delims binds) (tplDir </> fp)
 
 literalToValue :: Literal -> Value
 literalToValue = \case

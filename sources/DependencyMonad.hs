@@ -124,7 +124,7 @@ builtinRules = do
       record <-
         case mb_val of
           Left err -> liftIO $ throwIO (Yaml.YamlException err)
-          Right (Record hashmap) -> return hashmap
+          Right (Record (Concrete hashmap)) -> return hashmap
           Right _ -> liftIO $ throwIO $ NotAnObject MarkdownFile path
       let markdownOutput =
             ( Output.toStorable
@@ -133,7 +133,7 @@ builtinRules = do
             . Lucid.execHtmlT
             . MMark.render ) mmark
       let record' = Map.insert specialBodyField (Output markdownOutput) record
-      return $ MarkdownValue $ Record record'
+      return $ MarkdownValue $ Record $ Concrete record'
 
     readTemplate (templatePath, delimiters) = do
       need [templatePath]
@@ -148,7 +148,7 @@ builtinRules = do
           first (EvalError . toList) <$>
           evalTemplate parsedTemplate templateParameters
         let record = Map.insert specialBodyField (Output (Output.toStorable output)) bindings
-        return $ Record record
+        return $ Record (Concrete record)
 
 {-# INLINE builtinRules #-}
 
@@ -197,7 +197,7 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
         execTemplate (Bindings bindings)
   val <-
     case mb_record of
-      Record hashMap ->
+      Record (Concrete hashMap) ->
         return $ Map.lookup faField hashMap
       _ ->
         liftIO $ throwIO $ NotAnObject faFileType faFilePath
@@ -279,7 +279,7 @@ fieldListRuleRun getYaml getMarkdown getTemplate FieldListQ{..} mb_stored mode =
             MarkdownFile -> True
             TemplateFile {} -> True
     case mb_record of
-      Record hashMap -> do
+      Record (Concrete hashMap) -> do
         let keys = coerce (Map.keys hashMap)
         return $
           if hasBodyField

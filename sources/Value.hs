@@ -1,5 +1,11 @@
 {-# LANGUAGE TypeApplications #-}
-module Value ( Value(..), ValueType(..), valueType, FileType(..) ) where
+module Value
+  ( Value(..)
+  , Record(..)
+  , ValueType(..), valueType
+  , FileType(..)
+  )
+where
 
 import Data.Binary.Instances.UnorderedContainers ()
 import Data.Binary.Instances.Vector ()
@@ -20,20 +26,29 @@ data Value where
   String :: Text -> Value
   Boolean :: Bool -> Value
   Array :: List Value -> Value
-  Record :: HashMap Text Value -> Value
+  Record :: Record -> Value
   -- | The output of a template or of the body of a markdown document.
   Output :: StorableOutput -> Value
+  deriving stock ( Generic, Show, Eq )
+  deriving anyclass ( NFData, Hashable, Binary )
+
+-- | A 'Record' is a mapping from (textual) keys to values.
+data Record
+  -- | A record defined explicitly in a template, or loaded from a file.
+  = Concrete (HashMap Text Value)
   -- | A reference to a 'Record'-like value that is found in a file somewhere –
   -- like a YAML file. We just have the path to the file here, and retrieve the
   -- value for a given key on demand. The 'FileType' tells us how to interpret
   -- the file -- e.g. as YAML, or something else.
-  ExternalRecord :: FileType -> FilePath -> Value
-  deriving stock ( Generic, Typeable, Show, Eq )
+  | External FileType FilePath
+  deriving stock ( Show, Generic, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
 
 -- | Represents the type of a 'Value' in the template language. Currently only
 -- used for error reporting.
 data ValueType
+  -- NumberT :: ValueType Scientific
+  -- TextT :: VaueType Text
   = NumberT
   | TextT
   | BooleanT
@@ -49,7 +64,6 @@ valueType = \case
   Boolean _ -> BooleanT
   Array _ -> ArrayT
   Record _ -> RecordT
-  ExternalRecord {} -> RecordT
   Output _ -> OutputT
 
 instance Yaml.FromJSON Value where
@@ -59,7 +73,7 @@ parseYamlValue :: Yaml.Value -> Yaml.Parser Value
 parseYamlValue val =
   case val of
     Yaml.Object obj ->
-      Record <$> traverse parseYamlValue obj
+      Record . Concrete <$> traverse parseYamlValue obj
     Yaml.Array arr ->
       Array <$> traverse parseYamlValue arr
     Yaml.String str ->
