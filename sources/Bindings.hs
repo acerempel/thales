@@ -5,10 +5,9 @@ module Bindings
   )
 where
 
-import Prelude hiding (put, get, fromList, empty)
+import Prelude hiding (fromList, empty)
 
 import Data.Binary
-import Data.Binary.Instances.UnorderedContainers ()
 import qualified Data.HashMap.Strict as Map
 
 import Syntax

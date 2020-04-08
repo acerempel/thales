@@ -24,8 +24,7 @@ cli =
     footer cliFooter
 
 cliPrefs =
-  prefs $
-    showHelpOnEmpty <> columns 72
+  prefs $ showHelpOnEmpty <> columns 72
 
 cliHeader =
   vsep

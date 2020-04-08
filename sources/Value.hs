@@ -9,8 +9,10 @@ module Value
   )
 where
 
-import Data.Binary.Instances.UnorderedContainers ()
-import Data.Binary.Instances.Vector ()
+import Prelude hiding (get, put)
+
+import Data.Vector.Binary ()
+import qualified Data.HashMap.Strict as Map
 import Data.Scientific
 import Development.Shake.Classes
 import qualified Data.Yaml as Yaml
@@ -137,3 +139,8 @@ data FileType
   | TemplateFile Delimiters (HashMap Text Value)
   deriving stock ( Eq, Show, Generic )
   deriving anyclass ( Hashable, NFData, Typeable, Binary )
+
+-- | Orphan instance for use in 'Record', 'FileType', etc.
+instance (Eq k, Hashable k, Binary k, Binary v) => Binary (Map.HashMap k v) where
+  get = fmap Map.fromList get
+  put = put . Map.toList
