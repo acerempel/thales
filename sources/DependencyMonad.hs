@@ -24,7 +24,6 @@ import Text.Megaparsec
 import Text.MMark as MMark
 import qualified Text.Show as Sh
 
-import Bindings (Bindings(..))
 import Configuration
 import Display
 import Eval
@@ -145,7 +144,7 @@ builtinRules = do
         first (ParseError . errorBundlePretty) $
         parseTemplate delimiters templatePath input
       return $ ExecTemplate $ \templateParameters -> do
-        (Bindings bindings, output) <- (>>= eitherThrow) $
+        (bindings, output) <- (>>= eitherThrow) $
           first (EvalError . toList) <$>
           evalTemplate parsedTemplate templateParameters
         let record = Map.insert specialBodyField (Output (Output.toStorable output)) bindings
@@ -195,7 +194,7 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
       MarkdownFile -> fromMarkdown <$> getMarkdown faFilePath
       TemplateFile delimiters bindings -> do
         ExecTemplate execTemplate <- getTemplate (faFilePath, delimiters)
-        execTemplate (Bindings bindings)
+        execTemplate bindings
   val <-
     case mb_record of
       Record (Concrete hashMap) ->
@@ -273,7 +272,7 @@ fieldListRuleRun getYaml getMarkdown getTemplate FieldListQ{..} mb_stored mode =
         MarkdownFile -> fromMarkdown <$> getMarkdown flFilePath
         TemplateFile delimiters bindings -> do
           ExecTemplate execTemplate <- getTemplate (flFilePath, delimiters)
-          execTemplate (Bindings bindings)
+          execTemplate bindings
     let hasBodyField =
           case flFileType of
             YamlFile -> False

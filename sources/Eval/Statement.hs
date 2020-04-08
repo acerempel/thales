@@ -65,18 +65,18 @@ addOutput o =
 instance HasLocalBindings (StmtT m) where
 
   addLocalBindings binds (StmtT m) =
-    StmtT (local (overBindings (Bindings.fromList binds `Bindings.union`)) m)
+    StmtT (local (overBindings (Bindings.fromList (coerce binds) `Bindings.union`)) m)
 
-  addLocalBinding n v (StmtT m) =
+  addLocalBinding (Name n) v (StmtT m) =
     StmtT (local (overBindings (Bindings.insert n v)) m)
 
 addBinding :: Monad m => Name -> Value -> StmtT m ()
-addBinding n v =
+addBinding (Name n) v =
   StmtT (lift (tell (Result (Bindings.singleton n v) mempty)))
 
 addBindings :: Monad m => [(Name, Value)] -> StmtT m ()
 addBindings binds =
-  StmtT (lift (tell (Result (Bindings.fromList binds) mempty)))
+  StmtT (lift (tell (Result (Bindings.fromList (coerce binds)) mempty)))
 
 liftExprT :: DependencyMonad m => ExprT m a -> StmtT m a
 liftExprT expr =

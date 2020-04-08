@@ -2,10 +2,11 @@ module Eval.Expr
   ( ExprT, Bindings, runExprT, Name
   , zutAlors, handleZut, mapZut, addProblemSource
   , typeMismatch
-  , lookupName, addLocalBindings
+  , lookupName
   , getLocalNames
   , getTemplateDirectory
   , getTemplateDelimiters
+  , HasLocalBindings(..)
   )
 where
 
@@ -59,12 +60,12 @@ typeMismatch val types =
   zutAlors (ProblemTypeMismatch (TypeMismatch val types))
 
 lookupName :: Monad m => Name -> ExprT m (Maybe Value)
-lookupName n = ExprT $ lift $ asks (Bindings.lookup n . envLocalBindings)
+lookupName (Name n) = ExprT $ lift $ asks (Bindings.lookup n . envLocalBindings)
 
 getLocalNames :: Monad m => ExprT m [Name]
 getLocalNames =
   ExprT $ lift $ asks $
-    coerce . Map.keys . getBindings . envLocalBindings
+    coerce . Map.keys . envLocalBindings
 
 -- | Get the directory of the file the template under evaluation came from.
 getTemplateDirectory :: Monad m => ExprT m FilePath
@@ -77,7 +78,7 @@ instance Applicative m => HasLocalBindings (ExprT m) where
   addLocalBindings binds (ExprT r) =
     -- 'binds' has to be the first argument to 'Map.union', so that we can shadow
     -- existing bindings -- 'Map.union' is left-biased.
-    ExprT (mapExceptT (local (overBindings (Bindings.fromList binds `Bindings.union`))) r)
+    ExprT (mapExceptT (local (overBindings (Bindings.fromList (coerce binds) `Bindings.union`))) r)
 
 handleZut :: Monad m => (Problem -> ExprT m a) -> ExprT m a -> ExprT m a
 handleZut handler (ExprT m) = ExprT (catchE m (unExprT . handler))
@@ -89,3 +90,11 @@ mapZut f (ExprT m) =
 addProblemSource :: Functor m => Expr -> ExprT m a -> ExprT m a
 addProblemSource source (ExprT m) =
   ExprT $ withExceptT (problemSetSource source) m
+
+class HasLocalBindings m where
+
+  addLocalBindings :: [(Name, Value)] -> m a -> m a
+
+  addLocalBinding :: Name -> Value -> m a -> m a
+  addLocalBinding n v =
+    addLocalBindings [(n, v)]
