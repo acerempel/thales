@@ -48,13 +48,22 @@ evalExpr mContext expr =
 
   FieldAccessE name (Id subExpr) -> do
     subVal <- evalSubExpr (FieldAccessE name) subExpr
-    let ohNo = zutAlors (ProblemFieldNotFound name [] {- TODO -})
+    let ohNo available = zutAlors (ProblemFieldNotFound name available)
     case subVal of
       Record rec ->
-        maybe ohNo return (Map.lookup (fromName name) rec)
+        case Map.lookup (fromName name) rec of
+          Nothing ->
+            ohNo (coerce (Map.keys rec))
+          Just val ->
+            return val
       ExternalRecord ft path -> do
         mb_val <- lift $ lookupField ft path (fromName name)
-        maybe ohNo return mb_val
+        case mb_val of
+          Nothing -> do
+            keys <- lift $ listFields ft path
+            ohNo keys
+          Just val ->
+            return val
       _ ->
         typeMismatch subVal [RecordT]
 
