@@ -9,6 +9,7 @@ where
 
 import Control.Applicative
 import Control.Applicative.Trans.Class
+import Control.Monad
 import Data.Bifunctor
 import Data.Functor.Identity
 
@@ -19,14 +20,17 @@ type Validation e = ValidationT e Identity
 
 instance ApplicativeTrans (ValidationT e) where
   liftApplicative = ValidationT . fmap Right
+  {-# INLINE liftApplicative #-}
 
 -- | The same as 'pure'; provided for symmetry with 'failure'.
 success :: Applicative f => a -> ValidationT e f a
 success a = ValidationT (pure (Right a))
+{-# INLINE success #-}
 
 -- | Inject a 'Left'.
 failure :: Applicative f => e -> ValidationT e f a
 failure e = ValidationT (pure (Left e))
+{-# INLINE failure #-}
 
 -- | Map a function over all the 'Left's. (This is like 'first', but
 -- 'ValidationT' is not a 'Bifunctor', because the type parameters are not in
@@ -34,10 +38,12 @@ failure e = ValidationT (pure (Left e))
 mapFailures :: Functor f => (e -> e') -> ValidationT e f a -> ValidationT e' f a
 mapFailures f (ValidationT v) =
   ValidationT $ fmap (first f) v
+{-# INLINE mapFailures #-}
 
 instance Functor f => Functor (ValidationT e f) where
   fmap f (ValidationT v) =
     ValidationT $ fmap (fmap f) v
+  {-# INLINE fmap #-}
 
 -- TODO: what to do about a Bifunctor instance??
 
@@ -55,10 +61,13 @@ instance (Applicative f, Monoid e) => Applicative (ValidationT e f) where
         Left e
   pure a =
     ValidationT (pure (Right a))
+  {-# INLINE pure #-}
 
 instance (Applicative f, Monoid e) => Alternative (ValidationT e f) where
   empty =
     ValidationT (pure (Left mempty))
+  {-# INLINE empty #-}
+
   v1 <|> v2 =
     ValidationT $ liftA2 alt (runValidationT v1) (runValidationT v2)
     where
@@ -68,6 +77,13 @@ instance (Applicative f, Monoid e) => Alternative (ValidationT e f) where
         a1
       alt _ a2 =
         a2
+  {-# INLINE (<|>) #-}
+
+instance (Monad m, Monoid e) => MonadPlus (ValidationT e m) where
+  mzero = empty
+  mplus = (<|>)
+  {-# INLINE mzero #-}
+  {-# INLINE mplus #-}
 
 instance (Monad m, Monoid e) => Monad (ValidationT e m) where
   mva >>= f =
@@ -78,3 +94,4 @@ instance (Monad m, Monoid e) => Monad (ValidationT e m) where
             runValidationT (f a)
           Left e ->
             return (Left e)
+  {-# INLINE (>>=) #-}

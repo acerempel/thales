@@ -119,7 +119,8 @@ instance Display ProblemDescription where
   display = \case
     ProblemTypeMismatch tm -> display tm
     ProblemWrongNumberOfArguments wn -> display wn
-    ProblemArgumentErrors aes -> display aes
+    ProblemInsufficientArguments ins -> display ins
+    ProblemArgumentTypeMismatches aes -> display aes
     ProblemNameNotFound name namesInScope ->
       errorMessage ("Name not found: " <> display name) $
         "‘" <> display name <> "’" <+> "is not available here;" <> softline
@@ -150,8 +151,14 @@ instance Display WrongNumberOfArguments where
       "Expected" <+> pretty expected <> comma <> softline
       <> "but" <+> pretty actual <+> "were given."
 
-instance Display ArgumentErrors where
-  display (ArgumentErrors errors) =
+instance Display InsufficientArguments where
+  display (InsufficientArguments got) =
+    errorMessage "Wrong number of arguments!" $
+      pretty got <+> "were given" <> comma <> softline
+      <> "but at least one additional argument was expected."
+
+instance Display ArgumentTypeMismatches where
+  display (ArgumentTypeMismatches errors) =
     vsep . map dispArgErr . IntMap.toList $ errors
     where
       dispArgErr = \(n, (TypeMismatch val types)) ->
@@ -193,7 +200,7 @@ instance Display Value where
           TemplateFile _delims binds ->
             FunctionCallE (Name loadTemplateFunctionName) (List.fromList [Const (String (Text.pack fp)), Const (Record (Concrete binds))])
 
-instance Display ValueType where
+instance Display (ValueType a) where
   display = \case
     NumberT -> "number"
     TextT -> "text"
@@ -201,6 +208,9 @@ instance Display ValueType where
     ArrayT -> "array"
     RecordT -> "record"
     OutputT -> "output"
+
+instance Display SomeValueType where
+  display (SomeType t) = display t
 
 displayList :: (a -> Doc Markup) -> List a -> Doc Markup
 displayList disp lst =

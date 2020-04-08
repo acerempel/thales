@@ -75,6 +75,7 @@ library core
     , Configuration
     , Display
     , Eval
+    , Function
     , KnownFunction
     , List
     , NonEmptyText
@@ -85,7 +86,6 @@ library core
     , Value
   other-modules:
       Eval.Expr
-    , Eval.Function
     , Eval.Statement
   build-depends:
     , applicative-transformers

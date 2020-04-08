@@ -1,17 +1,16 @@
 # TODO
 
-## For v0.5
+## Top priority
 
+- [ ] Testing of error messages.
 - [ ] Implement base templates. Not hard.
 - [ ] Implement YAML config.
 - [ ] Allow specifying extra template parameters in config (YAML or
       command line).
 
-## For v0.6
-
 ## Eventually, but essential
 
-- [ ] Test out the error reporting a bit
+- [x] Test out the error reporting a bit
 
 - [ ] Array indexing
 

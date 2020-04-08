@@ -16,8 +16,8 @@ import Development.Shake.FilePath
 import {-# SOURCE #-} DependencyMonad
 import Bindings
 import Eval.Expr
-import Eval.Function
 import Eval.Statement
+import Function
 import KnownFunction
 import List (List)
 import qualified List
@@ -65,7 +65,7 @@ evalExpr mContext expr =
           Just val ->
             return val
       _ ->
-        typeMismatch subVal [RecordT]
+        typeMismatch subVal [SomeType RecordT]
 
   LiteralE lit ->
     return (literalToValue lit)
@@ -83,7 +83,10 @@ evalExpr mContext expr =
         zutAlors (ProblemUnknownFunction name (map fst knownFunctions))
       Just (_, func) -> do
         arg_vals <- evalList (FunctionCallE name) args
-        result <- evalFunctionM func (toList arg_vals)
+        result <-
+          case applySignature func (toList arg_vals) of
+            Left err -> zutAlors err
+            Right a -> return a
         case result of
           Pure val ->
             pure val
@@ -110,7 +113,7 @@ literalToValue = \case
   StringL  s -> String s
   BooleanL b -> Boolean b
 
-knownFunctions :: [(Name, FunctionM [Value] ProblemDescription FunctionResult)]
+knownFunctions :: [(Name, Signature FunctionResult)]
 knownFunctions =
   [ ("append", Pure <$> appendFunction)
   , ("list-directory", Action <$> listDirectoryFunction)
@@ -119,21 +122,17 @@ knownFunctions =
   ]
 
 appendFunction =
-  withTwoArguments $
-    String <$> liftF2 (<>) textArgument textArgument <|>
-    Array <$> liftF2 (<>) arrayArgument arrayArgument
+    String <$> liftA2 (<>) (argument TextT) (argument TextT) <|>
+    Array <$> liftA2 (<>) (argument ArrayT) (argument ArrayT)
 
 listDirectoryFunction =
-  withOneArgument $
-    ListDirectory . Text.unpack <$> liftF1 textArgument
+    ListDirectory . Text.unpack <$> argument TextT
 
 loadYamlFunction =
-  withOneArgument $
-    LoadYaml . Text.unpack <$> liftF1 textArgument
+    LoadYaml . Text.unpack <$> argument TextT
 
 loadMarkdownFunction =
-  withOneArgument $
-    LoadMarkdown . Text.unpack <$> liftF1 textArgument
+    LoadMarkdown . Text.unpack <$> argument TextT
 
 data FunctionResult
   = Pure Value
@@ -184,7 +183,7 @@ evalStatement = \case
         Output out ->
           return (Output.fromStorable out)
         _ ->
-          typeMismatch val [TextT, OutputT]
+          typeMismatch val [SomeType TextT, SomeType OutputT]
     addOutput text
 
   ForS _sp var expr body -> do
@@ -194,7 +193,7 @@ evalStatement = \case
         Array vec ->
           return vec
         _ ->
-          typeMismatch val [ArrayT]
+          typeMismatch val [SomeType ArrayT]
     for_ arr $ \val ->
       for_ body $ \stmt ->
         addLocalBinding var val $ evalStatement stmt

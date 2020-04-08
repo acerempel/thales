@@ -54,7 +54,7 @@ runExprT (ExprT m) dir delims bindings =
 zutAlors :: Monad m => ProblemDescription -> ExprT m a
 zutAlors prob = ExprT (throwE (Problem Nowhere prob))
 
-typeMismatch :: Monad m => Value -> DList ValueType -> ExprT m a
+typeMismatch :: Monad m => Value -> DList SomeValueType -> ExprT m a
 typeMismatch val types =
   zutAlors (ProblemTypeMismatch (TypeMismatch val types))
 

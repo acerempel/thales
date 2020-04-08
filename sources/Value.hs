@@ -2,7 +2,9 @@
 module Value
   ( Value(..)
   , Record(..)
-  , ValueType(..), valueType
+  , ValueType(..)
+  , TypedValue(..), valueWithType, valueOfType
+  , SomeValueType(..), valueType
   , FileType(..)
   )
 where
@@ -46,25 +48,58 @@ data Record
 
 -- | Represents the type of a 'Value' in the template language. Currently only
 -- used for error reporting.
-data ValueType
-  -- NumberT :: ValueType Scientific
-  -- TextT :: VaueType Text
-  = NumberT
-  | TextT
-  | BooleanT
-  | ArrayT
-  | RecordT
-  | OutputT
-  deriving ( Eq, Show )
+data ValueType a where
+  NumberT :: ValueType Scientific
+  TextT :: ValueType Text
+  BooleanT :: ValueType Bool
+  ArrayT :: ValueType (List Value)
+  RecordT :: ValueType Record
+  OutputT :: ValueType StorableOutput
 
-valueType :: Value -> ValueType
+instance Eq (ValueType a) where
+  _ == _ = True
+
+data TypedValue where
+  Typed :: ValueType t -> t -> TypedValue
+
+data SomeValueType where
+  SomeType :: ValueType t -> SomeValueType
+
+instance Eq SomeValueType where
+  SomeType NumberT == SomeType NumberT = True
+  SomeType TextT == SomeType TextT = True
+  SomeType BooleanT == SomeType BooleanT = True
+  SomeType ArrayT == SomeType ArrayT = True
+  SomeType RecordT == SomeType RecordT = True
+  SomeType OutputT == SomeType OutputT = True
+  _ == _ = False
+
+valueType :: Value -> SomeValueType
 valueType = \case
-  Number _ -> NumberT
-  String _ -> TextT
-  Boolean _ -> BooleanT
-  Array _ -> ArrayT
-  Record _ -> RecordT
-  Output _ -> OutputT
+  Number _ -> SomeType NumberT
+  String _ -> SomeType TextT
+  Boolean _ -> SomeType BooleanT
+  Array _ -> SomeType ArrayT
+  Record _ -> SomeType RecordT
+  Output _ -> SomeType OutputT
+
+valueWithType :: Value -> TypedValue
+valueWithType = \case
+  Number n -> Typed NumberT n
+  String s -> Typed TextT s
+  Boolean b -> Typed BooleanT b
+  Array a -> Typed ArrayT a
+  Record r -> Typed RecordT r
+  Output o -> Typed OutputT o
+
+valueOfType :: ValueType t -> Value -> Maybe t
+valueOfType NumberT (Number n) = Just n
+valueOfType TextT (String s) = Just s
+valueOfType BooleanT (Boolean b) = Just b
+valueOfType ArrayT (Array l) = Just l
+valueOfType RecordT (Record r) = Just r
+valueOfType OutputT (Output o) = Just o
+valueOfType _ _ = Nothing
 
 instance Yaml.FromJSON Value where
   parseJSON = parseYamlValue

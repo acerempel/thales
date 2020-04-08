@@ -22,6 +22,7 @@ import qualified System.Directory as System
 import System.IO hiding (print)
 import Text.Megaparsec
 import Text.MMark as MMark
+import qualified Text.Show as Sh
 
 import Bindings (Bindings(..))
 import Configuration
@@ -312,7 +313,9 @@ instance Exception TemplateParseError where
   displayException (ParseError err) = err
 
 newtype TemplateEvalError = EvalError [Problem]
-  deriving stock Show
+
+instance Sh.Show TemplateEvalError where
+  show _ = "problems" -- TODO
 
 instance Exception TemplateEvalError where
   displayException (EvalError problems) =
