@@ -57,6 +57,9 @@ data Statement
   -- | Evaluate the given bindings and provide them as part of the result of
   -- executing the template, as an associative array.
   | ExportS SourcePos [RecordBinding Id]
+  -- | Insert the body of a document from another file – e.g., a template, a
+  -- markdown file – as this point. The 'Expr' represents the document – it must be a 'LoadedDoc'.
+  | IncludeBodyS SourcePos Expr
   deriving ( Eq, Show )
 
 -- | An expression. The expression language is quite limited at the moment, but

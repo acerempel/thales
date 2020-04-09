@@ -1,7 +1,8 @@
 module DependencyMonad ( DependencyMonad(..) ) where
 
-import Value
+import Output (Output)
 import Syntax (Name)
+import Value
 
 class Monad m => DependencyMonad m where
 
@@ -10,3 +11,5 @@ class Monad m => DependencyMonad m where
   lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
 
   listFields :: FileType -> FilePath -> m [Name]
+
+  getBody :: FileType -> FilePath -> m Output

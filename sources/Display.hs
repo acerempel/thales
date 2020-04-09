@@ -184,12 +184,11 @@ instance Display Value where
     String s -> viaShow s
     Boolean b -> pretty b
     Array a -> displayList display a
-    Output _o -> "..." -- TODO
-    Record (Concrete r) ->
+    Record r ->
       let pairToBinding (n,v) = FieldAssignment (Name n) (Const v)
           binds = map pairToBinding $ Map.toList r
       in displayRecord binds
-    Record (External ft fp) ->
+    LoadedDoc (DocInfo ft fp) ->
       display $
         case ft of
           YamlFile ->
@@ -198,7 +197,7 @@ instance Display Value where
           MarkdownFile ->
             FunctionCallE (Name loadMarkdownFunctionName) (List.fromList [Const (String (Text.pack fp))])
           TemplateFile _delims binds ->
-            FunctionCallE (Name loadTemplateFunctionName) (List.fromList [Const (String (Text.pack fp)), Const (Record (Concrete binds))])
+            FunctionCallE (Name loadTemplateFunctionName) (List.fromList [Const (String (Text.pack fp)), Const (Record binds)])
 
 instance Display (ValueType a) where
   display = \case
@@ -207,7 +206,7 @@ instance Display (ValueType a) where
     BooleanT -> "boolean"
     ArrayT -> "array"
     RecordT -> "record"
-    OutputT -> "output"
+    DocumentT -> "document"
 
 instance Display SomeValueType where
   display (SomeType t) = display t

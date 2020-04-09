@@ -132,8 +132,11 @@ statementP :: Parser Statement
 statementP = label "statement" $ do
   statem <- withinDelims $ do
     sp <- getSourcePos
-    forP sp <|> optionallyP sp <|> letP sp
+    forP sp
+      <|> optionallyP sp
+      <|> letP sp
       <|> exportP sp
+      <|> includeBodyP sp
       <|> StandaloneS . ExprS sp <$> exprP
   case statem of
     BlockS continuation ->
@@ -211,6 +214,11 @@ exportP sp = do
   keywordP "export"
   StandaloneS . ExportS sp <$> sepEndBy recordBindingP comma
 
+includeBodyP :: SourcePos -> Parser PartialStatement
+includeBodyP sp = do
+  keywordP "include-body"
+  StandaloneS . IncludeBodyS sp <$> exprP
+
 -- TODO: Parsing of record updates, array indexes
 {-| Parse an expression. Only exported for testing purposes. -}
 exprP :: Parser Expr
@@ -247,7 +255,7 @@ recordBindingP = do
       Nothing  -> FieldPun name
 
 keywords :: HashSet Text
-keywords = Set.fromList ["let", "in", "export", "optionally", "for"]
+keywords = Set.fromList ["let", "in", "export", "optionally", "for", "include-body"]
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space

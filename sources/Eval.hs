@@ -50,13 +50,13 @@ evalExpr mContext expr =
     subVal <- evalSubExpr (FieldAccessE name) subExpr
     let ohNo available = zutAlors (ProblemFieldNotFound name available)
     case subVal of
-      Record (Concrete rec) ->
+      Record rec ->
         case Map.lookup (fromName name) rec of
           Nothing ->
             ohNo (coerce (Map.keys rec))
           Just val ->
             return val
-      Record (External ft path) -> do
+      LoadedDoc (DocInfo ft path) -> do
         mb_val <- lift $ lookupField ft path (fromName name)
         case mb_val of
           Nothing -> do
@@ -65,7 +65,7 @@ evalExpr mContext expr =
           Just val ->
             return val
       _ ->
-        typeMismatch subVal [SomeType RecordT]
+        typeMismatch subVal [SomeType RecordT, SomeType DocumentT]
 
   LiteralE lit ->
     return (literalToValue lit)
@@ -75,7 +75,7 @@ evalExpr mContext expr =
 
   RecordE bindings -> do
     -- TODO: preserve context!
-    Record . Concrete . Map.fromList <$> traverse evalBinding bindings
+    Record . Map.fromList <$> traverse evalBinding bindings
 
   FunctionCallE name args -> do
     case find ((== name) . fst) knownFunctions of
@@ -98,14 +98,14 @@ evalExpr mContext expr =
                   <$> listDirectory (tplDir </> dir)
               LoadYaml fp -> do
                 tplDir <- getTemplateDirectory
-                pure $ Record $ External YamlFile (tplDir </> fp)
+                pure $ LoadedDoc $ DocInfo YamlFile (tplDir </> fp)
               LoadMarkdown fp -> do
                 tplDir <- getTemplateDirectory
-                pure $ Record $ External MarkdownFile (tplDir </> fp)
+                pure $ LoadedDoc $ DocInfo MarkdownFile (tplDir </> fp)
               LoadTemplate fp binds -> do
                 tplDir <- getTemplateDirectory
                 delims <- getTemplateDelimiters
-                pure $ Record $ External (TemplateFile delims binds) (tplDir </> fp)
+                pure $ LoadedDoc $ DocInfo (TemplateFile delims binds) (tplDir </> fp)
 
 literalToValue :: Literal -> Value
 literalToValue = \case
@@ -180,10 +180,8 @@ evalStatement = \case
       case val of
         String text ->
           return (Output.fromText text)
-        Output out ->
-          return (Output.fromStorable out)
         _ ->
-          typeMismatch val [SomeType TextT, SomeType OutputT]
+          typeMismatch val [SomeType TextT]
     addOutput text
 
   ForS _sp var expr body -> do
@@ -218,6 +216,15 @@ evalStatement = \case
       for binds $ \bind -> liftExprT $
         first Name <$> evalBinding bind :: StmtT m (Name, Value)
     addBindings eval'd_binds
+
+  IncludeBodyS _sp expr -> do
+    val <- liftExprT (evalTopExpr expr :: ExprT m Value)
+    case val of
+      LoadedDoc (DocInfo filetype filepath) -> do
+        -- TODO instance MonadTrans StmtT, ValidationT
+        addOutput =<< liftExprT (lift (getBody filetype filepath))
+      _ ->
+        error "TODO better error message"
 
 evalTemplate :: DependencyMonad m => ParsedTemplate -> Bindings -> m (Either (DList Problem) (Bindings, Output))
 evalTemplate ParsedTemplate{..} =

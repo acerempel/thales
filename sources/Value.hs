@@ -1,11 +1,13 @@
+{-|
+Description : The definition of values in the template expression language.
+-}
 {-# LANGUAGE TypeApplications #-}
 module Value
   ( Value(..)
-  , Record(..)
   , ValueType(..)
   , TypedValue(..), valueWithType, valueOfType
   , SomeValueType(..), valueType
-  , FileType(..)
+  , FileType(..), DocumentInfo(..)
   )
 where
 
@@ -18,45 +20,45 @@ import Development.Shake.Classes
 import qualified Data.Yaml as Yaml
 
 import List (List)
-import Output (StorableOutput)
 import Syntax
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
-Effectively, templates are dynamically typed. Aside from the absence of null,
-this is basically equivalent to Aeson's @Value@
+Effectively, templates are dynamically typed. Similar to Aeson's 'Yaml.Value'
 type.-}
 data Value where
   Number :: Scientific -> Value
   String :: Text -> Value
   Boolean :: Bool -> Value
   Array :: List Value -> Value
-  Record :: Record -> Value
-  -- | The output of a template or of the body of a markdown document.
-  Output :: StorableOutput -> Value
+  Record :: HashMap Text Value -> Value
+  -- | The result of a call to @load-markdown@, @load-template@, etc. Documents
+  -- from other files are loaded lazily – we get each field, or the document body,
+  -- on demand.
+  LoadedDoc :: DocumentInfo -> Value
   deriving stock ( Generic, Show, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
 
--- | A 'Record' is a mapping from (textual) keys to values.
-data Record
-  -- | A record defined explicitly in a template, or loaded from a file.
-  = Concrete (HashMap Text Value)
-  -- | A reference to a 'Record'-like value that is found in a file somewhere –
-  -- like a YAML file. We just have the path to the file here, and retrieve the
-  -- value for a given key on demand. The 'FileType' tells us how to interpret
-  -- the file -- e.g. as YAML, or something else.
-  | External FileType FilePath
+-- | A document is represented as a reference to a 'Record'-like value that is
+-- found in a file somewhere – like a YAML file. The document may also have a
+-- /body/ (in the case of markdown and templates). We just have the path to the
+-- file here, and retrieve the value for a given key (or the document body) on
+-- demand. The 'FileType' tells us how to interpret the file – e.g. as YAML, or
+-- something else.
+data DocumentInfo = DocInfo
+  { docFileType :: FileType
+  , docFilePath :: FilePath }
   deriving stock ( Show, Generic, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
 
--- | Represents the type of a 'Value' in the template language. Currently only
--- used for error reporting.
+-- | Represents the type of a 'Value' in the template language. Used for
+-- error reporting and for checking the types of function arguments.
 data ValueType a where
   NumberT :: ValueType Scientific
   TextT :: ValueType Text
   BooleanT :: ValueType Bool
   ArrayT :: ValueType (List Value)
-  RecordT :: ValueType Record
-  OutputT :: ValueType StorableOutput
+  RecordT :: ValueType (HashMap Text Value)
+  DocumentT :: ValueType DocumentInfo
 
 instance Eq (ValueType a) where
   _ == _ = True
@@ -73,7 +75,7 @@ instance Eq SomeValueType where
   SomeType BooleanT == SomeType BooleanT = True
   SomeType ArrayT == SomeType ArrayT = True
   SomeType RecordT == SomeType RecordT = True
-  SomeType OutputT == SomeType OutputT = True
+  SomeType DocumentT == SomeType DocumentT = True
   _ == _ = False
 
 valueType :: Value -> SomeValueType
@@ -83,7 +85,7 @@ valueType = \case
   Boolean _ -> SomeType BooleanT
   Array _ -> SomeType ArrayT
   Record _ -> SomeType RecordT
-  Output _ -> SomeType OutputT
+  LoadedDoc _ -> SomeType DocumentT
 
 valueWithType :: Value -> TypedValue
 valueWithType = \case
@@ -92,7 +94,7 @@ valueWithType = \case
   Boolean b -> Typed BooleanT b
   Array a -> Typed ArrayT a
   Record r -> Typed RecordT r
-  Output o -> Typed OutputT o
+  LoadedDoc d -> Typed DocumentT d
 
 valueOfType :: ValueType t -> Value -> Maybe t
 valueOfType NumberT (Number n) = Just n
@@ -100,7 +102,7 @@ valueOfType TextT (String s) = Just s
 valueOfType BooleanT (Boolean b) = Just b
 valueOfType ArrayT (Array l) = Just l
 valueOfType RecordT (Record r) = Just r
-valueOfType OutputT (Output o) = Just o
+valueOfType DocumentT (LoadedDoc d) = Just d
 valueOfType _ _ = Nothing
 
 instance Yaml.FromJSON Value where
@@ -110,7 +112,7 @@ parseYamlValue :: Yaml.Value -> Yaml.Parser Value
 parseYamlValue val =
   case val of
     Yaml.Object obj ->
-      Record . Concrete <$> traverse parseYamlValue obj
+      Record <$> traverse parseYamlValue obj
     Yaml.Array arr ->
       Array <$> traverse parseYamlValue arr
     Yaml.String str ->
@@ -123,19 +125,18 @@ parseYamlValue val =
       fail "Null not supported!"
 
 -- | A type of file that may be interpreted as a key-value mapping, i.e. a
--- 'Record'.
+-- 'Record', and which may also have a document body.
 data FileType
   -- | The YAML file is assumed to have an associative array at the top level
   -- with string keys.
   = YamlFile
   -- | Any YAML front matter is treated as with 'YamlFile', and the document
-  -- body is available under the "body" key.
+  -- body is available with @include-body@ ('IncludeBodyS').
   | MarkdownFile
-  -- | The output of executing the template is available under the "body" key.
-  -- The argument to this constructor represents the parameters given to the
-  -- template. In the abstract syntax tree ('Syntax'), this is an 'ExprH',
-  -- and in a 'Value', this is a @'HashMap' 'Text' 'Value'@. The template will
-  -- be parsed with the provided 'Delimiters'.
+  -- | The output of executing the template is the document body, accessible via
+  -- the @include-body@ statement ('IncludeBodyS'). The second argument to this
+  -- constructor represents the parameters given to the template. The template
+  -- will be parsed with the 'Delimiters' provided as the first argument.
   | TemplateFile Delimiters (HashMap Text Value)
   deriving stock ( Eq, Show, Generic )
   deriving anyclass ( Hashable, NFData, Typeable, Binary )

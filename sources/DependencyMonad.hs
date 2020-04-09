@@ -27,6 +27,7 @@ import qualified Text.Show as Sh
 import Configuration
 import Display
 import Eval
+import Output (Output)
 import qualified Output
 import Parse
 import Problem
@@ -41,15 +42,19 @@ class Monad m => DependencyMonad m where
 
   listFields :: FileType -> FilePath -> m [Name]
 
+  getBody :: FileType -> FilePath -> m Output
+
 instance DependencyMonad Action where
 
   listDirectory = getDirectoryContents
   {-# INLINE listDirectory #-}
 
-  lookupField ft path key = apply1 (FieldAccessQ ft path key)
+  lookupField ft path key = apply1 (FieldAccessQ (DocInfo ft path) key)
   {-# INLINE lookupField #-}
 
-  listFields ft path = apply1 (FieldListQ ft path)
+  listFields ft path = apply1 (FieldListQ (DocInfo ft path))
+
+  getBody ft path = apply1 (GetBodyQ (DocInfo ft path))
 
 run :: Options -> IO ()
 run options =
@@ -71,7 +76,7 @@ rules options@Options{..} = do
     fileRules targetToSourceMap
     want $ Map.keys targetToSourceMap
 
-{-# INLINE rules #-}
+{-# INLINABLE rules #-}
 
 fileRules :: HashMap TargetPath (ThingToBuild Identity SourcePath) -> Rules ()
 fileRules targetToSourceMap = do
@@ -79,135 +84,120 @@ fileRules targetToSourceMap = do
       let thingToBuild = fromJust $ Map.lookup targetPath targetToSourceMap
           templatePath = buildWhat thingToBuild
           delimiters = runIdentity (buildDelimiters thingToBuild)
-      val <- lookupField (TemplateFile delimiters Map.empty) templatePath specialBodyField
-      case val of
-        Just (Output outp) -> do
-          absTarget <- liftIO $ System.makeAbsolute targetPath
-          putInfo $ "Writing result of " <> templatePath <> " to " <> absTarget
-          liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
-            hSetBuffering hdl (BlockBuffering Nothing)
-            Output.write hdl (Output.fromStorable outp)
-        _ ->
-          error "Oh no!!!"
-
-{-# INLINE fileRules #-}
+      outp <- getBody (TemplateFile delimiters Map.empty) templatePath
+      absTarget <- liftIO $ System.makeAbsolute targetPath
+      putInfo $ "Writing result of " <> templatePath <> " to " <> absTarget
+      liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
+        hSetBuffering hdl (BlockBuffering Nothing)
+        Output.write hdl outp
 
 builtinRules :: Rules ()
 builtinRules = do
-    readYamlCached <- newCache readYaml
-    readMarkdownCached <- newCache readMarkdown
     readTemplateCached <- newCache readTemplate
+    readDocumentCached <- newCache (readDocument readTemplateCached)
     addBuiltinRule noLint noIdentity
-      (fieldAccessRuleRun readYamlCached readMarkdownCached readTemplateCached)
+      (fieldAccessRuleRun readDocumentCached)
     addBuiltinRule noLint noIdentity
-      (fieldListRuleRun readYamlCached readMarkdownCached readTemplateCached)
+      (fieldListRuleRun readDocumentCached)
+    addBuiltinRule noLint noIdentity (getBodyRuleRun readDocumentCached)
 
   where
+    readDocument :: ((FilePath, Delimiters) -> Action ParsedTemplate) -> DocumentInfo -> Action Document
+    readDocument readTemplateCached DocInfo{..} = do
+      need [docFilePath]
+      case docFileType of
+        YamlFile ->
+          readYaml docFilePath
+        MarkdownFile ->
+          readMarkdown docFilePath
+        TemplateFile delimiters bindings -> do
+          parsedTemplate <- readTemplateCached (docFilePath, delimiters)
+          execTemplate parsedTemplate bindings
+
     readYaml path = do
-      need [path]
       pathAbs <- liftIO $ System.makeAbsolute path
       putInfo $ "Reading YAML from " <> pathAbs
-      YamlValue <$> Yaml.decodeFileThrow path
+      Document Nothing <$> Yaml.decodeFileThrow path
 
     readMarkdown path = do
-      need [path]
       pathAbs <- liftIO $ System.makeAbsolute path
       putInfo $ "Reading Markdown from " <> pathAbs
       contents <- liftIO $ Text.readFile path
-      let parsed = MMark.parse path contents
       mmark <-
-        case parsed of
+        case MMark.parse path contents of
           Left err -> liftIO $ throwIO (MMarkException err)
           Right mmark -> return mmark
       let yaml = fromMaybe (Yaml.Object Map.empty) (MMark.projectYaml mmark)
-      let mb_val = Yaml.parseEither Yaml.parseJSON yaml
       record <-
-        case mb_val of
+        case Yaml.parseEither Yaml.parseJSON yaml of
           Left err -> liftIO $ throwIO (Yaml.YamlException err)
-          Right (Record (Concrete hashmap)) -> return hashmap
+          Right (Record hashmap) -> return hashmap
           Right _ -> liftIO $ throwIO $ NotAnObject MarkdownFile path
       let markdownOutput =
-            ( Output.toStorable
-            . Output.fromBuilder
-            . runIdentity
-            . Lucid.execHtmlT
-            . MMark.render ) mmark
-      let record' = Map.insert specialBodyField (Output markdownOutput) record
-      return $ MarkdownValue $ Record $ Concrete record'
+            ( Output.fromBuilder . runIdentity
+            . Lucid.execHtmlT . MMark.render )
+            mmark
+      return $ Document (Just markdownOutput) record
 
     readTemplate (templatePath, delimiters) = do
-      need [templatePath]
       pathAbs <- liftIO $ System.makeAbsolute templatePath
       putInfo $ "Reading template from " <> pathAbs
       input <- liftIO $ Text.readFile templatePath
-      parsedTemplate <- eitherThrow $
+      eitherThrow $
         first (ParseError . errorBundlePretty) $
         parseTemplate delimiters templatePath input
-      return $ ExecTemplate $ \templateParameters -> do
-        (bindings, output) <- (>>= eitherThrow) $
-          first (EvalError . toList) <$>
-          evalTemplate parsedTemplate templateParameters
-        let record = Map.insert specialBodyField (Output (Output.toStorable output)) bindings
-        return $ Record (Concrete record)
 
-{-# INLINE builtinRules #-}
+    execTemplate parsedTemplate templateParameters = do
+      (bindings, output) <- (>>= eitherThrow) $
+        first (EvalError . toList) <$>
+        evalTemplate parsedTemplate templateParameters
+      return $ Document (Just output) bindings
 
--- | The field we put the output of a template or the body of a markdown file
--- in.
-specialBodyField :: Text
-specialBodyField = "body"
+{-| A document loaded from some file, containing some key-value pairs (perhaps
+none) and (optionally) a document body. YAML documents, Markdown documents, and templates
+(once they have been parsed and evaluated) are all represented this way.-}
+data Document = Document
+  { documentBody :: Maybe Output
+  , documentFields :: HashMap Text Value }
+
+{-
+-- I wanted to use a GADT to represent all the different document-oriented
+-- queries, and share code, but this didn't work, because the key type – the
+-- GADT – had to be polymorphic, but Shake needs its keys to be 'Typeable',
+-- which means they must be monotypes.
+data DocumentQ a = DocQ
+  { docInfo :: DocumentInfo
+  , docQuery :: DocumentQuery a }
+
+type instance RuleResult (DocumentQ result) = result
+
+data DocumentQuery result where
+  FieldAccess :: Text -> DocumentQuery (Maybe Value)
+  ListFields :: DocumentQuery [Name]
+  GetBody :: DocumentQuery Output
+-}
 
 data FieldAccessQ = FieldAccessQ
-  { faFileType :: FileType
-  , faFilePath :: FilePath
-    -- ^ The path to a file containing key-value pairs. This is assumed to be an
-    -- absolute path.
+  { faDocInfo :: DocumentInfo
   , faField :: Text
   } deriving stock ( Generic, Show, Eq, Typeable )
     deriving anyclass ( Hashable, Binary, NFData )
 
 type instance RuleResult FieldAccessQ = Maybe Value
 
--- | This newtype exists solely to help me keep the order of arguments in
--- 'fieldAccessRuleRun' straight.
-newtype YamlValue = YamlValue { fromYaml :: Value }
--- | See 'YamlValue'.
-newtype MarkdownValue = MarkdownValue { fromMarkdown :: Value }
--- | See 'YamlValue'. Also, note that this is essentially equivalent to
--- '[Statement]', i.e. it is the result of parsing a template — we've just
--- partially applied @'traverse' 'evalStatement'@ or whatever. (I forget why I
--- did it this way — just for symmetry with 'readMarkdownCached' etc.?)
-newtype ExecTemplate = ExecTemplate (Bindings -> Action Value)
-
 fieldAccessRuleRun ::
-  (FilePath -> Action YamlValue) ->
-  (FilePath -> Action MarkdownValue) ->
-  ((FilePath, Delimiters) -> Action ExecTemplate) ->
+  (DocumentInfo -> Action Document) ->
   FieldAccessQ ->
   Maybe ByteString ->
   RunMode ->
   Action (RunResult (Maybe Value))
-fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored mode = do
-  mb_record <-
-    case faFileType of
-      YamlFile -> fromYaml <$> getYaml faFilePath
-      MarkdownFile -> fromMarkdown <$> getMarkdown faFilePath
-      TemplateFile delimiters bindings -> do
-        ExecTemplate execTemplate <- getTemplate (faFilePath, delimiters)
-        execTemplate bindings
-  val <-
-    case mb_record of
-      Record (Concrete hashMap) ->
-        return $ Map.lookup faField hashMap
-      _ ->
-        liftIO $ throwIO $ NotAnObject faFileType faFilePath
+fieldAccessRuleRun getDocument FieldAccessQ{..} mb_stored mode = do
+  Document{ documentFields } <- getDocument faDocInfo
+  let val = Map.lookup faField documentFields
   case mb_stored of
     Nothing -> do
-      putVerbose (show fa <> ": first run")
-      return $ RunResult
-        ChangedRecomputeDiff
-        (toStrict (encode (hash val)))
-        val
+      let encoded = toStrict (encode (hash val))
+      return $ RunResult ChangedRecomputeDiff encoded val
     Just stored -> do
       let previous_hash = decode (toLazy stored)
       let (new_hash, did_change) =
@@ -219,37 +209,23 @@ fieldAccessRuleRun getYaml getMarkdown getTemplate fa@FieldAccessQ{..} mb_stored
                       if new_hash == previous_hash
                         then ChangedRecomputeSame else ChangedRecomputeDiff
                 in (hash val, changed)
-      putVerbose (show fa <> ": " <> show did_change <> " " <> show new_hash)
-      case fa of
-        FieldAccessQ (TemplateFile _ _) path field | field == specialBodyField ->
-          when (did_change == ChangedNothing) $ do
-            pathAbs <- liftIO $ System.makeAbsolute path
-            putInfo $ "Template body of" <> pathAbs <> " is unchanged"
-        _ -> pure ()
-      return $ RunResult
-        did_change
-        (toStrict (encode new_hash))
-        val
+      let encoded = toStrict (encode new_hash)
+      return $ RunResult did_change encoded val
 
 {-# INLINE fieldAccessRuleRun #-}
 
-data FieldListQ = FieldListQ
-  { flFileType :: FileType
-  , flFilePath :: FilePath
-  } deriving stock ( Generic, Show, Eq, Typeable )
-    deriving anyclass ( Hashable, Binary, NFData )
+newtype FieldListQ = FieldListQ { flDocInfo :: DocumentInfo}
+  deriving newtype ( Show, Eq, Binary, Hashable, NFData )
 
 type instance RuleResult FieldListQ = [Name]
 
 fieldListRuleRun ::
-  (FilePath -> Action YamlValue) ->
-  (FilePath -> Action MarkdownValue) ->
-  ((FilePath, Delimiters) -> Action ExecTemplate) ->
+  (DocumentInfo -> Action Document) ->
   FieldListQ ->
   Maybe ByteString ->
   RunMode ->
   Action (RunResult [Name])
-fieldListRuleRun getYaml getMarkdown getTemplate FieldListQ{..} mb_stored mode = do
+fieldListRuleRun getDocument FieldListQ{..} mb_stored mode = do
   case mb_stored of
     Nothing -> do
       fields <- rebuild
@@ -266,28 +242,33 @@ fieldListRuleRun getYaml getMarkdown getTemplate FieldListQ{..} mb_stored mode =
              else RunResult ChangedRecomputeDiff (toStrict (encode fields)) fields
  where
   rebuild = do
-    mb_record <-
-      case flFileType of
-        YamlFile -> fromYaml <$> getYaml flFilePath
-        MarkdownFile -> fromMarkdown <$> getMarkdown flFilePath
-        TemplateFile delimiters bindings -> do
-          ExecTemplate execTemplate <- getTemplate (flFilePath, delimiters)
-          execTemplate bindings
-    let hasBodyField =
-          case flFileType of
-            YamlFile -> False
-            MarkdownFile -> True
-            TemplateFile {} -> True
-    case mb_record of
-      Record (Concrete hashMap) -> do
-        let keys = coerce (Map.keys hashMap)
-        return $
-          if hasBodyField
-             then Name specialBodyField : keys
-             else keys
-      _ ->
-        liftIO $ throwIO $ NotAnObject flFileType flFilePath
+    Document{ documentFields } <- getDocument flDocInfo
+    -- I don't know that HashMap.keys returns the keys in any particular order
+    -- ... let us sort them, to guard against potential spurious rebuilds.
+    return $ coerce (sort (Map.keys documentFields))
 
+newtype GetBodyQ = GetBodyQ { gbDocInfo :: DocumentInfo }
+  deriving newtype ( Show, Eq, Binary, Hashable, NFData )
+
+type instance RuleResult GetBodyQ = Output
+
+getBodyRuleRun ::
+  (DocumentInfo -> Action Document) ->
+  GetBodyQ ->
+  Maybe ByteString ->
+  RunMode ->
+  Action (RunResult Output)
+getBodyRuleRun getDocument GetBodyQ{..} _mb_stored mode = do
+  Document{ documentBody } <- getDocument gbDocInfo
+  case documentBody of
+    Nothing ->
+      error "not a document" -- TODO throw exception
+    Just body -> do
+      let did_change =
+            case mode of
+              RunDependenciesSame -> ChangedNothing
+              RunDependenciesChanged -> ChangedRecomputeDiff -- conservative
+      return $ RunResult did_change mempty body
 
 data NotAnObject = NotAnObject FileType FilePath
   deriving stock ( Show, Typeable )
