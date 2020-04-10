@@ -211,7 +211,7 @@ letP sp = do
 -- | Parse an 'export' statement with some bindings – puns work too.
 exportP :: SourcePos -> Parser PartialStatement
 exportP sp = do
-  keywordP "export"
+  keywordP "provide"
   StandaloneS . ExportS sp <$> sepEndBy recordBindingP comma
 
 includeBodyP :: SourcePos -> Parser PartialStatement
@@ -255,7 +255,7 @@ recordBindingP = do
       Nothing  -> FieldPun name
 
 keywords :: HashSet Text
-keywords = Set.fromList ["let", "in", "export", "optionally", "for", "include-body"]
+keywords = Set.fromList ["let", "in", "provide", "optionally", "for", "include-body"]
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space
