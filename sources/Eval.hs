@@ -119,6 +119,7 @@ knownFunctions =
   , ("list-directory", Action <$> listDirectoryFunction)
   , (Name loadYamlFunctionName, Action <$> loadYamlFunction)
   , (Name loadMarkdownFunctionName, Action <$> loadMarkdownFunction)
+  , (Name loadTemplateFunctionName, Action <$> loadTemplateFunction)
   ]
 
 appendFunction =
@@ -133,6 +134,9 @@ loadYamlFunction =
 
 loadMarkdownFunction =
     LoadMarkdown . Text.unpack <$> argument TextT
+
+loadTemplateFunction =
+    liftA2 LoadTemplate (Text.unpack <$> argument TextT) (argument RecordT <|> pure Map.empty)
 
 data FunctionResult
   = Pure Value
