@@ -1,7 +1,7 @@
 module Eval.Statement
   ( StmtT, runStmtT
   , addOutput, addBinding, addBindings
-  , liftExprT
+  , liftExprT, stmtProblem
   )
 where
 
@@ -23,7 +23,7 @@ import Syntax
 import Value
 
 newtype StmtT m a = StmtT
-  { unStmtT :: ReaderT Env (WriterT ResultAccum (ValidationT (DList Problem) m)) a }
+  { unStmtT :: ReaderT Env (WriterT ResultAccum (ValidationT (DList StmtProblem) m)) a }
   deriving newtype (Functor, Applicative, Alternative, Monad)
 
 -- | The environment for evaluation of a template statement.
@@ -51,7 +51,7 @@ instance Semigroup ResultAccum where
 instance Monoid ResultAccum where
   mempty = Result Bindings.empty mempty
 
-runStmtT :: Monad m => StmtT m () -> FilePath -> Delimiters -> Bindings -> m (Either (DList Problem) (Bindings, Output))
+runStmtT :: Monad m => StmtT m () -> FilePath -> Delimiters -> Bindings -> m (Either (DList StmtProblem) (Bindings, Output))
 runStmtT stm path delimiters bindings =
   let env = Env bindings path delimiters
       massage ((), Result { tplBindings, tplOutput }) =
@@ -78,8 +78,12 @@ addBindings :: Monad m => [(Name, Value)] -> StmtT m ()
 addBindings binds =
   StmtT (lift (tell (Result (Bindings.fromList (coerce binds)) mempty)))
 
-liftExprT :: DependencyMonad m => ExprT m a -> StmtT m a
-liftExprT expr =
+stmtProblem :: Monad m => StmtProblem -> StmtT m a
+stmtProblem prob =
+  StmtT (lift (lift (failure (DList.singleton prob))))
+
+liftExprT :: DependencyMonad m => (ExprProblemInContext -> StmtProblem) -> ExprT m a -> StmtT m a
+liftExprT wrap expr =
   StmtT $ ReaderT $ \env ->
     let mE = runExprT expr
               (takeDirectory (envTemplatePath env))
@@ -87,7 +91,7 @@ liftExprT expr =
               (envLocalBindings env)
         mD = fmap
                ( second (,mempty)
-               . first DList.singleton)
+               . first (DList.singleton . wrap))
                mE
         vD = ValidationT mD
         wD = WriterT vD

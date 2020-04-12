@@ -12,7 +12,6 @@ import Test.Tasty
 import Test.Tasty.SmallCheck
 import Text.Megaparsec (errorBundlePretty)
 
-import Display
 import Parse
 import Syntax
 
@@ -20,7 +19,7 @@ import Syntax
 renderExpr =
   renderStrict
   . layoutPretty (LayoutOptions (AvailablePerLine 80 0.75))
-  . display
+  . displayExpr
 
 parseExpr =
   runParser exprP defaultDelimiters "tests/Parsing.hs"
@@ -46,9 +45,6 @@ instance Serial m a => Serial m (Vec.Vector a) where
     cons3 (\a b c -> Vec.fromList [a, b, c]) \/
     cons4 (\a b c d -> Vec.fromList [a, b, c, d])
 
-instance Serial m a => Serial m (Id a) where
-  series = newtypeCons Id
-
 instance Monad m => Serial m Name where
   -- We never parse an empty Name, so make sure we never generate one!
   series = newtypeCons (Name . Text.pack . getNonEmpty)
@@ -61,9 +57,10 @@ instance Monad m => Serial m Literal
 instance Monad m => Serial m Scientific where
   series = cons2 scientific
 
--- Quantified constraints, wahoo!
-instance (Monad m, (forall a. Serial m a => Serial m (f a))) => Serial m (ExprH f)
-instance (Monad m, (forall a. Serial m a => Serial m (f a))) => Serial m (RecordBinding f)
+instance (Monad m, Serial m a) => Serial m (ExprF a)
+instance (Monad m, Serial m a) => Serial m (RecordBinding a)
+instance (Monad m, forall a. Serial m a => Serial m (f a)) => Serial m (Rec f) where
+  series = newtypeCons Rec
 
 instance Monad m => Serial m Delimiters where
   series = cons2 Delimiters
