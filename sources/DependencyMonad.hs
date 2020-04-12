@@ -57,8 +57,10 @@ instance DependencyMonad Action where
   getBody ft path = apply1 (GetBodyQ (DocInfo ft path))
 
 run :: Options -> IO ()
-run options =
-  shake (toShakeOptions options) $ rules options
+run options = do
+  let runRules = shake (toShakeOptions options) $ rules options
+  runRules `catch` \ShakeException{..} ->
+    System.IO.putStrLn "Oh no!!!!"
 
 rules :: Options -> Rules ()
 rules options@Options{..} = do
