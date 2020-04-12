@@ -34,7 +34,7 @@ An example template:
 <html>
   <head><title>A cool webpage</title></head>
   <body>
-    {{ let config = load-yaml "config.yaml" in }}
+    {{ let config = load-yaml("config.yaml") in }}
     <p>Good evening! My name is {{ config.my-name }}.</p>
     {{ end }}
     <h1>Some vegetables I like:</h1>
@@ -59,8 +59,8 @@ not think it will be surprising.
 
 - `load-yaml` takes a string argument, and, interpreting it as a file
   path, loads it as a YAML file which is assumed to contain key-value
-  pairs. The result is a *record*, such that you can write `(load-yaml
-  "config.yaml").foo` to ask for the value of the key `foo` in
+  pairs. The result is a *record*, such that you can write
+  `load-yaml("config.yaml").foo` to ask for the value of the key `foo` in
   `config.yaml`. Note that the path is interpreted as relative to the
   directory that the template file is in.
 
