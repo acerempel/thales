@@ -17,13 +17,13 @@ import {-# SOURCE #-} DependencyMonad
 import Bindings
 import Eval.Expr
 import Eval.Statement
-import Function
+import Eval.Function
 import KnownFunction
 import List (List)
 import qualified List
 import Output
 import Parse
-import Problem
+import Eval.Problem
 import Syntax
 import Value
 

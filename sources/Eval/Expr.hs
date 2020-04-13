@@ -18,7 +18,7 @@ import Data.DList (DList)
 import qualified Data.HashMap.Strict as Map
 
 import Bindings
-import Problem
+import Eval.Problem
 import Syntax
 import Value
 

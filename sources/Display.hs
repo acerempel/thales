@@ -21,7 +21,7 @@ import qualified Data.Text as Text
 import KnownFunction
 import qualified List
 import List (List)
-import Problem
+import Eval.Problem
 import Syntax
 import Value
 
