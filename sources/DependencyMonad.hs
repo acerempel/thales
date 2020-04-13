@@ -120,6 +120,7 @@ builtinRules = do
     readYaml path = do
       pathAbs <- liftIO $ System.makeAbsolute path
       putInfo $ "Reading YAML from " <> pathAbs
+      -- TODO wrap this in our own exception type
       Document Nothing <$> Yaml.decodeFileThrow path
 
     readMarkdown path = do
