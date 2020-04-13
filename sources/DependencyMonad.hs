@@ -12,7 +12,7 @@ import qualified Data.HashMap.Strict as Map
 import Data.Maybe (fromJust)
 import qualified Data.Text.IO as Text
 import Data.Text.Prettyprint.Doc
-import Data.Text.Prettyprint.Doc.Render.String
+import Data.Text.Prettyprint.Doc.Render.Terminal
 import qualified Data.Yaml as Yaml
 import Development.Shake
 import Development.Shake.Classes hiding (show)
@@ -22,7 +22,6 @@ import qualified System.Directory as System
 import System.IO hiding (print)
 import Text.Megaparsec
 import Text.MMark as MMark
-import qualified Text.Show as Sh
 
 import Configuration
 import Display
@@ -30,7 +29,6 @@ import Eval
 import Output (Output)
 import qualified Output
 import Parse
-import Problem
 import Syntax
 import Value
 
@@ -59,8 +57,11 @@ instance DependencyMonad Action where
 run :: Options -> IO ()
 run options = do
   let runRules = shake (toShakeOptions options) $ rules options
-  runRules `catch` \ShakeException{..} ->
-    System.IO.putStrLn "Oh no!!!!"
+  runRules `catch` \exc@ShakeException{} -> do
+    let layout = LayoutOptions (AvailablePerLine 80 0.7)
+        doc = fuse Shallow $ display exc
+        docStream = reAnnotateS markupToAnsi $ layoutPretty layout doc
+    renderIO stderr docStream
 
 rules :: Options -> Rules ()
 rules options@Options{..} = do
@@ -272,36 +273,5 @@ getBodyRuleRun getDocument GetBodyQ{..} _mb_stored mode = do
               RunDependenciesChanged -> ChangedRecomputeDiff -- conservative
       return $ RunResult did_change mempty body
 
-data NotAnObject = NotAnObject FileType FilePath
-  deriving stock ( Show, Typeable )
-
-instance Exception NotAnObject
-
-newtype MMarkException = MMarkException (ParseErrorBundle Text MMarkErr)
-  deriving stock ( Show, Typeable )
-
-instance Exception MMarkException where
-  displayException (MMarkException err) =
-    errorBundlePretty err
-
 eitherThrow :: (MonadIO m, Exception e) => Either e a -> m a
 eitherThrow = either (liftIO . throwIO) pure
-
-newtype TemplateParseError =
-  ParseError String
-  deriving newtype Show
-
-instance Exception TemplateParseError where
-  displayException (ParseError err) = err
-
-newtype TemplateEvalError = EvalError [Problem]
-
-instance Sh.Show TemplateEvalError where
-  show _ = "problems" -- TODO
-
-instance Exception TemplateEvalError where
-  displayException (EvalError problems) =
-    renderString
-      (layoutPretty
-        (LayoutOptions (AvailablePerLine 80 0.7))
-        (vsep (punctuate mempty (map display problems))))

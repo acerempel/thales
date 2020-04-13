@@ -7,16 +7,23 @@ template abstract syntax trees and their component types.
 {-# OPTIONS_GHC -Wno-missing-signatures -Wmissing-exported-signatures #-}
 module Display
   ( Display(..), Display1(..), DisplayH(..)
-  , Markup(..)
+  , Markup(..), markupToAnsi
+  , NotAnObject(..), TemplateParseError(..)
+  , TemplateEvalError(..), MMarkException(..)
   )
 where
 
 import Prelude hiding (group)
 
 import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.Terminal
 import qualified Data.HashMap.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Text as Text
+import Development.Shake
+import Text.Megaparsec (ParseErrorBundle, errorBundlePretty)
+import Text.MMark (MMarkErr)
+import qualified Text.Show as Sh
 
 import KnownFunction
 import qualified List
@@ -26,6 +33,11 @@ import Syntax
 import Value
 
 data Markup = Problematic | Heading
+
+markupToAnsi :: Markup -> AnsiStyle
+markupToAnsi = \case
+  Problematic -> color Magenta <> bold
+  Heading -> bold
 
 class Display a where
   -- | Display something.
@@ -96,13 +108,10 @@ instance Display Name where
 
 instance Display Problem where
   display Problem{ problemWhere, problemDescription } =
-    vsep
-      [ "Zut alors!"
-      , indent 2 $
+      nest 2 $
         vsep
-          [ display problemDescription
+          [ "•" <+> display problemDescription
           , nest 2 $ "In this expression:" <> line <> liftedDisplay problemWhere ]
-      ]
 
 instance Display1 ProblemWhere where
   liftedDisplay = \case
@@ -128,8 +137,7 @@ instance Display ProblemDescription where
         <> fillSep (punctuate comma (map display namesInScope)))
     ProblemUnknownFunction name knownFuncs ->
       errorMessage ("Unknown function:" <+> display name) $
-        "‘" <> display name <> "’" <+> "is not a known function!" <> softline
-        <> nest 2 ("These functions are available:" <> softline
+        nest 2 ("These functions are available:" <> line
         <> fillSep (punctuate comma (map display knownFuncs)))
     ProblemFieldNotFound field others ->
       errorMessage ("Field not found: " <> display field) $
@@ -165,9 +173,14 @@ instance Display ArgumentTypeMismatches where
         nest 2 $ "The" <+> ordinal n <+> "argument," <> softline
           <> nest 2 ("namely" <> softline <> display val <> comma) <> softline
           <> "is a" <+> display (valueType val) <> comma <> softline
-          <> nest 2
-            ("but was expected to have one of these types:" <> softline
-             <> sep (punctuate comma (map display (toList types))))
+          <> nest 2 (expectedTypes types)
+      expectedTypes types =
+        case toList types of
+          [] ->
+            error "no types!" -- TODO use NonEmpty
+          ty1:tys ->
+            "but was expected to be a" <+> display ty1
+              <> foldMap ((("," <> softline <> "or a ") <>) . display) tys
       ordinal n = case n of
         1 -> "1st"; 2 -> "2nd"; 3 -> "3rd"
         4 -> "4th"; 5 -> "5th"; 6 -> "6th"
@@ -220,3 +233,52 @@ displayList disp lst =
 displayRecord :: Display1 f => [RecordBinding f] -> Doc Markup
 displayRecord binds =
   nest 2 $ lbrace <+> (align $ sep $ punctuate comma (map display binds)) <+> rbrace
+
+instance Display ShakeException where
+  display ShakeException{..} =
+      vsep (map fineagle shakeExceptionStack) <> line <> inner
+    where
+      inner
+        | Just (EvalError problems) <- fromException shakeExceptionInner
+          = vsep (punctuate line (map display problems))
+        | Just (ParseError str) <- fromException shakeExceptionInner
+          = pretty str <> line
+        | Just (NotAnObject _ft _fp) <- fromException shakeExceptionInner
+          = "not an object!"
+        | otherwise
+          = pretty (displayException shakeExceptionInner) <> line
+      fineagle str =
+        case str of
+          '*':' ':rest ->
+            pretty '•' <+> pretty rest
+          ' ':' ':rest ->
+            indent 2 (pretty rest)
+          _ ->
+            pretty str
+
+data NotAnObject = NotAnObject FileType FilePath
+  deriving stock ( Show, Typeable )
+
+instance Exception NotAnObject
+
+newtype MMarkException = MMarkException (ParseErrorBundle Text MMarkErr)
+  deriving stock ( Show, Typeable )
+
+instance Exception MMarkException where
+  displayException (MMarkException err) =
+    errorBundlePretty err
+
+newtype TemplateParseError =
+  ParseError String
+  deriving newtype Show
+
+instance Exception TemplateParseError where
+  displayException (ParseError err) = err
+
+newtype TemplateEvalError = EvalError [Problem]
+
+instance Sh.Show TemplateEvalError where
+  show _ = "problems" -- TODO
+
+instance Exception TemplateEvalError
+
