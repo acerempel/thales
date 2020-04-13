@@ -6,11 +6,6 @@ template abstract syntax trees and their component types.
 -}
 {-# OPTIONS_GHC -Wno-missing-signatures -Wmissing-exported-signatures #-}
 module Display
-  ( Display(..), Display1(..), DisplayH(..)
-  , Markup(..), markupToAnsi
-  , NotAnObject(..), TemplateParseError(..)
-  , TemplateEvalError(..), MMarkException(..)
-  )
 where
 
 import Prelude hiding (group)
@@ -31,80 +26,6 @@ import List (List)
 import Eval.Problem
 import Syntax
 import Value
-
-data Markup = Problematic | Heading
-
-markupToAnsi :: Markup -> AnsiStyle
-markupToAnsi = \case
-  Problematic -> color Magenta <> bold
-  Heading -> bold
-
-class Display a where
-  -- | Display something.
-  display :: a -> Doc Markup
-  default display :: (a ~ h f, DisplayH h, Display1 f) => a -> Doc Markup
-  display = hoistDisplay
-
-instance Display1 f => Display (ExprH f)
-instance Display1 f => Display (RecordBinding f)
-
-instance Display a => Display1 (Const a) where
-  liftedDisplay = display . getConst
-
--- | For type constructors that can be displayed whenever their type parameter
--- can be displayed. Cf. 'Data.Functor.Classes.Show1' and similar.
-class Display1 (f :: Type -> Type) where
-  liftedDisplay :: Display a => f a -> Doc Markup
-
--- | For type constructors which can be displayed wherever their type parameter
--- is 'Display1'. The ‘H’ is for ‘higher-order’. It's needed for the sake of
--- displaying an 'ExprH', which has a higher-kinded type parameter.
---
--- I wrote this before I was using @-XQuantifiedConstraints@ – with that
--- language extension, this class would not be needed.
-class DisplayH (h :: (Type -> Type) -> Type) where
-  hoistDisplay :: Display1 f => h f -> Doc Markup
-
-instance DisplayH ExprH where
-  hoistDisplay = \case
-    LiteralE lit ->
-      display lit
-    ArrayE vec ->
-      displayList liftedDisplay vec
-    FieldAccessE n a ->
-      group $ nest 2 $ liftedDisplay a <> softline' <> dot <> display n
-    NameE n ->
-      display n
-    RecordE binds ->
-      displayRecord binds
-    FunctionCallE name args ->
-      nest 2 $ cat
-          [ display name
-          , parens $
-            align . sep . punctuate comma $
-            toList . List.map liftedDisplay $ args
-          ]
-
-instance DisplayH RecordBinding where
-  hoistDisplay = \case
-    FieldPun n ->
-      display n
-    FieldAssignment n expr ->
-      nest 2 $ display n <+> equals <+> softline <+> liftedDisplay expr
-
-instance Display1 Id where
-  liftedDisplay (Id a) =
-    display a
-
-instance Display Literal where
-  display = \case
-    NumberL n -> unsafeViaShow n
-    StringL s -> viaShow s
-    BooleanL b -> pretty b
-
-instance Display Name where
-  display (Name net) =
-    pretty net
 
 instance Display Problem where
   display Problem{ problemWhere, problemDescription } =
@@ -191,49 +112,6 @@ instance Display ArgumentTypeMismatches where
 errorMessage heading body =
   nest 2 $ annotate Heading heading <> line <> body
 
-instance Display Value where
-  display = \case
-    Number n -> unsafeViaShow n
-    String s -> viaShow s
-    Boolean b -> pretty b
-    Array a -> displayList display a
-    Record r ->
-      let pairToBinding (n,v) = FieldAssignment (Name n) (Const v)
-          binds = map pairToBinding $ Map.toList r
-      in displayRecord binds
-    LoadedDoc (DocInfo ft fp) ->
-      display $
-        case ft of
-          YamlFile ->
-            -- TODO FilePath Value
-            FunctionCallE (Name loadYamlFunctionName) (List.fromList [Const (String (Text.pack fp))])
-          MarkdownFile ->
-            FunctionCallE (Name loadMarkdownFunctionName) (List.fromList [Const (String (Text.pack fp))])
-          TemplateFile _delims binds ->
-            FunctionCallE (Name loadTemplateFunctionName) (List.fromList [Const (String (Text.pack fp)), Const (Record binds)])
-
-instance Display (ValueType a) where
-  display = \case
-    NumberT -> "number"
-    TextT -> "text"
-    BooleanT -> "boolean"
-    ArrayT -> "array"
-    RecordT -> "record"
-    DocumentT -> "document"
-
-instance Display SomeValueType where
-  display (SomeType t) = display t
-
-displayList :: (a -> Doc Markup) -> List a -> Doc Markup
-displayList disp lst =
-  brackets $
-    align . sep . punctuate comma $
-    toList . List.map disp $ lst
-
-displayRecord :: Display1 f => [RecordBinding f] -> Doc Markup
-displayRecord binds =
-  nest 2 $ lbrace <+> (align $ sep $ punctuate comma (map display binds)) <+> rbrace
-
 instance Display ShakeException where
   display ShakeException{..} =
       vsep (map fineagle shakeExceptionStack) <> line <> inner
@@ -255,30 +133,3 @@ instance Display ShakeException where
             indent 2 (pretty rest)
           _ ->
             pretty str
-
-data NotAnObject = NotAnObject FileType FilePath
-  deriving stock ( Show, Typeable )
-
-instance Exception NotAnObject
-
-newtype MMarkException = MMarkException (ParseErrorBundle Text MMarkErr)
-  deriving stock ( Show, Typeable )
-
-instance Exception MMarkException where
-  displayException (MMarkException err) =
-    errorBundlePretty err
-
-newtype TemplateParseError =
-  ParseError String
-  deriving newtype Show
-
-instance Exception TemplateParseError where
-  displayException (ParseError err) = err
-
-newtype TemplateEvalError = EvalError [Problem]
-
-instance Sh.Show TemplateEvalError where
-  show _ = "problems" -- TODO
-
-instance Exception TemplateEvalError
-

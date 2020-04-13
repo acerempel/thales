@@ -8,21 +8,26 @@ see the "Eval.Expr" module for how the parameter to that type is used.
 module Syntax
   ( Name(..)
   , Statement(..)
-  , ExprH(..) , Expr, Id(..)
+  , ExprF(..) , Expr, Rec(..)
   , RecordBinding(..)
   , Literal(..)
   , SourcePos(..)
   , Delimiters(..), defaultDelimiters
+  , displayExpr, displayExprF, displayRecordBinding
+  , displayList, displayRecord, displayLiteral
   )
 where
 
-import Data.Functor.Classes
+import Prelude hiding (group)
+
 import Data.Scientific
+import Data.Text.Prettyprint.Doc
 import Development.Shake.Classes
 import Text.Megaparsec
 
 import NonEmptyText
 import List (List)
+import qualified List
 
 -- | A name, to which a value may be bound. This is the sort of thing that is
 -- usually called a variable, except that these names are strictly immutable –
@@ -56,7 +61,7 @@ data Statement
   | LetS SourcePos [(Name, Expr)] [Statement]
   -- | Evaluate the given bindings and provide them as part of the result of
   -- executing the template, as an associative array.
-  | ExportS SourcePos [RecordBinding Id]
+  | ExportS SourcePos [RecordBinding (Rec ExprF)]
   -- | Insert the body of a document from another file – e.g., a template, a
   -- markdown file – as this point. The 'Expr' represents the document – it must be a 'LoadedDoc'.
   | IncludeBodyS SourcePos Expr
@@ -68,33 +73,35 @@ data Statement
 -- Type@. It is used to wrap recursive uses of 'ExprH', with the purpose of
 -- allowing flexibility in representing different states of the syntax tree. 
 -- See "Eval.Expr" and "Eval" for an example of its use.
-data ExprH f
+data ExprF a
   -- | A literal thing of data, like @10.2@.
   = LiteralE Literal
   -- | An array of expressions, like @[1, "seven", [2]]@.
-  | ArrayE (List (f (ExprH f)))
-  | RecordE [RecordBinding f]
+  | ArrayE (List a)
+  | RecordE [RecordBinding a]
   -- | A field access, like @post.description@.
-  | FieldAccessE Name (f (ExprH f))
+  | FieldAccessE Name a
   -- | A bare name, like @potato@.
   | NameE Name
-  | FunctionCallE Name (List (f (ExprH f)))
-  deriving ( Generic )
-
-deriving instance (forall a. Show a => Show (f a)) => Show (ExprH f)
-deriving instance (forall a. Eq a => Eq (f a)) => Eq (ExprH f)
+  | FunctionCallE Name [a]
+  deriving ( Generic, Eq, Show )
 
 -- | The sort of binding that may occur in a record literal – also used in the
 -- @export@ statement.
-data RecordBinding f
+data RecordBinding a
   -- | E.g. @{ thingy }@ – short for @{ thingy = thingy }@.
   = FieldPun Name
   -- | E.g. @{ foo = [1, 2, 3] }@.
-  | FieldAssignment Name (f (ExprH f))
-  deriving ( Generic )
+  | FieldAssignment Name a
+  deriving ( Generic, Eq, Show )
 
-deriving instance (forall a. Show a => Show (f a)) => Show (RecordBinding f)
-deriving instance (forall a. Eq a => Eq (f a)) => Eq (RecordBinding f)
+displayRecordBinding :: (a -> Doc any) -> RecordBinding a -> Doc any
+displayRecordBinding displayInner recBind =
+  case recBind of
+    FieldPun n ->
+      display n
+    FieldAssignment n expr ->
+      nest 2 $ display n <+> equals <+> softline <+> displayInner expr
 
 {-| The strings that delimit bits of code, or directives, or whatever
 you want to call them, in a template. E.g. @Delimiters "{{" "}}"@,
@@ -110,25 +117,36 @@ use (and Jinja2 and Liquid, for expression splices). -}
 defaultDelimiters :: Delimiters
 defaultDelimiters = Delimiters "{{" "}}"
 
--- | 'Id' is short for "Identity". This is like
--- 'Data.Functor.Identity.Identity', but I redefined it here for some reason,
--- possibly for the 'Show' instance, or possibly because the name is shorter.
-newtype Id a = Id
-  { getId :: a }
-  deriving newtype ( Show, Eq )
-
--- | Note that the "Id" constructor is /not/ shown!
-instance Show1 Id where
-  liftShowsPrec showsPrecA _showsListA prec (Id a) =
-    showsPrecA prec a
-
-instance Eq1 Id where
-  liftEq eqA (Id a) (Id b) =
-    eqA a b
-
 -- | An 'ExprH Id', i.e., an 'Expr' whose constructors contain no extra
 -- information.
-type Expr = ExprH Id
+type Expr = ExprF (Rec ExprF)
+
+newtype Rec f = Rec { unRec :: f (Rec f) }
+
+deriving instance (forall a. Show a => Show (f a)) => Show (Rec f)
+deriving instance (forall a. Eq a => Eq (f a)) => Eq (Rec f)
+
+displayExprF :: (a -> Doc any) -> ExprF a -> Doc any
+displayExprF displayInner expr =
+  case expr of
+    LiteralE lit ->
+      displayLiteral lit
+    ArrayE vec ->
+      displayList displayInner vec
+    FieldAccessE n a ->
+      group $ nest 2 $ displayInner a <> softline' <> dot <> display n
+    NameE (Name n) ->
+      pretty n
+    RecordE binds ->
+      displayRecord displayInner binds
+    FunctionCallE name args ->
+      nest 2 $
+        display name <> parens
+          ( align . sep . punctuate comma
+          $ map displayInner args)
+
+displayExpr :: Expr -> Doc any
+displayExpr = displayExprF (displayExpr . unRec)
 
 -- | A piece of literal scalar data -- cannot contain other expressions, simple,
 -- atomic.
@@ -137,3 +155,23 @@ data Literal
   | StringL Text
   | BooleanL Bool
   deriving ( Show, Eq, Generic )
+
+displayLiteral :: Literal -> Doc anything
+displayLiteral = \case
+  NumberL n -> unsafeViaShow n
+  StringL s -> viaShow s
+  BooleanL b -> pretty b
+
+displayList :: (a -> Doc any) -> List a -> Doc any
+displayList disp lst =
+  brackets $
+    align . sep . punctuate comma $
+    toList . List.map disp $ lst
+
+displayRecord :: (a -> Doc any) -> [RecordBinding a] -> Doc any
+displayRecord displayInner binds =
+  nest 2 $
+    lbrace
+    <+> (align $ sep $ punctuate comma $
+      map (displayRecordBinding displayInner) binds)
+    <+> rbrace

@@ -1,16 +1,30 @@
 module Eval.Problem
-  ( Problem(..), ProblemWhere(..), ProblemDescription(..)
+  ( ExprProblemInContext(..)
+  , ExprProblem(..), StmtProblem(..)
+  , FunctionCallProblem(..), FieldAccessProblem(..)
+  , RecordBindingProblem(..)
+  , ForProblem(..), IncludeBodyProblem(..)
   , TypeMismatch(..), ArgumentTypeMismatches(..)
   , WrongNumberOfArguments(..), InsufficientArguments(..)
-  , problemAddContext, problemSetSource, AddProblemContext
+  , AddProblemContext
+  , Markup(..), markupToAnsi -- TODO move to Problem
   )
 where
 
 import Data.DList (DList)
 import qualified Data.IntMap.Strict as IntMap
+import Data.Text.Prettyprint.Doc.Render.Terminal
 
+import List (List)
 import Syntax
 import Value
+
+data Markup = Problematic | Heading
+
+markupToAnsi :: Markup -> AnsiStyle
+markupToAnsi = \case
+  Problematic -> color Magenta <> bold
+  Heading -> bold
 
 data TypeMismatch = TypeMismatch Value (DList SomeValueType)
   deriving ( Eq )
@@ -31,42 +45,48 @@ instance Semigroup ArgumentTypeMismatches where
 instance Monoid ArgumentTypeMismatches where
   mempty = ArgumentTypeMismatches IntMap.empty
 
-data Problem = Problem
-  { problemWhere :: ProblemWhere (ExprH ProblemWhere)
-  , problemDescription :: ProblemDescription }
-  deriving ( Eq )
-
 type AddProblemContext =
-  ProblemWhere (ExprH ProblemWhere) -> ExprH ProblemWhere
+  ExprProblemInContext -> ExprProblemInContext
 
-problemAddContext :: AddProblemContext -> Problem -> Problem
-problemAddContext add Problem{..} =
-  Problem{problemWhere = ProblemWithin (add problemWhere), ..}
+data ExprProblemInContext
+  = Here ExprProblem
+  | OK Expr
+  | Within (ExprF ExprProblemInContext)
 
-problemSetSource :: Expr -> Problem -> Problem
-problemSetSource expr Problem{..} =
-  Problem{problemWhere =
-    case problemWhere of
-      Nowhere -> ProblemHere expr
-      _ -> problemWhere
-  , .. }
+data StmtProblem
+  = ExprProblem SourcePos ExprProblemInContext
+  | ForProblem SourcePos ForProblem
+  | IncludeBodyProblem SourcePos IncludeBodyProblem
+  | OptionallyExprProblem SourcePos (Maybe Name) ExprProblemInContext
+  | ExportProblem SourcePos [Either (RecordBinding Expr) RecordBindingProblem]
+  | LetProblem SourcePos [(Name, ExprProblemInContext)]
 
-data ProblemWhere a
-  = ProblemHere Expr
-  | ProblemWithin a
-  | NoProblem Expr
-  | Nowhere
-  deriving ( Show, Eq )
+data ForProblem
+  = ForNotAnArray Name Expr Value
+  | ForExprProblem Name ExprProblemInContext
 
-data ProblemDescription
-  = ProblemTypeMismatch TypeMismatch
-  | ProblemWrongNumberOfArguments WrongNumberOfArguments
-  | ProblemInsufficientArguments InsufficientArguments
-  | ProblemArgumentTypeMismatches ArgumentTypeMismatches
-  | ProblemNameNotFound Name [Name]
-  | ProblemUnknownFunction Name [Name]
-  | ProblemFieldNotFound Name [Name]
-  deriving ( Eq )
+data IncludeBodyProblem
+  = IncludeBodyNotADocument Expr Value
+  | IncludeBodyExprProblem ExprProblemInContext
+
+data ExprProblem
+  = FunctionCallProblem Name (List Expr) FunctionCallProblem
+  | FieldAccessProblem Name Expr FieldAccessProblem
+  | RecordLiteralProblem [Either (RecordBinding Expr) RecordBindingProblem]
+  | NameNotFound Name
+
+data FunctionCallProblem
+  = FunctionDoesNotExist
+  | FunctionArgumentTypeMismatches ArgumentTypeMismatches
+  | FunctionInsufficientArguments InsufficientArguments
+  | FunctionWrongNumberOfArguments WrongNumberOfArguments
+
+data FieldAccessProblem
+  = FieldAccessFieldNotFound [Name]
+  | FieldAccessNotARecord Value
+
+data RecordBindingProblem
+  = RecordBindingNameNotFound Name
 
 data WrongNumberOfArguments
   = WrongNumberOfArguments { expected :: Int, actual :: Int }

@@ -233,7 +233,7 @@ exprP = label "an expression" $ do
     <|> functionCallP
     <|> NameE <$> nameP
   fields <- many (dot *> nameP)
-  return (foldl' (\e f -> FieldAccessE f (Id e)) expr fields)
+  return (foldl' (\e f -> FieldAccessE f (Rec e)) expr fields)
 
 parensP = betweenChars '(' ')'
 bracketsP = betweenChars '[' ']'
@@ -243,15 +243,15 @@ functionCallP :: Parser Expr
 functionCallP = do
   name <- try $ nameP <* lookAhead (char '(')
   args <- parensP (sepEndBy exprP comma)
-  pure (FunctionCallE name (coerce (List.fromList args)))
+  pure (FunctionCallE name (coerce args))
 
-recordBindingP :: Parser (RecordBinding Id)
+recordBindingP :: Parser (RecordBinding (Rec ExprF))
 recordBindingP = do
   name <- nameP
   mb_val <- optional (equals >> exprP)
   pure $
     case mb_val of
-      Just val -> FieldAssignment name (Id val)
+      Just val -> FieldAssignment name (Rec val)
       Nothing  -> FieldPun name
 
 keywords :: HashSet Text

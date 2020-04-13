@@ -1,7 +1,6 @@
 module Eval.Expr
   ( ExprT, Bindings, runExprT, Name
-  , zutAlors, handleZut, mapZut, addProblemSource
-  , typeMismatch
+  , zutAlors, handleZut, mapZut
   , lookupName
   , getLocalNames
   , getTemplateDirectory
@@ -23,7 +22,7 @@ import Syntax
 import Value
 
 newtype ExprT m a = ExprT
-  { unExprT :: ExceptT Problem (ReaderT Env m) a }
+  { unExprT :: ExceptT ExprProblemInContext (ReaderT Env m) a }
   deriving newtype ( Monad, Functor, Applicative )
 
 -- | The environment for evaluation of a template expression.
@@ -47,17 +46,13 @@ instance MonadTrans ExprT where
 instance MonadIO m => MonadIO (ExprT m) where
   liftIO = lift . liftIO
 
-runExprT :: ExprT m a -> FilePath -> Delimiters -> Bindings -> m (Either Problem a)
+runExprT :: ExprT m a -> FilePath -> Delimiters -> Bindings -> m (Either ExprProblemInContext a)
 runExprT (ExprT m) dir delims bindings =
   runReaderT (runExceptT m) (Env bindings dir delims)
 
 -- | Abort this evaluation with the given problem.
-zutAlors :: Monad m => ProblemDescription -> ExprT m a
-zutAlors prob = ExprT (throwE (Problem Nowhere prob))
-
-typeMismatch :: Monad m => Value -> DList SomeValueType -> ExprT m a
-typeMismatch val types =
-  zutAlors (ProblemTypeMismatch (TypeMismatch val types))
+zutAlors :: Monad m => ExprProblem -> ExprT m a
+zutAlors prob = ExprT (throwE (Here prob))
 
 lookupName :: Monad m => Name -> ExprT m (Maybe Value)
 lookupName (Name n) = ExprT $ lift $ asks (Bindings.lookup n . envLocalBindings)
@@ -80,16 +75,12 @@ instance Applicative m => HasLocalBindings (ExprT m) where
     -- existing bindings -- 'Map.union' is left-biased.
     ExprT (mapExceptT (local (overBindings (Bindings.fromList (coerce binds) `Bindings.union`))) r)
 
-handleZut :: Monad m => (Problem -> ExprT m a) -> ExprT m a -> ExprT m a
+handleZut :: Monad m => (ExprProblemInContext -> ExprT m a) -> ExprT m a -> ExprT m a
 handleZut handler (ExprT m) = ExprT (catchE m (unExprT . handler))
 
 mapZut :: Functor m => AddProblemContext -> ExprT m a -> ExprT m a
 mapZut f (ExprT m) =
-  ExprT $ withExceptT (problemAddContext f) m
-
-addProblemSource :: Functor m => Expr -> ExprT m a -> ExprT m a
-addProblemSource source (ExprT m) =
-  ExprT $ withExceptT (problemSetSource source) m
+  ExprT $ withExceptT f m
 
 class HasLocalBindings m where
 

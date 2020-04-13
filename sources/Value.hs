@@ -16,10 +16,13 @@ import Prelude hiding (get, put)
 import Data.Vector.Binary ()
 import qualified Data.HashMap.Strict as Map
 import Data.Scientific
+import qualified Data.Text as Text
+import Data.Text.Prettyprint.Doc
 import Development.Shake.Classes
 import qualified Data.Yaml as Yaml
 
 import List (List)
+import qualified List
 import Syntax
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
@@ -37,6 +40,27 @@ data Value where
   LoadedDoc :: DocumentInfo -> Value
   deriving stock ( Generic, Show, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
+
+displayValue :: Value -> Doc any
+displayValue = \case
+  Number n -> unsafeViaShow n
+  String s -> viaShow s
+  Boolean b -> pretty b
+  Array a -> displayList displayValue a
+  Record r ->
+    let pairToBinding (n,v) = FieldAssignment (Name n) v
+        binds = map pairToBinding $ Map.toList r
+    in displayRecord displayValue binds
+  LoadedDoc (DocInfo ft fp) ->
+    displayExprF displayValue $
+      case ft of
+        YamlFile ->
+          -- TODO FilePath Value
+          FunctionCallE (Name loadYamlFunctionName) [String (Text.pack fp)]
+        MarkdownFile ->
+          FunctionCallE (Name loadMarkdownFunctionName) [String (Text.pack fp)]
+        TemplateFile _delims binds ->
+          FunctionCallE (Name loadTemplateFunctionName) [String (Text.pack fp), Record binds]
 
 -- | A document is represented as a reference to a 'Record'-like value that is
 -- found in a file somewhere – like a YAML file. The document may also have a
@@ -59,6 +83,15 @@ data ValueType a where
   ArrayT :: ValueType (List Value)
   RecordT :: ValueType (HashMap Text Value)
   DocumentT :: ValueType DocumentInfo
+
+displayType :: ValueType a -> Doc any
+displayType = \case
+  NumberT -> "number"
+  TextT -> "text"
+  BooleanT -> "boolean"
+  ArrayT -> "array"
+  RecordT -> "record"
+  DocumentT -> "document"
 
 instance Eq (ValueType a) where
   _ == _ = True

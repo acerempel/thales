@@ -24,7 +24,6 @@ import Text.Megaparsec
 import Text.MMark as MMark
 
 import Configuration
-import Display
 import Eval
 import Output (Output)
 import qualified Output
