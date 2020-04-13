@@ -47,10 +47,8 @@ class Monad m => DependencyMonad m where
 instance DependencyMonad Action where
 
   listDirectory = getDirectoryContents
-  {-# INLINE listDirectory #-}
 
   lookupField ft path key = apply1 (FieldAccessQ (DocInfo ft path) key)
-  {-# INLINE lookupField #-}
 
   listFields ft path = apply1 (FieldListQ (DocInfo ft path))
 
@@ -75,8 +73,6 @@ rules options@Options{..} = do
     builtinRules
     fileRules targetToSourceMap
     want $ Map.keys targetToSourceMap
-
-{-# INLINABLE rules #-}
 
 fileRules :: HashMap TargetPath (ThingToBuild Identity SourcePath) -> Rules ()
 fileRules targetToSourceMap = do
@@ -211,8 +207,6 @@ fieldAccessRuleRun getDocument FieldAccessQ{..} mb_stored mode = do
                 in (hash val, changed)
       let encoded = toStrict (encode new_hash)
       return $ RunResult did_change encoded val
-
-{-# INLINE fieldAccessRuleRun #-}
 
 newtype FieldListQ = FieldListQ { flDocInfo :: DocumentInfo}
   deriving newtype ( Show, Eq, Binary, Hashable, NFData )

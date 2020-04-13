@@ -49,8 +49,6 @@ toShakeOptions Options{..} =
         Nothing ->
           []
 
-{-# INLINE toShakeOptions #-}
-
 data RebuildUnconditionally
   = SomeThings (NonEmpty FilePattern)
   | Everything
