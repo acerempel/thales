@@ -6,7 +6,7 @@ arguments it takes, in what order, and then you can use 'applySignature' to chec
 list (i.e., a @['Value']@) against the 'Signature', and if the arguments are of the required
 types and so forth, you get the result.
 -}
-module Function
+module Eval.Function
   ( Signature
   , argument
   , applySignature
@@ -20,7 +20,7 @@ import Control.Applicative.Trans.Validation
 import qualified Data.DList as DList
 import qualified Data.IntMap as IntMap
 
-import Problem
+import Eval.Problem
 import Value
 
 {-| I wanted to say that this describes the types and order of arguments

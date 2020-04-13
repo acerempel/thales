@@ -1,4 +1,4 @@
-module Problem
+module Eval.Problem
   ( Problem(..), ProblemWhere(..), ProblemDescription(..)
   , TypeMismatch(..), ArgumentTypeMismatches(..)
   , WrongNumberOfArguments(..), InsufficientArguments(..)

@@ -75,13 +75,13 @@ library core
     , Configuration
     , Display
     , Eval
-    , Function
+    , Eval.Function
+    , Eval.Problem
     , KnownFunction
     , List
     , NonEmptyText
     , Output
     , Parse
-    , Problem
     , Syntax
     , Value
   other-modules:

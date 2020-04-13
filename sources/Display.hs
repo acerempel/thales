@@ -28,7 +28,7 @@ import qualified Text.Show as Sh
 import KnownFunction
 import qualified List
 import List (List)
-import Problem
+import Eval.Problem
 import Syntax
 import Value
 
