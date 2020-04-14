@@ -13,8 +13,11 @@ module Syntax
   , Literal(..)
   , SourcePos(..)
   , Delimiters(..), defaultDelimiters
-  , displayExpr, displayExprF, displayRecordBinding
-  , displayList, displayRecord, displayLiteral
+  , displayExpr, displayExprF
+  , displayRecordBinding
+  , displayList, displayRecord
+  , displayLiteral, displayName
+  , displayFieldAccess, displayFunctionCall
   )
 where
 
@@ -38,6 +41,9 @@ import qualified List
 -- a TODO.)
 newtype Name = Name { fromName :: Text }
   deriving newtype ( Eq, Ord, Show, Hashable, Binary, NFData, IsString )
+
+displayName :: Name -> Doc any
+displayName = pretty . fromName
 
 {- TODO: Replace 'Expr' with a type variable, so that it can be replaced
 with the result of evaluating the expression.-}
@@ -99,9 +105,9 @@ displayRecordBinding :: (a -> Doc any) -> RecordBinding a -> Doc any
 displayRecordBinding displayInner recBind =
   case recBind of
     FieldPun n ->
-      display n
+      displayName n
     FieldAssignment n expr ->
-      nest 2 $ display n <+> equals <+> softline <+> displayInner expr
+      nest 2 $ displayName n <+> equals <+> softline <+> displayInner expr
 
 {-| The strings that delimit bits of code, or directives, or whatever
 you want to call them, in a template. E.g. @Delimiters "{{" "}}"@,
@@ -134,16 +140,22 @@ displayExprF displayInner expr =
     ArrayE vec ->
       displayList displayInner vec
     FieldAccessE n a ->
-      group $ nest 2 $ displayInner a <> softline' <> dot <> display n
-    NameE (Name n) ->
-      pretty n
+      displayFieldAccess (displayInner a) (displayName n)
+    NameE n ->
+      displayName n
     RecordE binds ->
       displayRecord displayInner binds
     FunctionCallE name args ->
-      nest 2 $
-        display name <> parens
-          ( align . sep . punctuate comma
-          $ map displayInner args)
+      displayFunctionCall (displayName name) (map displayInner args)
+
+displayFieldAccess :: Doc any -> Doc any -> Doc any
+displayFieldAccess name inner =
+  nest 2 $ inner <> softline' <> dot <> name
+
+displayFunctionCall :: Doc any -> [Doc any] -> Doc any
+displayFunctionCall name args =
+  nest 2 $ name <> softline' <> align
+    ( encloseSep (lparen <> space) (space <> rparen) (comma <> space) args )
 
 displayExpr :: Expr -> Doc any
 displayExpr = displayExprF (displayExpr . unRec)

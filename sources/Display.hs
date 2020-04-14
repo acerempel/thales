@@ -111,25 +111,3 @@ instance Display ArgumentTypeMismatches where
 
 errorMessage heading body =
   nest 2 $ annotate Heading heading <> line <> body
-
-instance Display ShakeException where
-  display ShakeException{..} =
-      vsep (map fineagle shakeExceptionStack) <> line <> inner
-    where
-      inner
-        | Just (EvalError problems) <- fromException shakeExceptionInner
-          = vsep (punctuate line (map display problems))
-        | Just (ParseError str) <- fromException shakeExceptionInner
-          = pretty str <> line
-        | Just (NotAnObject _ft _fp) <- fromException shakeExceptionInner
-          = "not an object!"
-        | otherwise
-          = pretty (displayException shakeExceptionInner) <> line
-      fineagle str =
-        case str of
-          '*':' ':rest ->
-            pretty '•' <+> pretty rest
-          ' ':' ':rest ->
-            indent 2 (pretty rest)
-          _ ->
-            pretty str

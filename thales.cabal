@@ -73,6 +73,7 @@ library core
       DependencyMonad
     , Bindings
     , Configuration
+    , Error
     , Eval
     , Eval.Function
     , Eval.Problem

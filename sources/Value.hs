@@ -8,6 +8,7 @@ module Value
   , TypedValue(..), valueWithType, valueOfType
   , SomeValueType(..), valueType
   , FileType(..), DocumentInfo(..)
+  , displayValue, displayType
   )
 where
 
@@ -21,8 +22,8 @@ import Data.Text.Prettyprint.Doc
 import Development.Shake.Classes
 import qualified Data.Yaml as Yaml
 
+import KnownFunction
 import List (List)
-import qualified List
 import Syntax
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
@@ -85,7 +86,10 @@ data ValueType a where
   DocumentT :: ValueType DocumentInfo
 
 displayType :: ValueType a -> Doc any
-displayType = \case
+displayType = pretty . typeName
+
+typeName :: ValueType a -> Text
+typeName = \case
   NumberT -> "number"
   TextT -> "text"
   BooleanT -> "boolean"
@@ -110,6 +114,9 @@ instance Eq SomeValueType where
   SomeType RecordT == SomeType RecordT = True
   SomeType DocumentT == SomeType DocumentT = True
   _ == _ = False
+
+instance Show SomeValueType where
+  show (SomeType t) = Text.unpack (typeName t)
 
 valueType :: Value -> SomeValueType
 valueType = \case

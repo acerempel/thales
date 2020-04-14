@@ -24,7 +24,9 @@ import Text.Megaparsec
 import Text.MMark as MMark
 
 import Configuration
+import Error
 import Eval
+import Eval.Problem
 import Output (Output)
 import qualified Output
 import Parse
@@ -58,7 +60,7 @@ run options = do
   let runRules = shake (toShakeOptions options) $ rules options
   runRules `catch` \exc@ShakeException{} -> do
     let layout = LayoutOptions (AvailablePerLine 80 0.7)
-        doc = fuse Shallow $ display exc
+        doc = fuse Shallow $ displayShakeException exc
         docStream = reAnnotateS markupToAnsi $ layoutPretty layout doc
     renderIO stderr docStream
 
@@ -128,12 +130,12 @@ builtinRules = do
       contents <- liftIO $ Text.readFile path
       mmark <-
         case MMark.parse path contents of
-          Left err -> liftIO $ throwIO (MMarkException err)
+          Left err -> liftIO $ throwIO (MarkdownParseError err)
           Right mmark -> return mmark
       let yaml = fromMaybe (Yaml.Object Map.empty) (MMark.projectYaml mmark)
       record <-
         case Yaml.parseEither Yaml.parseJSON yaml of
-          Left err -> liftIO $ throwIO (Yaml.YamlException err)
+          Left err -> liftIO $ throwIO (MarkdownYamlParseError path (Yaml.YamlException err))
           Right (Record hashmap) -> return hashmap
           Right _ -> liftIO $ throwIO $ NotAnObject MarkdownFile path
       let markdownOutput =
@@ -147,12 +149,12 @@ builtinRules = do
       putInfo $ "Reading template from " <> pathAbs
       input <- liftIO $ Text.readFile templatePath
       eitherThrow $
-        first (ParseError . errorBundlePretty) $
+        first (TemplateParseError . errorBundlePretty) $
         parseTemplate delimiters templatePath input
 
     execTemplate parsedTemplate templateParameters = do
       (bindings, output) <- (>>= eitherThrow) $
-        first (EvalError . toList) <$>
+        first (TemplateEvalError . toList) <$>
         evalTemplate parsedTemplate templateParameters
       return $ Document (Just output) bindings
 

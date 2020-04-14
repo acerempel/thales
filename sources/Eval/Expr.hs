@@ -1,6 +1,6 @@
 module Eval.Expr
   ( ExprT, Bindings, runExprT, Name
-  , zutAlors, handleZut, mapZut
+  , exprProblem, handleZut, mapZut
   , lookupName
   , getLocalNames
   , getTemplateDirectory
@@ -13,7 +13,6 @@ import Prelude hiding (local, ask, asks)
 
 import Control.Monad.Trans.Except
 import Control.Applicative.Trans.Reader
-import Data.DList (DList)
 import qualified Data.HashMap.Strict as Map
 
 import Bindings
@@ -51,8 +50,8 @@ runExprT (ExprT m) dir delims bindings =
   runReaderT (runExceptT m) (Env bindings dir delims)
 
 -- | Abort this evaluation with the given problem.
-zutAlors :: Monad m => ExprProblem -> ExprT m a
-zutAlors prob = ExprT (throwE (Here prob))
+exprProblem :: Monad m => ExprProblem -> ExprT m a
+exprProblem prob = ExprT (throwE (Here prob))
 
 lookupName :: Monad m => Name -> ExprT m (Maybe Value)
 lookupName (Name n) = ExprT $ lift $ asks (Bindings.lookup n . envLocalBindings)
@@ -80,7 +79,7 @@ handleZut handler (ExprT m) = ExprT (catchE m (unExprT . handler))
 
 mapZut :: Functor m => AddProblemContext -> ExprT m a -> ExprT m a
 mapZut f (ExprT m) =
-  ExprT $ withExceptT f m
+  ExprT $ withExceptT (Within . f) m
 
 class HasLocalBindings m where
 

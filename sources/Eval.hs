@@ -36,7 +36,7 @@ evalTopExpr = evalExpr Nothing
 
 evalExpr :: DependencyMonad m => Maybe AddProblemContext -> Expr -> ExprT m Value
 evalExpr mContext expr =
- maybe id mapZut mContext . addProblemSource expr $ case expr of
+ maybe id mapZut mContext $ case expr of
 
   NameE name -> do
     mVal <- lookupName name
@@ -44,11 +44,11 @@ evalExpr mContext expr =
       Just val -> return val
       Nothing -> do
         namesInScope <- getLocalNames
-        zutAlors (ProblemNameNotFound name namesInScope)
+        exprProblem (NameNotFound name namesInScope)
 
-  FieldAccessE name (Id subExpr) -> do
+  FieldAccessE name (Rec subExpr) -> do
     subVal <- evalSubExpr (FieldAccessE name) subExpr
-    let ohNo available = zutAlors (ProblemFieldNotFound name available)
+    let ohNo available = exprProblem (FieldAccessProblem name subExpr (FieldAccessFieldNotFound available))
     case subVal of
       Record rec ->
         case Map.lookup (fromName name) rec of
@@ -65,7 +65,7 @@ evalExpr mContext expr =
           Just val ->
             return val
       _ ->
-        typeMismatch subVal [SomeType RecordT, SomeType DocumentT]
+        exprProblem (FieldAccessProblem name subExpr (FieldAccessNotARecord subVal))
 
   LiteralE lit ->
     return (literalToValue lit)
@@ -80,12 +80,16 @@ evalExpr mContext expr =
   FunctionCallE name args -> do
     case find ((== name) . fst) knownFunctions of
       Nothing ->
-        zutAlors (ProblemUnknownFunction name (map fst knownFunctions))
+        exprProblem
+          (FunctionCallProblem name (coerce args)
+            (FunctionDoesNotExist (map fst knownFunctions)))
       Just (_, func) -> do
-        arg_vals <- evalList (FunctionCallE name) args
+        arg_vals <- evalList
+          (FunctionCallE name . toList)
+          (List.fromList args)
         result <-
           case applySignature func (toList arg_vals) of
-            Left err -> zutAlors err
+            Left err -> exprProblem (FunctionCallProblem name (coerce args) err)
             Right a -> return a
         case result of
           Pure val ->
@@ -150,26 +154,26 @@ data FunctionAction
 
 evalList ::
   DependencyMonad m =>
-  (List (ProblemWhere (ExprH ProblemWhere)) -> ExprH ProblemWhere) ->
-  List (Id Expr) ->
+  (List ExprProblemInContext -> ExprF ExprProblemInContext) ->
+  List (Rec ExprF) ->
   ExprT m (List Value)
 evalList constr arr = List.imapA evalArrayElement arr
  where
-  evalArrayElement index (Id subExpr) =
+  evalArrayElement index (Rec subExpr) =
     evalSubExpr (addArrayProblemContext index) subExpr
   addArrayProblemContext index = \zut ->
       constr
         ( List.unsafeUpdate index zut
-        $ List.map (NoProblem . getId) arr )
+        $ List.map (OK . unRec) arr )
 
-evalBinding :: DependencyMonad m => RecordBinding Id -> ExprT m (Text, Value)
+evalBinding :: DependencyMonad m => RecordBinding (Rec ExprF) -> ExprT m (Text, Value)
 evalBinding bind =
   let (name, expr) = expandBinding bind
   in (fromName name,) <$> evalSubExpr (\e -> RecordE [FieldAssignment name e]) expr -- TODO
  where
   expandBinding (FieldPun name) =
     (name, NameE name)
-  expandBinding (FieldAssignment name (Id expr)) =
+  expandBinding (FieldAssignment name (Rec expr)) =
     (name, expr)
 
 evalStatement :: forall m. DependencyMonad m => Statement -> StmtT m ()
@@ -178,58 +182,64 @@ evalStatement = \case
   VerbatimS verb ->
     addOutput (Output.fromText (NonEmptyText.toText verb))
 
-  ExprS _sp expr -> do
-    text <- liftExprT $ do
-      val <- evalTopExpr expr :: ExprT m Value
+  ExprS sp expr -> do
+    text <- do
+      val <- liftExprT (ExprProblem sp) (evalTopExpr expr :: ExprT m Value)
       case val of
         String text ->
           return (Output.fromText text)
         _ ->
-          typeMismatch val [SomeType TextT]
+          stmtProblem (ExprIsNotOutputable sp expr val)
     addOutput text
 
-  ForS _sp var expr body -> do
-    arr <- liftExprT $ do
-      val <- evalTopExpr expr :: ExprT m Value
+  ForS sp var expr body -> do
+    arr <- do
+      val <- liftExprT (ForProblem sp . ForExprProblem var) (evalTopExpr expr :: ExprT m Value)
       case val of
         Array vec ->
           return vec
         _ ->
-          typeMismatch val [SomeType ArrayT]
+          stmtProblem (ForProblem sp (ForNotAnArray var expr val))
     for_ arr $ \val ->
       for_ body $ \stmt ->
         addLocalBinding var val $ evalStatement stmt
 
-  OptionallyS _sp expr mb_var body -> do
-    mb_val <- liftExprT $
+  OptionallyS sp expr mb_var body -> do
+    mb_val <- liftExprT (OptionallyExprProblem sp mb_var) $
       handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr :: ExprT m (Maybe Value))
     whenJust mb_val $ \val ->
       for_ body $ \stmt ->
         maybe id (`addLocalBinding` val) mb_var $
         evalStatement stmt
 
-  LetS _sp binds body -> do
+  LetS sp binds body -> do
     eval'd_binds <-
-      for binds $ \(name, expr) -> liftExprT $
+      for binds $ \(name, expr) -> liftExprT
+        (\prob -> LetProblem sp [(name, prob)]) $ -- TODO correct context
         (name,) <$> (evalTopExpr expr :: ExprT m Value)
     addLocalBindings eval'd_binds $
       for_ body evalStatement
 
-  ExportS _sp binds -> do
+  ExportS sp binds -> do
     eval'd_binds <-
-      for binds $ \bind -> liftExprT $
+      for binds $ \bind -> liftExprT
+        (\_ -> ExportProblem sp [Left (coerce bind)]) $ -- TODO what is going on here?
         first Name <$> evalBinding bind :: StmtT m (Name, Value)
     addBindings eval'd_binds
 
-  IncludeBodyS _sp expr -> do
-    val <- liftExprT (evalTopExpr expr :: ExprT m Value)
+  IncludeBodyS sp expr -> do
+    val <- liftExprT
+      (IncludeBodyProblem sp . IncludeBodyExprProblem)
+      (evalTopExpr expr :: ExprT m Value)
     case val of
       LoadedDoc (DocInfo filetype filepath) -> do
         -- TODO instance MonadTrans StmtT, ValidationT
-        addOutput =<< liftExprT (lift (getBody filetype filepath))
+        addOutput =<< liftExprT
+          (IncludeBodyProblem sp . IncludeBodyExprProblem)
+          (lift (getBody filetype filepath))
       _ ->
-        error "TODO better error message"
+        stmtProblem (IncludeBodyProblem sp (IncludeBodyNotADocument expr val))
 
-evalTemplate :: DependencyMonad m => ParsedTemplate -> Bindings -> m (Either (DList Problem) (Bindings, Output))
+evalTemplate :: DependencyMonad m => ParsedTemplate -> Bindings -> m (Either (DList StmtProblem) (Bindings, Output))
 evalTemplate ParsedTemplate{..} =
   runStmtT (traverse_ evalStatement templateStatements) templatePath templateDelimiters

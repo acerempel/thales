@@ -106,21 +106,21 @@ data SigState = SigState
   , didConsume :: Bool
   }
 
-applySignature :: Signature a -> [Value] -> Either ProblemDescription a
+applySignature :: Signature a -> [Value] -> Either FunctionCallProblem a
 applySignature sig args =
   let validated = runStateT (go sig) (SigState 0 args False)
       result = first unwrapFailure $ runIdentity $ runValidationT validated
   in
     case result of
       Left (ArgErrs (Left errors)) ->
-        Left (ProblemArgumentTypeMismatches errors)
+        Left (FunctionArgumentTypeMismatches errors)
       Left (ArgErrs (Right err)) ->
-        Left (ProblemInsufficientArguments err)
+        Left (FunctionInsufficientArguments err)
       Right (a, SigState{..}) ->
         case nextArgs of
           (_:_) ->
             Left $
-              ProblemWrongNumberOfArguments
+              FunctionWrongNumberOfArguments
               (WrongNumberOfArguments
                 { expected = numArgsSeen
                 , actual = numArgsSeen + length nextArgs })
