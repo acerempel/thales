@@ -72,7 +72,8 @@ data ThingToBuild f a = ThingToBuild
   , buildOutputExtension :: f String
   , buildOutputDirectory :: f FilePath
   , buildDelimiters :: f Delimiters
-  , buildBaseTemplate :: Maybe FilePath }
+  -- | Head applied last, i.e. outermost
+  , buildBaseTemplates :: [FilePath] }
   deriving ( Functor )
 
 deriving instance ((forall b. Show b => Show (f b)), Show a) => Show (ThingToBuild f a)
@@ -91,7 +92,7 @@ instance Traversable (ThingToBuild f) where
 
 defaultThingToBuild :: a -> ThingToBuild Maybe a
 defaultThingToBuild a =
-  ThingToBuild a Nothing Nothing Nothing Nothing
+  ThingToBuild a Nothing Nothing Nothing []
 
 expand :: ThingToBuild f [Either SourcePath FilePattern] -> IO (ThingToBuild f [SourcePath])
 expand =
@@ -104,7 +105,7 @@ specify :: Options -> ThingToBuild Maybe a -> ThingToBuild Identity a
 specify Options{..} ThingToBuild{..} =
   ThingToBuild
     { buildWhat
-    , buildBaseTemplate = buildBaseTemplate <|> optBaseTemplate
+    , buildBaseTemplates = maybe id (:) optBaseTemplate buildBaseTemplates
     , buildOutputExtension = Identity $
         optOutputExtension `fromMaybe` buildOutputExtension
     , buildOutputDirectory = Identity $
