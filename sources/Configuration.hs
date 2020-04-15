@@ -2,6 +2,7 @@ module Configuration
   ( Options(..)
   , Verbosity(..)
   , ThingToBuild(..), defaultThingToBuild
+  , parseYamlThingToBuild, ParsedThingToBuild(..)
   , RebuildUnconditionally(..)
   , toShakeOptions
   , specify, expand
@@ -12,6 +13,7 @@ where
 
 import qualified Data.HashMap.Strict as Map
 import qualified Data.List.NonEmpty as NonEmpty
+import Data.Yaml as Yaml
 import Development.Shake
 import Development.Shake.FilePath
 
@@ -20,6 +22,7 @@ import Syntax
 -- | The command-line options.
 data Options = Options
   { optTemplates :: [ThingToBuild Maybe [Either FilePath FilePattern]]
+  , optConfigFile :: FilePath
   , optOutputExtension :: String
   , optOutputDirectory :: FilePath
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
@@ -72,6 +75,21 @@ data ThingToBuild f a = ThingToBuild
   , buildOutputDirectory :: f FilePath
   , buildDelimiters :: f Delimiters }
   deriving ( Functor )
+
+newtype ParsedThingToBuild = Parsed (ThingToBuild Maybe [Either FilePath FilePattern])
+
+instance Yaml.FromJSON ParsedThingToBuild where
+  parseJSON = coerce parseYamlThingToBuild
+
+parseYamlThingToBuild :: Yaml.Value -> Yaml.Parser (ThingToBuild Maybe [Either FilePath FilePattern])
+parseYamlThingToBuild = Yaml.withObject "config" $ \obj -> do
+  templateFiles <- obj .:? "template-files" .!= []
+  templatePatterns <- obj .:? "template-patterns" .!= []
+  buildOutputExtension <- obj .:? "output-extension"
+  buildOutputDirectory <- obj .:? "output-directory"
+  let buildWhat = map Left templateFiles ++ map Right templatePatterns
+  let buildDelimiters = Nothing -- TODO parse these
+  return ThingToBuild{..}
 
 deriving instance ((forall b. Show b => Show (f b)), Show a) => Show (ThingToBuild f a)
 

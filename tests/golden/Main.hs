@@ -26,6 +26,7 @@ main = do
   createOptions outputDirectory =
     Options
       { optTemplates = [defaultThingToBuild [Right (dir </> "*" <.> templateExtension)]]
+      , optConfigFile = "thales.yaml"
       , optOutputExtension = goldenExtension
       , optOutputDirectory = outputDirectory
       , optRebuildUnconditionally = Nothing

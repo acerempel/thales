@@ -50,6 +50,7 @@ cliDescription =
 optionsParser =
   Options
     <$> templatesOptions
+    <*> configFileOption
     <*> outputExtensionOption
     <*> outputDirectoryOption
     <*> rebuildOption
@@ -59,7 +60,7 @@ optionsParser =
     <*> ephemeralOption
   where
     templatesOptions =
-      fmap ((: []) . defaultThingToBuild) . some $
+      fmap ((: []) . defaultThingToBuild) . many $
         (fmap Left . strOption $
           metavar "FILE" <>
           long "template-file" <>
@@ -75,6 +76,14 @@ optionsParser =
           help ("A glob pattern that should match the templates to be compiled. This option " <>
                 "may be given multiple times; all template files matching any of the patterns " <>
                 "will be built."))
+    configFileOption =
+      strOption $
+        metavar "FILE" <>
+        long "config-file" <>
+        short 'c' <>
+        help "File to read configuration from." <>
+        value "thales.yaml" <>
+        showDefault
     outputExtensionOption =
       strOption $
         metavar "EXTENSION" <>
@@ -82,7 +91,9 @@ optionsParser =
         long "out-ext" <>
         help ("The file extension for output files. The filename of an output file is constructed from " <>
               "the filename of the corresponding template file by replacing all file extensions with " <>
-              "the output file extension.")
+              "the output file extension.") <>
+        value "html" <>
+        showDefault
     outputDirectoryOption =
       strOption $
         metavar "DIRECTORY" <>

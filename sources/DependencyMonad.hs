@@ -55,8 +55,13 @@ instance DependencyMonad Action where
   getBody ft path = apply1 (GetBodyQ (DocInfo ft path))
 
 run :: Options -> IO ()
-run options =
-  shake (toShakeOptions options) $ rules options
+run options = do
+  val <- Yaml.decodeFileThrow (optConfigFile options) -- TODO what if none?
+  buildSpec <-
+    case Yaml.parseEither (Yaml.withObject "build spec" (Yaml..: "build")) val of
+      Left err -> fail err
+      Right a -> return (a :: [ParsedThingToBuild])
+  shake (toShakeOptions options) $ rules options{ optTemplates = optTemplates options ++ coerce buildSpec }
 
 rules :: Options -> Rules ()
 rules options@Options{..} = do
