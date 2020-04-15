@@ -31,6 +31,7 @@ main = do
       , optRebuildUnconditionally = Nothing
       , optDelimiters = Delimiters "{" "}"
       , optVerbosity = Silent
+      , optBaseTemplate = Nothing
       , optTimings = False
       , optCacheDirectory = "/dev/null" }
 

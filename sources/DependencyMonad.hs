@@ -80,7 +80,13 @@ fileRules targetToSourceMap = do
       let thingToBuild = fromJust $ Map.lookup targetPath targetToSourceMap
           templatePath = buildWhat thingToBuild
           delimiters = runIdentity (buildDelimiters thingToBuild)
-      outp <- getBody (TemplateFile delimiters Map.empty) templatePath
+      outp <-
+        case buildBaseTemplate thingToBuild of
+          Just base ->
+            let inner = LoadedDoc (DocInfo (TemplateFile delimiters Map.empty) templatePath)
+            in getBody (TemplateFile delimiters (Map.singleton "content" inner)) base
+          Nothing ->
+            getBody (TemplateFile delimiters Map.empty) templatePath
       absTarget <- liftIO $ System.makeAbsolute targetPath
       putInfo $ "Writing result of " <> templatePath <> " to " <> absTarget
       liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
