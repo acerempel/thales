@@ -53,6 +53,7 @@ optionsParser =
     <*> outputExtensionOption
     <*> outputDirectoryOption
     <*> rebuildOption
+    <*> baseTemplateOption
     <*> delimitersOption
     <*> verbosityOption
     <*> timingsOption
@@ -101,6 +102,14 @@ optionsParser =
       (flag Nothing (Just Everything) (
         long "rebuild-all" <> short 'R' <>
         help "Rebuild all targets, regardless of whether dependencies have changed."))
+    baseTemplateOption =
+      option (Just <$> str) $
+        metavar "FILE" <>
+        long "base-template" <>
+        short 'b' <>
+        help "Use this as a abase temaplte" <>
+        value Nothing <>
+        showDefaultWith (const "none")
     delimitersOption =
       option (eitherReader parseDelimiters) $
         long "delimiters" <>

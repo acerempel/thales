@@ -23,6 +23,7 @@ data Options = Options
   , optOutputExtension :: String
   , optOutputDirectory :: FilePath
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
+  , optBaseTemplate :: Maybe FilePath
   , optDelimiters :: Delimiters
   , optVerbosity :: Verbosity
   , optTimings :: Bool
@@ -112,7 +113,8 @@ data ThingToBuild f a = ThingToBuild
   { buildWhat :: a
   , buildOutputExtension :: f String
   , buildOutputDirectory :: f FilePath
-  , buildDelimiters :: f Delimiters }
+  , buildDelimiters :: f Delimiters
+  , buildBaseTemplate :: Maybe FilePath }
   deriving ( Functor )
 
 deriving instance ((forall b. Show b => Show (f b)), Show a) => Show (ThingToBuild f a)
@@ -131,7 +133,7 @@ instance Traversable (ThingToBuild f) where
 
 defaultThingToBuild :: a -> ThingToBuild Maybe a
 defaultThingToBuild a =
-  ThingToBuild a Nothing Nothing Nothing
+  ThingToBuild a Nothing Nothing Nothing Nothing
 
 expand :: ThingToBuild f [Either SourcePath FilePattern] -> IO (ThingToBuild f [SourcePath])
 expand =
@@ -144,6 +146,7 @@ specify :: Options -> ThingToBuild Maybe a -> ThingToBuild Identity a
 specify Options{..} ThingToBuild{..} =
   ThingToBuild
     { buildWhat
+    , buildBaseTemplate = buildBaseTemplate <|> optBaseTemplate
     , buildOutputExtension = Identity $
         optOutputExtension `fromMaybe` buildOutputExtension
     , buildOutputDirectory = Identity $
