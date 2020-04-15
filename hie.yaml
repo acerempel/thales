@@ -1,12 +1,3 @@
 cradle:
   cabal:
-    - path: "./sources"
-      component: "lib:thales"
-    - path: "./tests/parse"
-      component: "test:parsing"
-    - path: "./tests/eval"
-      component: "test:evaluation"
-    - path: "./tests/golden"
-      component: "test:golden"
-    - path: "./applicative-transformers"
-      component: "lib:applicative-transformers"
+    component: "lib:core"

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 module Eval.Problem
   ( ExprProblemInContext(..)
   , ExprProblem(..), StmtProblem(..)
@@ -12,13 +13,18 @@ module Eval.Problem
   )
 where
 
+import Prelude hiding (group)
+
 import Data.DList (DList)
 import qualified Data.IntMap.Strict as IntMap
+import qualified Data.Text as Text
 import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Internal (unsafeTextWithoutNewlines)
 import Data.Text.Prettyprint.Doc.Render.Terminal
 import Text.Megaparsec (unPos)
 
 import Syntax
+import Syntax.Display
 import Value
 
 data Markup = Problematic | Heading
@@ -123,15 +129,58 @@ displayExprProblem :: ExprProblem -> Doc Markup
 displayExprProblem = \case
   NameNotFound name available ->
     let nnfMessage =
-          "Name not found!" <> availMessage
+          "Name not found!" :| availMessage
         availMessage =
           if null available
-             then softline'
-             else line <> nest 2 ("These names are available:" <> line <>
-              fillSep (punctuate comma (map displayName available))) <> softline
-     in annotate Problematic (displayName name) <+>
-          annotate Heading (pretty '←' <+> align nnfMessage)
-  _ -> error "nyi!"
+             then []
+             else one $ nest 2 ("These names are available:" <> line <>
+              fillSep (punctuate comma (map displayName available)))
+     in withErrorMessage (displayName name) nnfMessage
+  FieldAccessProblem name expr prob ->
+    case prob of
+      FieldAccessFieldNotFound avail ->
+        let fnfMessage =
+              [ "This field does not exist!"
+              , nest 2 ("The record" <> softline <> displayExpr expr)
+              , nest 2 ("contains these fields:" <> line <>
+                fillSep (punctuate comma (map displayName avail))) ]
+         in displayFieldAccess (displayExpr expr)
+              (withErrorMessage (displayName name) fnfMessage)
+      FieldAccessNotARecord val ->
+        let narMessage =
+              [ "This value does not have fields,"
+              , "being neither a record nor a document,"
+              , "but rather a " <> displayType (valueType val) <> comma
+              , nest 2 ("namely" <> softline <> displayValue val) ]
+         in displayFieldAccessLineBreak Must
+          (withErrorMessage (displayExpr expr) narMessage)
+          (displayName name)
+  FunctionCallProblem name args prob ->
+    case prob of
+      FunctionDoesNotExist knownFunctions ->
+        let message =
+              [ "That's not the name of a function!"
+              , nest 2 $ "These functions exist:" <> line <>
+                fillSep (punctuate comma (map displayName knownFunctions)) ]
+         in displayFunctionCall
+          (withErrorMessage (displayName name) message)
+          (map displayExpr args)
+      _ ->
+        withErrorMessage
+          (displayFunctionCall (displayName name) (map displayExpr args))
+          [ "An error has occurred!" ]
+  _ -> error "not yet implemented!"
+
+withErrorMessage :: Doc Markup -> NonEmpty (Doc Markup) -> Doc Markup
+withErrorMessage problematic (m1 :| messageLines) =
+    align $
+      width
+        (annotate Problematic problematic)
+        (\w ->
+          annotate Heading (unsafeTextWithoutNewlines " ← " <> m1) <>
+          hardline <> annotate Problematic (unsafeTextWithoutNewlines (Text.replicate w "^")) <>
+            "   " <> annotate Heading (align (fillSep messageLines))
+        )
 
 displayError :: SourcePos -> Doc any -> Doc any
 displayError SourcePos{..} doc =

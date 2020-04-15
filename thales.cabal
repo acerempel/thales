@@ -83,6 +83,7 @@ library core
     , Output
     , Parse
     , Syntax
+    , Syntax.Display
     , Value
   other-modules:
       Eval.Expr

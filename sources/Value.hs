@@ -25,6 +25,7 @@ import qualified Data.Yaml as Yaml
 import KnownFunction
 import List (List)
 import Syntax
+import Syntax.Display
 
 {-| A 'Value' is a thing that may be the value of a name in a template.
 Effectively, templates are dynamically typed. Similar to Aeson's 'Yaml.Value'
@@ -85,8 +86,8 @@ data ValueType a where
   RecordT :: ValueType (HashMap Text Value)
   DocumentT :: ValueType DocumentInfo
 
-displayType :: ValueType a -> Doc any
-displayType = pretty . typeName
+displayType :: SomeValueType -> Doc any
+displayType (SomeType t) = pretty (typeName t)
 
 typeName :: ValueType a -> Text
 typeName = \case

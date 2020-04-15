@@ -15,9 +15,8 @@ module Syntax
   , Delimiters(..), defaultDelimiters
   , displayExpr, displayExprF
   , displayRecordBinding
-  , displayList, displayRecord
+  , displayRecord
   , displayLiteral, displayName
-  , displayFieldAccess, displayFunctionCall
   )
 where
 
@@ -25,12 +24,13 @@ import Prelude hiding (group)
 
 import Data.Scientific
 import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Internal (unsafeTextWithoutNewlines)
 import Development.Shake.Classes
 import Text.Megaparsec
 
 import NonEmptyText
 import List (List)
-import qualified List
+import Syntax.Display
 
 -- | A name, to which a value may be bound. This is the sort of thing that is
 -- usually called a variable, except that these names are strictly immutable –
@@ -43,7 +43,7 @@ newtype Name = Name { fromName :: Text }
   deriving newtype ( Eq, Ord, Show, Hashable, Binary, NFData, IsString )
 
 displayName :: Name -> Doc any
-displayName = pretty . fromName
+displayName (Name n) = unsafeTextWithoutNewlines n
 
 {- TODO: Replace 'Expr' with a type variable, so that it can be replaced
 with the result of evaluating the expression.-}
@@ -90,7 +90,7 @@ data ExprF a
   -- | A bare name, like @potato@.
   | NameE Name
   | FunctionCallE Name [a]
-  deriving ( Generic, Eq, Show )
+  deriving ( Generic, Eq, Show, Functor )
 
 -- | The sort of binding that may occur in a record literal – also used in the
 -- @export@ statement.
@@ -99,7 +99,7 @@ data RecordBinding a
   = FieldPun Name
   -- | E.g. @{ foo = [1, 2, 3] }@.
   | FieldAssignment Name a
-  deriving ( Generic, Eq, Show )
+  deriving ( Generic, Eq, Show, Functor )
 
 displayRecordBinding :: (a -> Doc any) -> RecordBinding a -> Doc any
 displayRecordBinding displayInner recBind =
@@ -107,7 +107,7 @@ displayRecordBinding displayInner recBind =
     FieldPun n ->
       displayName n
     FieldAssignment n expr ->
-      nest 2 $ displayName n <+> equals <+> softline <+> displayInner expr
+      nest 2 $ displayName n <+> equals <> softline <> displayInner expr
 
 {-| The strings that delimit bits of code, or directives, or whatever
 you want to call them, in a template. E.g. @Delimiters "{{" "}}"@,
@@ -148,15 +148,6 @@ displayExprF displayInner expr =
     FunctionCallE name args ->
       displayFunctionCall (displayName name) (map displayInner args)
 
-displayFieldAccess :: Doc any -> Doc any -> Doc any
-displayFieldAccess name inner =
-  nest 2 $ inner <> softline' <> dot <> name
-
-displayFunctionCall :: Doc any -> [Doc any] -> Doc any
-displayFunctionCall name args =
-  nest 2 $ name <> softline' <> align
-    ( encloseSep (lparen <> space) (space <> rparen) (comma <> space) args )
-
 displayExpr :: Expr -> Doc any
 displayExpr = displayExprF (displayExpr . unRec)
 
@@ -173,12 +164,6 @@ displayLiteral = \case
   NumberL n -> unsafeViaShow n
   StringL s -> viaShow s
   BooleanL b -> pretty b
-
-displayList :: (a -> Doc any) -> List a -> Doc any
-displayList disp lst =
-  brackets $
-    align . sep . punctuate comma $
-    toList . List.map disp $ lst
 
 displayRecord :: (a -> Doc any) -> [RecordBinding a] -> Doc any
 displayRecord displayInner binds =
