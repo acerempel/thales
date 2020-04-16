@@ -21,7 +21,6 @@ import Function
 import KnownFunction
 import List (List)
 import qualified List
-import qualified NonEmptyText
 import Output
 import Parse
 import Problem
@@ -175,8 +174,9 @@ evalBinding bind =
 evalStatement :: forall m. DependencyMonad m => Statement -> StmtT m ()
 evalStatement = \case
 
-  VerbatimS verb ->
-    addOutput (Output.fromText (NonEmptyText.toText verb))
+  VerbatimS char verb -> do
+    addOutput (Output.preEscapedSingleton char)
+    addOutput (Output.preEscapedFromText verb)
 
   ExprS _sp expr -> do
     text <- liftExprT $ do

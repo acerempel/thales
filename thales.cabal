@@ -78,7 +78,6 @@ library core
     , Function
     , KnownFunction
     , List
-    , NonEmptyText
     , Output
     , Parse
     , Problem

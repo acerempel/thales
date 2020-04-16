@@ -27,7 +27,6 @@ import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (scientific)
 
 import qualified List
-import NonEmptyText (NonEmptyText(..))
 import Syntax
 
 -- | A statement that may enclose a block of further statements (or may not).
@@ -116,8 +115,7 @@ syntaxP :: Bool -> Parser [Statement]
 syntaxP inBlock =
   [] <$ endP
     <|> ((:) <$> statementP <*> syntaxP inBlock)
-    <|> ((:) <$> fmap VerbatimS
-                 (NonEmptyText <$> anySingle <*> verbatimP)
+    <|> ((:) <$> (VerbatimS <$> anySingle <*> verbatimP)
              <*> syntaxP inBlock)
   where
     verbatimP = do

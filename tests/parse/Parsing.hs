@@ -13,7 +13,6 @@ import Test.Tasty.SmallCheck
 import Text.Megaparsec (errorBundlePretty)
 
 import Display
-import NonEmptyText (NonEmptyText(..))
 import Parse
 import Syntax
 
@@ -68,6 +67,3 @@ instance (Monad m, (forall a. Serial m a => Serial m (f a))) => Serial m (Record
 
 instance Monad m => Serial m Delimiters where
   series = cons2 Delimiters
-
-instance Monad m => Serial m NonEmptyText where
-  series = cons2 NonEmptyText
