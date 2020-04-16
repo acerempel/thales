@@ -28,7 +28,6 @@ import Text.Megaparsec.Char.Lexer (scientific)
 
 import qualified List
 import NonEmptyText (NonEmptyText(..))
-import qualified NonEmptyText
 import Syntax
 
 -- | A statement that may enclose a block of further statements (or may not).
@@ -100,11 +99,11 @@ runParser parser delims name input =
   let r = runParserT (unParser parser) name input
   in runReader r delims
 
-getBeginDelim :: Parser NonEmptyText
+getBeginDelim :: Parser Text
 getBeginDelim =
   Parser (asks begin)
 
-getEndDelim :: Parser NonEmptyText
+getEndDelim :: Parser Text
 getEndDelim =
   Parser (asks end)
 
@@ -123,7 +122,7 @@ syntaxP inBlock =
   where
     verbatimP = do
       beginD <- getBeginDelim
-      takeWhileP (Just "any non-delimiter character") (/= NonEmptyText.head beginD)
+      takeWhileP (Just "any non-delimiter character") (/= Text.head beginD)
     endP =
       -- TODO: I do not like this 'try'. Would be nice to remove it.
       if inBlock then try (withinDelims (keywordP "end") <?> "end of block") else eof
@@ -146,14 +145,11 @@ statementP = label "statement" $ do
 
 withinDelims :: Parser a -> Parser a
 withinDelims innerP = do
-  label "opening delimiter" $ nonEmptyChunk =<< getBeginDelim
+  label "opening delimiter" $ chunk =<< getBeginDelim
   space
   inner <- innerP
-  label "closing delimiter" $ nonEmptyChunk =<< getEndDelim
+  label "closing delimiter" $ chunk =<< getEndDelim
   return inner
- where
-  nonEmptyChunk (NonEmptyText hd tl) =
-    try $ char hd >> chunk tl
 
 isIdChar :: Char -> Bool
 isIdChar = \c -> isAlpha c || c == '-' || c == '_'

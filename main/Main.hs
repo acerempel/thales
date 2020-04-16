@@ -10,7 +10,6 @@ import System.Directory
 
 import Configuration
 import DependencyMonad hiding (listDirectory)
-import qualified NonEmptyText
 import Syntax
 
 main =
@@ -152,20 +151,15 @@ parseDelimiters :: String -> Either String Delimiters
 parseDelimiters s = maybe (Left errMsg) Right $ do
   let (before, comma_after) = break (== delimitersSeparator) s
   after <- viaNonEmpty tail comma_after
-  before_ne <- nonEmpty before
-  after_ne <- nonEmpty after
-  return $
-    Delimiters
-      (NonEmptyText.fromNonEmptyString before_ne)
-      (NonEmptyText.fromNonEmptyString after_ne)
+  return $ Delimiters (Text.pack before) (Text.pack after)
  where
   errMsg =
     "Argument is not of the form \"<string>,<string>\""
 
 showDelimiters :: Delimiters -> String
 showDelimiters Delimiters{..} =
-  Text.unpack (NonEmptyText.toText begin) <>
+  Text.unpack begin <>
   [delimitersSeparator] <>
-  Text.unpack (NonEmptyText.toText end)
+  Text.unpack end
 
 delimitersSeparator = ','

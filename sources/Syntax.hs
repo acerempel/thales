@@ -100,8 +100,8 @@ deriving instance (forall a. Eq a => Eq (f a)) => Eq (RecordBinding f)
 you want to call them, in a template. E.g. @Delimiters "{{" "}}"@,
 or @Delimiters { begin = "$(", end = ")" }@. -}
 data Delimiters = Delimiters
-  { begin :: NonEmptyText
-  , end :: NonEmptyText }
+  { begin :: Text
+  , end :: Text }
   deriving stock ( Show, Eq, Generic, Typeable )
   deriving anyclass ( Hashable, NFData, Binary )
 
