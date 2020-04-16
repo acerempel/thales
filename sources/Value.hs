@@ -1,7 +1,6 @@
 {-|
 Description : The definition of values in the template expression language.
 -}
-{-# LANGUAGE TypeApplications #-}
 module Value
   ( Value(..)
   , ValueType(..)
