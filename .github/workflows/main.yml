@@ -38,16 +38,16 @@ jobs:
         path: ~/.cabal/store
         key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-store-${{ hashFiles(format('cabal.ghc-{0}.project.freeze', matrix.ghc )) }}
         restore-keys: |
-          ${{ runner.os }}-${{ matrix.ghc }}-cabal-packages-
-          ${{ runner.os }}-${{ matrix.ghc }}-cabal-packages
+          ${{ runner.os }}-${{ matrix.ghc }}-cabal-store-
+          ${{ runner.os }}-${{ matrix.ghc }}-cabal-store
     - uses: actions/cache@v1.1.2
       name: Cache dist-newstyle
       with:
         path: dist-newstyle
         key: ${{ runner.os }}-${{ matrix.ghc }}-dist-newstyle-${{ hashFiles(format('cabal.ghc-{0}.project.freeze', matrix.ghc )) }}
         restore-keys: |
-          ${{ runner.os }}-${{ matrix.ghc }}-cabal-packages-
-          ${{ runner.os }}-${{ matrix.ghc }}-cabal-packages
+          ${{ runner.os }}-${{ matrix.ghc }}-dist-newstyle-
+          ${{ runner.os }}-${{ matrix.ghc }}-dist-newstyle
     - uses: actions/setup-haskell@v1
       name: Setup GHC and cabal-install
       with:
