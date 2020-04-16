@@ -122,6 +122,7 @@ optionsParser =
               "plus everything that --info prints.")) <|>
       flag' Diagnostic (
         long "diagnostic" <>
+        hidden <>
         help ("Print all manner of debugging info, " <>
               "plus everything that --verbose prints.")) <|>
       pure Info
