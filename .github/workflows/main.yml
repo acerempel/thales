@@ -57,8 +57,9 @@ jobs:
     - name: Update the hackage index
       run: cabal v2-update
     - name: Save the build options
-      # TODO: enable -Werror here
-      run: cabal v2-configure -w ghc-${{ matrix.ghc }} -O1 --project-file cabal.ghc-${{ matrix.ghc }}.project
+      run: |
+        echo "  ghc-options: -Werror" >> cabal.ghc-${{ matrix.ghc }}.project
+        cabal v2-configure -w ghc-${{ matrix.ghc }} -O1 --project-file cabal.ghc-${{ matrix.ghc }}.project
     - name: Build the project
       run: cabal v2-build --project-file cabal.ghc-${{ matrix.ghc }}.project
     - name: Run the tests
