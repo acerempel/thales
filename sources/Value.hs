@@ -1,6 +1,7 @@
 {-|
 Description : The definition of values in the template expression language.
 -}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Value
   ( Value(..)
   , ValueType(..)
