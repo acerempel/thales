@@ -11,6 +11,8 @@ module Eval.Function
   ( Signature
   , argument
   , eitherArgument
+  , noMoreArguments
+  , restOfArguments
   , applySignature
   )
 where
@@ -43,6 +45,7 @@ data Signature a where
   LiftA2 :: (a -> b -> c) -> ~(Signature a) -> ~(Signature b) -> Signature c
   Pure :: a -> Signature a
   Fail :: Signature a
+  End :: Signature ()
 
 instance Functor Signature where
   fmap = Fmap
@@ -69,6 +72,13 @@ argument = Arg
 eitherArgument :: ValueType t1 -> ValueType t2 -> Signature (Either t1 t2)
 eitherArgument = ArgEither
 
+noMoreArguments :: Signature ()
+noMoreArguments = End
+
+restOfArguments :: Signature t -> Signature [t]
+restOfArguments sig =
+  liftA2 (:) sig (restOfArguments sig) <|> [] <$ noMoreArguments
+
 data Failure e
   = CommittedFailure e
   | TentativeFailure e
@@ -93,12 +103,17 @@ instance Semigroup e => Semigroup (Failure e) where
 instance Semigroup e => Monoid (Failure e) where
   mempty = InarticulateFailure
 
-newtype ArgumentErrors = ArgErrs (Either ArgumentTypeMismatches InsufficientArguments)
+data ArgumentErrors
+  = WrongTypes ArgumentTypeMismatches
+  | NotEnough InsufficientArguments
+  | TooMany WrongNumberOfArguments
 
 instance Semigroup ArgumentErrors where
-  ArgErrs (Left tm1) <> ArgErrs (Left tm2) = ArgErrs (Left (tm1 <> tm2))
-  ArgErrs l@(Left _) <> _ = ArgErrs l
-  _ <> ArgErrs r@(Left _) = ArgErrs r
+  WrongTypes tm1 <> WrongTypes tm2 = WrongTypes (tm1 <> tm2)
+  e@(WrongTypes _) <> _ = e
+  _ <> e@(WrongTypes _) = e
+  e@(TooMany _) <> _ = e
+  _ <> e@(TooMany _) = e
   a <> _ = a
 
 data SigState = SigState
@@ -113,10 +128,12 @@ applySignature sig args =
       result = first unwrapFailure $ runIdentity $ runValidationT validated
   in
     case result of
-      Left (ArgErrs (Left errors)) ->
+      Left (WrongTypes errors) ->
         Left (FunctionArgumentTypeMismatches errors)
-      Left (ArgErrs (Right err)) ->
+      Left (NotEnough err) ->
         Left (FunctionInsufficientArguments err)
+      Left (TooMany err) ->
+        Left (FunctionWrongNumberOfArguments err)
       Right (a, SigState{..}) ->
         case nextArgs of
           (_:_) ->
@@ -161,12 +178,20 @@ applySignature sig args =
     go Fail =
       empty
 
+    go End = do
+      SigState{..} <- get
+      case nextArgs of
+        [] -> pure ()
+        next -> failed $ TooMany
+          WrongNumberOfArguments
+            { expected = numArgsSeen, actual = numArgsSeen + length next }
+
     requireArg action = do
       SigState{..} <- get
       case nextArgs of
         [] -> do
           let err = InsufficientArguments numArgsSeen
-          failed $ ArgErrs (Right err)
+          failed $ NotEnough err
         (arg:rest) -> do
           res <- action arg
           put SigState
@@ -186,6 +211,6 @@ applySignature sig args =
     argumentTypeMismatch tys arg = do
       prev_arg <- gets numArgsSeen
       failed $
-        ArgErrs (Left (ArgumentTypeMismatches
+        WrongTypes (ArgumentTypeMismatches
         (IntMap.singleton (prev_arg + 1)
-        (TypeMismatch arg (DList.fromList tys)))))
+        (TypeMismatch arg (DList.fromList tys))))

@@ -119,16 +119,21 @@ literalToValue = \case
 
 knownFunctions :: [(Name, Signature FunctionResult)]
 knownFunctions =
-  [ ("append", Pure <$> appendFunction)
+  [ ("concat", Pure <$> concatFunction)
   , ("list-directory", Action <$> listDirectoryFunction)
   , (Name loadYamlFunctionName, Action <$> loadYamlFunction)
   , (Name loadMarkdownFunctionName, Action <$> loadMarkdownFunction)
   , (Name loadTemplateFunctionName, Action <$> loadTemplateFunction)
   ]
 
-appendFunction =
-    String <$> liftA2 (<>) (argument TextT) (argument TextT) <|>
-    Array <$> liftA2 (<>) (argument ArrayT) (argument ArrayT)
+concatFunction =
+    String . mconcat <$> restOfArguments (orEmpty TextT) <|>
+    Array . mconcat <$> restOfArguments (orEmpty ArrayT) <|>
+    Record . mconcat <$> restOfArguments (orEmpty RecordT)
+  where
+    orEmpty :: Monoid t => ValueType t -> Signature t
+    orEmpty =
+      fmap (either (const mempty) id) . eitherArgument EmptyT
 
 listDirectoryFunction =
     ListDirectory . Text.unpack <$> argument TextT

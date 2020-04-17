@@ -1,2 +1,2 @@
-{for item in append(["potato","leek"],["squash","turnip","bobcat"])}
+{for item in concat(["potato","leek"],["squash","turnip","bobcat"])}
 {item}{end}

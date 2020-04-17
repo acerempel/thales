@@ -1,1 +1,1 @@
-{ append("some ", "text") }
+{ concat("some ", "text") }
