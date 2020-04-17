@@ -1,7 +1,7 @@
 module Syntax.Display
   ( displayList
   , displayFieldAccess, displayFieldAccessLineBreak
-  , displayFunctionCall
+  , displayFunctionCall, displayFunctionCallLineBreak
   , Spacing(..), LineBreak(..)
   )
 where
@@ -41,8 +41,12 @@ data LineBreak
 
 displayFunctionCall :: Doc any -> [Doc any] -> Doc any
 displayFunctionCall name args =
-  name <> align
-    ( encloseSep (lparen <> space) (space <> rparen) (comma <> space) args )
+  displayFunctionCallLineBreak (May Tight) name args
+
+displayFunctionCallLineBreak :: LineBreak -> Doc any -> [Doc any] -> Doc any
+displayFunctionCallLineBreak br name args =
+  nest 2 $ name <> renderLineBreak br <>
+    ( encloseSep (lparen <> space) (space <> renderLineBreak br <> rparen) (comma <> space) args )
 
 displayList :: (a -> Doc any) -> List a -> Doc any
 displayList disp lst =

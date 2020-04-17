@@ -169,7 +169,7 @@ displayExprProblem = \case
           (map displayExpr args)
 
       FunctionArgumentTypeMismatches (ArgumentTypeMismatches errors) ->
-        displayFunctionCall (displayName name) $
+        displayFunctionCallLineBreak (Should Tight) (displayName name) $
           DList.toList . fst $
           foldl' go (mempty,1) args
 
