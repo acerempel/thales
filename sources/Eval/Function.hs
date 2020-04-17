@@ -34,21 +34,13 @@ here too! It's not a 'Monad' though.) The other key function is 'argument'.
 data Signature a where
   Alt :: Signature a -> Signature a -> Signature a
   Arg :: ValueType t -> Signature t
+  Fmap :: (a -> b) -> Signature a -> Signature b
   LiftA2 :: (a -> b -> c) -> Signature a -> Signature b -> Signature c
   Pure :: a -> Signature a
   Fail :: Signature a
 
 instance Functor Signature where
-  fmap f = go
-    where
-      go (Alt sig1 sig2) = Alt (fmap f sig1) (fmap f sig2)
-      go (LiftA2 g siga sigb) = LiftA2 (\a b -> f (g a b)) siga sigb
-      go (Pure a) = Pure (f a)
-      go (Arg t) = LiftA2 ($) (Pure f) (Arg t)
-      go Fail = Fail
-
-  a <$ _sig =
-    Pure a
+  fmap = Fmap
 
 instance Applicative Signature where
   pure = Pure
@@ -61,6 +53,7 @@ what errors other branches return.-}
 instance Alternative Signature where
   (<|>) = Alt
   empty = Fail
+  some sig = LiftA2 (:) sig (many sig)
 
 {-| Accept an argument of the given type. You can then use 'fmap'
 and the 'Applicative' and 'Alternative' combinators to work with
@@ -152,6 +145,9 @@ applySignature sig args =
 
     go (LiftA2 f siga sigb) =
       liftA2 f (go siga) (go sigb)
+
+    go (Fmap f siga) =
+      f <$> go siga
 
     go (Pure a) =
       pure a
