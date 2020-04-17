@@ -6,9 +6,11 @@ arguments it takes, in what order, and then you can use 'applySignature' to chec
 list (i.e., a @['Value']@) against the 'Signature', and if the arguments are of the required
 types and so forth, you get the result.
 -}
+{-# LANGUAGE MultiWayIf #-}
 module Eval.Function
   ( Signature
   , argument
+  , eitherArgument
   , applySignature
   )
 where
@@ -34,8 +36,11 @@ here too! It's not a 'Monad' though.) The other key function is 'argument'.
 data Signature a where
   Alt :: Signature a -> Signature a -> Signature a
   Arg :: ValueType t -> Signature t
+  ArgEither :: ValueType t1 -> ValueType t2 -> Signature (Either t1 t2)
   Fmap :: (a -> b) -> Signature a -> Signature b
-  LiftA2 :: (a -> b -> c) -> Signature a -> Signature b -> Signature c
+  -- The 'Signature' arguments to 'LiftA2' need to be lazy, otherwise 'some'
+  -- is an infinite loop!
+  LiftA2 :: (a -> b -> c) -> ~(Signature a) -> ~(Signature b) -> Signature c
   Pure :: a -> Signature a
   Fail :: Signature a
 
@@ -60,6 +65,9 @@ and the 'Applicative' and 'Alternative' combinators to work with
 the result.-}
 argument :: ValueType t -> Signature t
 argument = Arg
+
+eitherArgument :: ValueType t1 -> ValueType t2 -> Signature (Either t1 t2)
+eitherArgument = ArgEither
 
 data Failure e
   = CommittedFailure e
@@ -124,21 +132,19 @@ applySignature sig args =
     -- Type signature needed because of MonoLocalBinds
     go :: Signature b -> StateT SigState (Validation (Failure ArgumentErrors)) b
     go (Arg valt) = do
-      SigState{..} <- get
-      case nextArgs of
-        [] -> do
-          let err = InsufficientArguments numArgsSeen
-          failed $ ArgErrs (Right err)
-        (arg:rest) ->
-          case valueOfType valt arg of
-            Nothing ->
-              failed $ argumentTypeMismatch (numArgsSeen + 1) valt arg
-            Just res -> do
-              put SigState
-                { numArgsSeen = numArgsSeen + 1
-                , nextArgs = rest
-                , didConsume = True }
-              pure res
+      requireArg $ \arg ->
+        case valueOfType valt arg of
+          Nothing -> argumentTypeMismatch [SomeType valt] arg
+          Just res -> pure res
+
+    go (ArgEither t1 t2) =
+      requireArg $ \arg -> if
+        | Just arg1 <- valueOfType t1 arg ->
+          pure (Left arg1)
+        | Just arg2 <- valueOfType t2 arg ->
+          pure (Right arg2)
+        | otherwise ->
+          argumentTypeMismatch [SomeType t1, SomeType t2] arg
 
     go (Alt left right) =
       go left <|> go right
@@ -155,6 +161,20 @@ applySignature sig args =
     go Fail =
       empty
 
+    requireArg action = do
+      SigState{..} <- get
+      case nextArgs of
+        [] -> do
+          let err = InsufficientArguments numArgsSeen
+          failed $ ArgErrs (Right err)
+        (arg:rest) -> do
+          res <- action arg
+          put SigState
+            { numArgsSeen = numArgsSeen + 1
+            , nextArgs = rest
+            , didConsume = True }
+          pure res
+
     failed :: ArgumentErrors -> StateT SigState (Validation (Failure ArgumentErrors)) a
     failed err = do
       did_branch_consume <- gets didConsume
@@ -162,9 +182,10 @@ applySignature sig args =
         then CommittedFailure err
         else TentativeFailure err
 
-    argumentTypeMismatch :: forall t. Int -> ValueType t -> Value -> ArgumentErrors
-    argumentTypeMismatch n valt arg =
-      ArgErrs (Left
-      (ArgumentTypeMismatches
-      (IntMap.singleton n
-      (TypeMismatch arg (DList.singleton (SomeType valt))))))
+    argumentTypeMismatch :: [SomeValueType] -> Value -> StateT SigState (Validation (Failure ArgumentErrors)) a
+    argumentTypeMismatch tys arg = do
+      prev_arg <- gets numArgsSeen
+      failed $
+        ArgErrs (Left (ArgumentTypeMismatches
+        (IntMap.singleton (prev_arg + 1)
+        (TypeMismatch arg (DList.fromList tys)))))
