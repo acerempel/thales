@@ -115,6 +115,7 @@ literalToValue = \case
   NumberL  n -> Number n
   StringL  s -> String s
   BooleanL b -> Boolean b
+  EmptyL     -> Empty
 
 knownFunctions :: [(Name, Signature FunctionResult)]
 knownFunctions =

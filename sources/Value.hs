@@ -40,6 +40,8 @@ data Value where
   -- from other files are loaded lazily – we get each field, or the document body,
   -- on demand.
   LoadedDoc :: DocumentInfo -> Value
+  -- | The empty 'Value'.
+  Empty :: Value
   deriving stock ( Generic, Show, Eq )
   deriving anyclass ( NFData, Hashable, Binary )
 
@@ -63,6 +65,7 @@ displayValue = \case
           FunctionCallE (Name loadMarkdownFunctionName) [String (Text.pack fp)]
         TemplateFile _delims binds ->
           FunctionCallE (Name loadTemplateFunctionName) [String (Text.pack fp), Record binds]
+  Empty -> "empty"
 
 -- | A document is represented as a reference to a 'Record'-like value that is
 -- found in a file somewhere – like a YAML file. The document may also have a
@@ -85,6 +88,7 @@ data ValueType a where
   ArrayT :: ValueType (List Value)
   RecordT :: ValueType (HashMap Text Value)
   DocumentT :: ValueType DocumentInfo
+  EmptyT :: ValueType ()
 
 displayType :: SomeValueType -> Doc any
 displayType (SomeType t) = pretty (typeName t)
@@ -97,6 +101,7 @@ typeName = \case
   ArrayT -> "array"
   RecordT -> "record"
   DocumentT -> "document"
+  EmptyT -> "empty"
 
 instance Eq (ValueType a) where
   _ == _ = True
@@ -114,6 +119,7 @@ instance Eq SomeValueType where
   SomeType ArrayT == SomeType ArrayT = True
   SomeType RecordT == SomeType RecordT = True
   SomeType DocumentT == SomeType DocumentT = True
+  SomeType EmptyT == SomeType EmptyT = True
   _ == _ = False
 
 instance Show SomeValueType where
@@ -127,6 +133,7 @@ valueType = \case
   Array _ -> SomeType ArrayT
   Record _ -> SomeType RecordT
   LoadedDoc _ -> SomeType DocumentT
+  Empty -> SomeType EmptyT
 
 valueWithType :: Value -> TypedValue
 valueWithType = \case
@@ -136,6 +143,7 @@ valueWithType = \case
   Array a -> Typed ArrayT a
   Record r -> Typed RecordT r
   LoadedDoc d -> Typed DocumentT d
+  Empty -> Typed EmptyT ()
 
 valueOfType :: ValueType t -> Value -> Maybe t
 valueOfType NumberT (Number n) = Just n
@@ -144,6 +152,7 @@ valueOfType BooleanT (Boolean b) = Just b
 valueOfType ArrayT (Array l) = Just l
 valueOfType RecordT (Record r) = Just r
 valueOfType DocumentT (LoadedDoc d) = Just d
+valueOfType EmptyT Empty = Just ()
 valueOfType _ _ = Nothing
 
 instance Yaml.FromJSON Value where
@@ -163,7 +172,7 @@ parseYamlValue val =
     Yaml.Bool boo ->
       pure $ Boolean boo
     Yaml.Null ->
-      fail "Null not supported!"
+      pure Empty
 
 -- | A type of file that may be interpreted as a key-value mapping, i.e. a
 -- 'Record', and which may also have a document body.

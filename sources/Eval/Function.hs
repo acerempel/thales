@@ -36,7 +36,7 @@ data Signature a where
   Arg :: ValueType t -> Signature t
   LiftA2 :: (a -> b -> c) -> Signature a -> Signature b -> Signature c
   Pure :: a -> Signature a
-  Empty :: Signature a
+  Fail :: Signature a
 
 instance Functor Signature where
   fmap f = go
@@ -45,7 +45,7 @@ instance Functor Signature where
       go (LiftA2 g siga sigb) = LiftA2 (\a b -> f (g a b)) siga sigb
       go (Pure a) = Pure (f a)
       go (Arg t) = LiftA2 ($) (Pure f) (Arg t)
-      go Empty = Empty
+      go Fail = Fail
 
   a <$ _sig =
     Pure a
@@ -60,7 +60,7 @@ are explored, and the first branch that succeeds is returned, no matter
 what errors other branches return.-}
 instance Alternative Signature where
   (<|>) = Alt
-  empty = Empty
+  empty = Fail
 
 {-| Accept an argument of the given type. You can then use 'fmap'
 and the 'Applicative' and 'Alternative' combinators to work with
@@ -156,7 +156,7 @@ applySignature sig args =
     go (Pure a) =
       pure a
 
-    go Empty =
+    go Fail =
       empty
 
     failed :: ArgumentErrors -> StateT SigState (Validation (Failure ArgumentErrors)) a

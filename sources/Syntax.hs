@@ -157,6 +157,7 @@ data Literal
   = NumberL Scientific
   | StringL Text
   | BooleanL Bool
+  | EmptyL
   deriving ( Show, Eq, Generic )
 
 displayLiteral :: Literal -> Doc anything
@@ -164,6 +165,7 @@ displayLiteral = \case
   NumberL n -> unsafeViaShow n
   StringL s -> viaShow s
   BooleanL b -> pretty b
+  EmptyL -> "empty"
 
 displayRecord :: (a -> Doc any) -> [RecordBinding a] -> Doc any
 displayRecord displayInner binds =

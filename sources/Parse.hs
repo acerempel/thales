@@ -225,6 +225,7 @@ exprP = label "an expression" $ do
     <|> LiteralE <$> numberP
     <|> LiteralE <$> stringP
     <|> functionCallP
+    <|> LiteralE EmptyL <$ keywordP "empty"
     <|> NameE <$> nameP
   fields <- many (dot *> nameP)
   return (foldl' (\e f -> FieldAccessE f (Rec e)) expr fields)
@@ -249,7 +250,7 @@ recordBindingP = do
       Nothing  -> FieldPun name
 
 keywords :: HashSet Text
-keywords = Set.fromList ["let", "in", "provide", "optionally", "for", "include-body"]
+keywords = Set.fromList ["let", "in", "provide", "optionally", "for", "include-body", "empty"]
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space
