@@ -16,6 +16,7 @@ where
 import Prelude hiding (group)
 
 import Data.DList (DList)
+import qualified Data.DList as DList
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Text as Text
 import Data.Text.Prettyprint.Doc
@@ -157,6 +158,7 @@ displayExprProblem = \case
           (displayName name)
   FunctionCallProblem name args prob ->
     case prob of
+
       FunctionDoesNotExist knownFunctions ->
         let message =
               [ "That's not the name of a function!"
@@ -165,10 +167,47 @@ displayExprProblem = \case
          in displayFunctionCall
           (withErrorMessage (displayName name) message)
           (map displayExpr args)
+
+      FunctionArgumentTypeMismatches (ArgumentTypeMismatches errors) ->
+        displayFunctionCall (displayName name) $
+          DList.toList . fst $
+          foldl' go (mempty,1) args
+
+        where
+          go (acc,n) a =
+            let next =
+                  fromMaybe (displayExpr a) (displayTypeMismatch n a <$> IntMap.lookup n errors)
+             in (acc <> DList.singleton next,n+1)
+
+          displayTypeMismatch n a (TypeMismatch val types) =
+            withErrorMessage (displayExpr a) (typeMismatchErrorMessage n val types)
+
+          typeMismatchErrorMessage :: Int -> Value -> DList SomeValueType -> NonEmpty (Doc Markup)
+          typeMismatchErrorMessage n val types =
+            [ "The" <+> ordinal n <+> "argument"
+            , "is a" <+> displayType (valueType val) <> comma
+            , nest 2 ("namely" <> softline <> displayValue val <> comma)
+            , nest 2 (expectedTypes types) ]
+
+          expectedTypes types =
+            case toList types of
+              [] -> error "no types!" -- TODO use NonEmpty
+              ty1:tys ->
+                "but was expected to be a" <+> displayType ty1
+                  <> foldMap ((("," <> softline <> "or a ") <>) . displayType) tys
+
+          ordinal n = case n of
+            1 -> "1st"; 2 -> "2nd"; 3 -> "3rd"
+            4 -> "4th"; 5 -> "5th"; 6 -> "6th"
+            7 -> "7th"; 8 -> "8th"; 9 -> "9th"
+            10 -> "10th"
+            _ -> error ("weird number of arguments: " <> show n)
+
       _ ->
         withErrorMessage
           (displayFunctionCall (displayName name) (map displayExpr args))
           [ "An error has occurred!" ]
+
   _ -> error "not yet implemented!"
 
 withErrorMessage :: Doc Markup -> NonEmpty (Doc Markup) -> Doc Markup
