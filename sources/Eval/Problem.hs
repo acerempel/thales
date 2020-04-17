@@ -203,10 +203,15 @@ displayExprProblem = \case
             10 -> "10th"
             _ -> error ("weird number of arguments: " <> show n)
 
-      _ ->
+      FunctionInsufficientArguments (InsufficientArguments n) ->
         withErrorMessage
           (displayFunctionCall (displayName name) (map displayExpr args))
-          [ "An error has occurred!" ]
+          [ "Insufficient arguments!","Only got " <> pretty n ]
+
+      FunctionWrongNumberOfArguments WrongNumberOfArguments{expected,actual} ->
+        withErrorMessage
+          (displayFunctionCall (displayName name) (map displayExpr args))
+          [ "Wrong num of args!","Wanted " <> pretty expected <> comma, "got " <> pretty actual ]
 
   _ -> error "not yet implemented!"
 
