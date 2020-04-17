@@ -15,7 +15,6 @@ where
 
 import Prelude hiding (group)
 
-import Data.DList (DList)
 import qualified Data.DList as DList
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Text as Text
@@ -35,7 +34,7 @@ markupToAnsi = \case
   Problematic -> color Magenta <> bold
   Heading -> bold
 
-data TypeMismatch = TypeMismatch Value (DList SomeValueType)
+data TypeMismatch = TypeMismatch Value (HashSet SomeValueType)
   deriving ( Show, Eq )
 
 -- | Note that this instance assumes the 'Value' is the same!
@@ -182,7 +181,7 @@ displayExprProblem = \case
           displayTypeMismatch n a (TypeMismatch val types) =
             withErrorMessage (displayExpr a) (typeMismatchErrorMessage n val types)
 
-          typeMismatchErrorMessage :: Int -> Value -> DList SomeValueType -> NonEmpty (Doc Markup)
+          typeMismatchErrorMessage :: Int -> Value -> HashSet SomeValueType -> NonEmpty (Doc Markup)
           typeMismatchErrorMessage n val types =
             [ "The" <+> ordinal n <+> "argument"
             , "is a" <+> displayType (valueType val) <> comma

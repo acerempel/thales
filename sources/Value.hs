@@ -125,6 +125,20 @@ instance Eq SomeValueType where
 instance Show SomeValueType where
   show (SomeType t) = Text.unpack (typeName t)
 
+instance Hashable SomeValueType where
+  hashWithSalt salt t =
+    hashWithSalt salt (indexT t)
+   where
+    indexT :: SomeValueType -> Int
+    indexT (SomeType tt) = case tt of
+      NumberT -> 0
+      TextT -> 1
+      BooleanT -> 2
+      ArrayT -> 3
+      RecordT -> 4
+      DocumentT -> 5
+      EmptyT -> 6
+
 valueType :: Value -> SomeValueType
 valueType = \case
   Number _ -> SomeType NumberT

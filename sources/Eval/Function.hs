@@ -21,7 +21,7 @@ import Prelude hiding (Alt(..), get, gets, put)
 
 import Control.Monad.Trans.State.Strict
 import Control.Applicative.Trans.Validation
-import qualified Data.DList as DList
+import qualified Data.HashSet as HashSet
 import qualified Data.IntMap as IntMap
 
 import Eval.Problem
@@ -213,4 +213,4 @@ applySignature sig args =
       failed $
         WrongTypes (ArgumentTypeMismatches
         (IntMap.singleton (prev_arg + 1)
-        (TypeMismatch arg (DList.fromList tys))))
+        (TypeMismatch arg (HashSet.fromList tys))))
