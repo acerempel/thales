@@ -11,6 +11,7 @@ module Syntax
   , ExprF(..) , Expr, Rec(..)
   , RecordBinding(..)
   , Literal(..)
+  , IsOptional(..), displayOptionality
   , SourcePos(..)
   , Delimiters(..), defaultDelimiters
   , displayExpr, displayExprF
@@ -86,11 +87,18 @@ data ExprF a
   | ArrayE (List a)
   | RecordE [RecordBinding a]
   -- | A field access, like @post.description@.
-  | FieldAccessE Name a
+  | FieldAccessE Name IsOptional a
   -- | A bare name, like @potato@.
   | NameE Name
   | FunctionCallE Name [a]
   deriving ( Generic, Eq, Show, Functor )
+
+newtype IsOptional = IsOptional Bool
+  deriving ( Show, Eq )
+
+displayOptionality :: IsOptional -> Doc any
+displayOptionality (IsOptional b) =
+  if b then pretty '?' else mempty
 
 -- | The sort of binding that may occur in a record literal – also used in the
 -- @export@ statement.
@@ -139,8 +147,8 @@ displayExprF displayInner expr =
       displayLiteral lit
     ArrayE vec ->
       displayList displayInner vec
-    FieldAccessE n a ->
-      displayFieldAccess (displayInner a) (displayName n)
+    FieldAccessE n i a ->
+      displayFieldAccess (displayInner a) (displayName n) (displayOptionality i)
     NameE n ->
       displayName n
     RecordE binds ->

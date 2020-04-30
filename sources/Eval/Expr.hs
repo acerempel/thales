@@ -1,6 +1,6 @@
 module Eval.Expr
   ( ExprT, Bindings, runExprT, Name
-  , exprProblem, handleZut, mapZut
+  , exprProblem, mapZut
   , lookupName
   , getLocalNames
   , getTemplateDirectory
@@ -21,7 +21,7 @@ import Syntax
 import Value
 
 newtype ExprT m a = ExprT
-  { unExprT :: ExceptT ExprProblemInContext (ReaderT Env m) a }
+  (ExceptT ExprProblemInContext (ReaderT Env m) a)
   deriving newtype ( Monad, Functor, Applicative )
 
 -- | The environment for evaluation of a template expression.
@@ -73,9 +73,6 @@ instance Applicative m => HasLocalBindings (ExprT m) where
     -- 'binds' has to be the first argument to 'Map.union', so that we can shadow
     -- existing bindings -- 'Map.union' is left-biased.
     ExprT (mapExceptT (local (overBindings (Bindings.fromList (coerce binds) `Bindings.union`))) r)
-
-handleZut :: Monad m => (ExprProblemInContext -> ExprT m a) -> ExprT m a -> ExprT m a
-handleZut handler (ExprT m) = ExprT (catchE m (unExprT . handler))
 
 mapZut :: Functor m => AddProblemContext -> ExprT m a -> ExprT m a
 mapZut f (ExprT m) =

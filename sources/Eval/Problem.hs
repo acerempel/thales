@@ -96,7 +96,7 @@ displayStmtProblem = \case
 
 data ExprProblem
   = FunctionCallProblem Name [Expr] FunctionCallProblem
-  | FieldAccessProblem Name Expr FieldAccessProblem
+  | FieldAccessProblem Name Expr IsOptional FieldAccessProblem
   | RecordLiteralProblem [Either (RecordBinding Expr) RecordBindingProblem]
   | NameNotFound Name [Name]
   deriving Show
@@ -136,7 +136,7 @@ displayExprProblem = \case
              else one $ nest 2 ("These names are available:" <> line <>
               fillSep (punctuate comma (map displayName available)))
      in withErrorMessage (displayName name) nnfMessage
-  FieldAccessProblem name expr prob ->
+  FieldAccessProblem name expr opt prob ->
     case prob of
       FieldAccessFieldNotFound avail ->
         let fnfMessage =
@@ -146,6 +146,7 @@ displayExprProblem = \case
                 fillSep (punctuate comma (map displayName avail))) ]
          in displayFieldAccess (displayExpr expr)
               (withErrorMessage (displayName name) fnfMessage)
+              (displayOptionality opt)
       FieldAccessNotARecord val ->
         let narMessage =
               [ "This value does not have fields,"
@@ -155,6 +156,7 @@ displayExprProblem = \case
          in displayFieldAccessLineBreak Must
           (withErrorMessage (displayExpr expr) narMessage)
           (displayName name)
+          (displayOptionality opt)
   FunctionCallProblem name args prob ->
     case prob of
 

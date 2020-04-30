@@ -57,6 +57,9 @@ instance Monad m => Serial m Literal
 instance Monad m => Serial m Scientific where
   series = cons2 scientific
 
+instance Monad m => Serial m IsOptional where
+  series = newtypeCons IsOptional
+
 instance (Monad m, Serial m a) => Serial m (ExprF a)
 instance (Monad m, Serial m a) => Serial m (RecordBinding a)
 instance (Monad m, forall a. Serial m a => Serial m (f a)) => Serial m (Rec f) where

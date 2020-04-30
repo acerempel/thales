@@ -45,26 +45,34 @@ evalExpr mContext expr =
         namesInScope <- getLocalNames
         exprProblem (NameNotFound name namesInScope)
 
-  FieldAccessE name (Rec subExpr) -> do
-    subVal <- evalSubExpr (FieldAccessE name) subExpr
-    let ohNo available = exprProblem (FieldAccessProblem name subExpr (FieldAccessFieldNotFound available))
+  FieldAccessE name opt@(IsOptional isOpt) (Rec subExpr) -> do
+    subVal <- evalSubExpr (FieldAccessE name opt) subExpr
+    let ohNo available = exprProblem (FieldAccessProblem name subExpr opt (FieldAccessFieldNotFound available))
     case subVal of
       Record rec ->
         case Map.lookup (fromName name) rec of
-          Nothing ->
-            ohNo (coerce (Map.keys rec))
+          Nothing
+            | isOpt ->
+              return Empty
+            | otherwise ->
+              ohNo (coerce (Map.keys rec))
           Just val ->
             return val
       LoadedDoc (DocInfo ft path) -> do
         mb_val <- lift $ lookupField ft path (fromName name)
         case mb_val of
-          Nothing -> do
-            keys <- lift $ listFields ft path
-            ohNo keys
+          Nothing
+            | isOpt ->
+              return Empty
+            | otherwise -> do
+              keys <- lift $ listFields ft path
+              ohNo keys
           Just val ->
             return val
+      Empty ->
+        return Empty
       _ ->
-        exprProblem (FieldAccessProblem name subExpr (FieldAccessNotARecord subVal))
+        exprProblem (FieldAccessProblem name subExpr opt (FieldAccessNotARecord subVal))
 
   LiteralE lit ->
     return (literalToValue lit)
@@ -194,6 +202,8 @@ evalStatement = \case
       case val of
         String text ->
           return (Output.fromText text)
+        Empty ->
+          return mempty
         _ ->
           stmtProblem (ExprIsNotOutputable sp expr val)
     addOutput text
@@ -204,6 +214,8 @@ evalStatement = \case
       case val of
         Array vec ->
           return vec
+        Empty ->
+          return mempty
         _ ->
           stmtProblem (ForProblem sp (ForNotAnArray var expr val))
     for_ arr $ \val ->
@@ -211,8 +223,11 @@ evalStatement = \case
         addLocalBinding var val $ evalStatement stmt
 
   OptionallyS sp expr mb_var body -> do
-    mb_val <- liftExprT (OptionallyExprProblem sp mb_var) $
-      handleZut (\_ -> return Nothing) (Just <$> evalTopExpr expr :: ExprT m (Maybe Value))
+    mb_val <- liftExprT (OptionallyExprProblem sp mb_var) $ do
+      val <- evalTopExpr expr :: ExprT m Value
+      case val of
+        Empty -> return Nothing
+        val' -> return (Just val')
     whenJust mb_val $ \val ->
       for_ body $ \stmt ->
         maybe id (`addLocalBinding` val) mb_var $
@@ -243,6 +258,8 @@ evalStatement = \case
         addOutput =<< liftExprT
           (IncludeBodyProblem sp . IncludeBodyExprProblem)
           (lift (getBody filetype filepath))
+      Empty ->
+        return ()
       _ ->
         stmtProblem (IncludeBodyProblem sp (IncludeBodyNotADocument expr val))
 

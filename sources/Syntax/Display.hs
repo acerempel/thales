@@ -17,11 +17,13 @@ displayFieldAccessLineBreak ::
   Doc any ->
   -- | The field name.
   Doc any ->
+  -- | The optionality modifier.
+  Doc any ->
   Doc any
-displayFieldAccessLineBreak br inner name =
-  nest 2 $ inner <> renderLineBreak br <> dot <> name
+displayFieldAccessLineBreak br inner name opt =
+  nest 2 $ inner <> renderLineBreak br <> dot <> name <> opt
 
-displayFieldAccess :: Doc any -> Doc any -> Doc any
+displayFieldAccess :: Doc any -> Doc any -> Doc any -> Doc any
 displayFieldAccess = displayFieldAccessLineBreak (May Tight)
 
 renderLineBreak :: LineBreak -> Doc any

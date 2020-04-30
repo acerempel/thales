@@ -227,8 +227,9 @@ exprP = label "an expression" $ do
     <|> functionCallP
     <|> LiteralE EmptyL <$ keywordP "empty"
     <|> NameE <$> nameP
-  fields <- many (dot *> nameP)
-  return (foldl' (\e f -> FieldAccessE f (Rec e)) expr fields)
+  fields <- many (dot *> liftA2 (,) nameP (optional (specialCharP '?')))
+  return (foldl' (\e (fieldName, isOptional) ->
+    FieldAccessE fieldName (IsOptional (isJust isOptional)) (Rec e)) expr fields)
 
 parensP = betweenChars '(' ')'
 bracketsP = betweenChars '[' ']'
