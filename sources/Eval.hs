@@ -138,10 +138,10 @@ concatFunction =
     String . mconcat <$> restOfArguments (orEmpty TextT) <|>
     Array . mconcat <$> restOfArguments (orEmpty ArrayT) <|>
     Record . mconcat <$> restOfArguments (orEmpty RecordT)
-  where
-    orEmpty :: Monoid t => ValueType t -> Signature t
-    orEmpty =
-      fmap (either (const mempty) id) . eitherArgument EmptyT
+
+orEmpty :: Monoid t => ValueType t -> Signature t
+orEmpty =
+  fmap (either (const mempty) id) . eitherArgument EmptyT
 
 listDirectoryFunction =
     ListDirectory . Text.unpack <$> argument TextT
@@ -153,7 +153,7 @@ loadMarkdownFunction =
     LoadMarkdown . Text.unpack <$> argument TextT
 
 loadTemplateFunction =
-    liftA2 LoadTemplate (Text.unpack <$> argument TextT) (argument RecordT <|> pure Map.empty)
+    liftA2 LoadTemplate (Text.unpack <$> argument TextT) (orEmpty RecordT <|> pure Map.empty)
 
 data FunctionResult
   = Pure Value
