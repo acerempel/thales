@@ -92,7 +92,17 @@ displayStmtProblem :: StmtProblem -> Doc Markup
 displayStmtProblem = \case
   ExprProblem sp epic ->
     displayError sp $ displayExprProblemInContext epic
-  _ -> error "nyi!"
+  ExprIsNotOutputable sp expr val ->
+    displayError sp $
+      nest 2 ("The expression" <> line <> displayExpr expr) <> line <>
+      nest 2 ("whose result is" <> line <> displayValue val) <> line <>
+      "cannot be spliced into a template;" <> softline <>
+      "it must be a text or empty"
+  ForProblem sp _ -> displayError sp "for problem"
+  IncludeBodyProblem sp _ -> displayError sp "include body problem"
+  OptionallyExprProblem sp _ _ -> displayError sp "optionally problem"
+  ExportProblem sp _ -> displayError sp "provide problem"
+  LetProblem sp _ -> displayError sp "let problem"
 
 data ExprProblem
   = FunctionCallProblem Name [Expr] FunctionCallProblem
