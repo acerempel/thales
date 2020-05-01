@@ -132,6 +132,7 @@ knownFunctions =
   , (Name loadYamlFunctionName, Action <$> loadYamlFunction)
   , (Name loadMarkdownFunctionName, Action <$> loadMarkdownFunction)
   , (Name loadTemplateFunctionName, Action <$> loadTemplateFunction)
+  , ("url", Pure <$> urlFunction)
   ]
 
 concatFunction =
@@ -154,6 +155,18 @@ loadMarkdownFunction =
 
 loadTemplateFunction =
     liftA2 LoadTemplate (Text.unpack <$> argument TextT) (orEmpty RecordT <|> pure Map.empty)
+
+urlFunction =
+  String . getUrlText <$> argument DocumentT
+ where
+  getUrlText DocInfo{ docFilePath }
+    | docFPText == "index.html"
+    = ""
+    | "/index.html" `Text.isSuffixOf` docFPText
+    = Text.init $ Text.dropWhileEnd (/= '/') docFPText
+    | otherwise
+    = docFPText
+    where docFPText = Text.pack docFilePath
 
 data FunctionResult
   = Pure Value
