@@ -49,7 +49,6 @@ cliDescription =
 optionsParser =
   Options
     <$> templatesOptions
-    <*> outputExtensionOption
     <*> outputDirectoryOption
     <*> rebuildOption
     <*> baseTemplateOption
@@ -75,14 +74,6 @@ optionsParser =
           help ("A glob pattern that should match the templates to be compiled. This option " <>
                 "may be given multiple times; all template files matching any of the patterns " <>
                 "will be built."))
-    outputExtensionOption =
-      strOption $
-        metavar "EXTENSION" <>
-        long "output-extension" <>
-        long "out-ext" <>
-        help ("The file extension for output files. The filename of an output file is constructed from " <>
-              "the filename of the corresponding template file by replacing all file extensions with " <>
-              "the output file extension.")
     outputDirectoryOption =
       strOption $
         metavar "DIRECTORY" <>

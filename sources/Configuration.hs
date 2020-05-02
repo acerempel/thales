@@ -20,7 +20,6 @@ import Syntax
 -- | The command-line options.
 data Options = Options
   { optTemplates :: [ThingToBuild Maybe [Either FilePath FilePattern]]
-  , optOutputExtension :: String
   , optOutputDirectory :: FilePath
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
   , optBaseTemplate :: Maybe FilePath
@@ -69,7 +68,6 @@ instance Semigroup RebuildUnconditionally where
 -- 'FilePath', a 'FilePattern', a list of either of those.
 data ThingToBuild f a = ThingToBuild
   { buildWhat :: a
-  , buildOutputExtension :: f String
   , buildOutputDirectory :: f FilePath
   , buildDelimiters :: f Delimiters
   -- | Head applied last, i.e. outermost
@@ -92,7 +90,7 @@ instance Traversable (ThingToBuild f) where
 
 defaultThingToBuild :: a -> ThingToBuild Maybe a
 defaultThingToBuild a =
-  ThingToBuild a Nothing Nothing Nothing []
+  ThingToBuild a Nothing Nothing []
 
 expand :: ThingToBuild f [Either SourcePath FilePattern] -> IO (ThingToBuild f [SourcePath])
 expand =
@@ -106,8 +104,6 @@ specify Options{..} ThingToBuild{..} =
   ThingToBuild
     { buildWhat
     , buildBaseTemplates = maybe id (:) optBaseTemplate buildBaseTemplates
-    , buildOutputExtension = Identity $
-        optOutputExtension `fromMaybe` buildOutputExtension
     , buildOutputDirectory = Identity $
         -- N.B. We /prepend/ the top-level output dir!
         optOutputDirectory </> ("." `fromMaybe` buildOutputDirectory)
@@ -116,7 +112,7 @@ specify Options{..} ThingToBuild{..} =
 
 deriveTargetPath :: ThingToBuild Identity SourcePath -> TargetPath
 deriveTargetPath ThingToBuild{..} =
-  normalise $ runIdentity buildOutputDirectory </> buildWhat `replaceExtensions` runIdentity buildOutputExtension
+  normalise $ runIdentity buildOutputDirectory </> buildWhat
 
 createTargetToSourceMap :: [ThingToBuild Identity [SourcePath]] -> HashMap TargetPath (ThingToBuild Identity SourcePath)
 createTargetToSourceMap thingsToBuild =

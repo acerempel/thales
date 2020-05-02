@@ -20,13 +20,9 @@ main = do
     shakeWithDatabase (toShakeOptions options) (withoutActions (rules options)) $ \db ->
       defaultMain $ testGroup "Golden tests" (traverse runShakeTest tests $ (db, tempOutputDir))
  where
-  dir = "tests/golden/files"
-  templateExtension = "tpl"
-  goldenExtension = "out"
   createOptions outputDirectory =
     Options
       { optTemplates = [defaultThingToBuild [Right (dir </> "*" <.> templateExtension)]]
-      , optOutputExtension = goldenExtension
       , optOutputDirectory = outputDirectory
       , optRebuildUnconditionally = Nothing
       , optDelimiters = Delimiters "{" "}"
@@ -35,11 +31,15 @@ main = do
       , optTimings = False
       , optCacheDirectory = "/dev/null" }
 
+dir = "tests/golden/files"
+templateExtension = "tpl"
+goldenExtension = "out"
+
 newtype ShakeTest = ShakeTest { runShakeTest :: (ShakeDatabase, FilePath) -> TestTree }
 
 createGoldenTest goldenFile =
   ShakeTest $ \(database, outputDir) -> do
-    let outputFile = outputDir </> goldenFile
+    let outputFile = outputDir </> goldenFile -<.> templateExtension
     goldenVsFile testName goldenFile outputFile (runTemplate database outputFile)
   where
     testName = takeFileName goldenFile
