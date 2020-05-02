@@ -48,7 +48,7 @@ cliDescription =
 
 optionsParser =
   Options
-    <$> templatesOptions
+    <$> inputDirectoryOption
     <*> outputDirectoryOption
     <*> rebuildOption
     <*> baseTemplateOption
@@ -57,30 +57,23 @@ optionsParser =
     <*> timingsOption
     <*> ephemeralOption
   where
-    templatesOptions =
-      fmap ((: []) . defaultThingToBuild) . some $
-        (fmap Left . strOption $
-          metavar "FILE" <>
-          long "template-file" <>
-          short 't' <>
-          completer (listIOCompleter (listDirectory ".")) <>
-          help ("A template file to be compiled. This option may be given multiple times to " <>
-                "compile multiple files.")) <|>
-        (fmap Right . strOption $
-          metavar "PATTERN" <>
-          long "template-pattern" <>
-          short 'p' <>
-          completer (listIOCompleter (listDirectory ".")) <>
-          help ("A glob pattern that should match the templates to be compiled. This option " <>
-                "may be given multiple times; all template files matching any of the patterns " <>
-                "will be built."))
+    inputDirectoryOption =
+      fmap defaultThingToBuild . strOption $
+        metavar "DIRECTORY" <>
+        long "input-directory" <>
+        long "idir" <>
+        value "." <>
+        showDefaultWith (const "current directory") <>
+        completer (listIOCompleter (listDirectory ".")) <>
+        help "Directory in which to find templates to be compiled."
     outputDirectoryOption =
       strOption $
         metavar "DIRECTORY" <>
         long "output-directory" <>
-        long "out-dir" <>
-        value "." <>
-        showDefaultWith (const "current directory") <>
+        long "odir" <>
+        value "_site" <>
+        showDefault <>
+        completer (listIOCompleter (listDirectory ".")) <>
         help ("The directory in which to place output files.")
     rebuildOption =
       (Just . SomeThings <$> NE.some (strOption $

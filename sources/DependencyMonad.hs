@@ -64,9 +64,9 @@ run options = do
 
 rules :: Options -> Rules ()
 rules options@Options{..} = do
-    thingsToBuild <- liftIO $ traverse expand optTemplates
+    thingsToBuild <- liftIO $ expand optTemplates
     let specifiedThingsToBuild =
-          map (specify options) thingsToBuild
+          specify options thingsToBuild
         targetToSourceMap =
           createTargetToSourceMap specifiedThingsToBuild
     when (optVerbosity >= Info && optRebuildUnconditionally == Just Everything) $

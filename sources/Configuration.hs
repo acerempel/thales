@@ -19,7 +19,7 @@ import Syntax
 
 -- | The command-line options.
 data Options = Options
-  { optTemplates :: [ThingToBuild Maybe [Either FilePath FilePattern]]
+  { optTemplates :: ThingToBuild Maybe FilePattern
   , optOutputDirectory :: FilePath
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
   , optBaseTemplate :: Maybe FilePath
@@ -92,12 +92,12 @@ defaultThingToBuild :: a -> ThingToBuild Maybe a
 defaultThingToBuild a =
   ThingToBuild a Nothing Nothing []
 
-expand :: ThingToBuild f [Either SourcePath FilePattern] -> IO (ThingToBuild f [SourcePath])
+expand :: ThingToBuild f FilePattern -> IO (ThingToBuild f [SourcePath])
 expand =
-    traverse expandPatterns . fmap partitionEithers
+    traverse expandPatterns
   where
-    expandPatterns (paths, patterns) =
-      (paths ++) <$> getDirectoryFilesIO "" patterns
+    expandPatterns = \pattern ->
+      getDirectoryFilesIO "" [pattern]
 
 specify :: Options -> ThingToBuild Maybe a -> ThingToBuild Identity a
 specify Options{..} ThingToBuild{..} =
@@ -114,9 +114,9 @@ deriveTargetPath :: ThingToBuild Identity SourcePath -> TargetPath
 deriveTargetPath ThingToBuild{..} =
   normalise $ runIdentity buildOutputDirectory </> buildWhat
 
-createTargetToSourceMap :: [ThingToBuild Identity [SourcePath]] -> HashMap TargetPath (ThingToBuild Identity SourcePath)
+createTargetToSourceMap :: ThingToBuild Identity [SourcePath] -> HashMap TargetPath (ThingToBuild Identity SourcePath)
 createTargetToSourceMap thingsToBuild =
-    Map.fromList $ concatMap explode thingsToBuild
+    Map.fromList $ explode thingsToBuild
   where
     explode :: ThingToBuild Identity [SourcePath] -> [(TargetPath, ThingToBuild Identity SourcePath)]
     explode =

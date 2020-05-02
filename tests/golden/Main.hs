@@ -22,7 +22,7 @@ main = do
  where
   createOptions outputDirectory =
     Options
-      { optTemplates = [defaultThingToBuild [Right (dir </> "*" <.> templateExtension)]]
+      { optTemplates = defaultThingToBuild (dir </> "*" <.> templateExtension)
       , optOutputDirectory = outputDirectory
       , optRebuildUnconditionally = Nothing
       , optDelimiters = Delimiters "{" "}"
