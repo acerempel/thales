@@ -1,6 +1,6 @@
-tests/golden/files/url-function
-tests/golden/files/url-function/potato.html
-tests/golden/files/url-function/artichoke
-tests/golden/files/url-function/styles.css
-tests/golden/files/url-function/styles.css
-tests/golden/files/url-function/article.md
+url-function
+url-function/potato.html
+url-function/artichoke
+url-function/styles.css
+url-function/styles.css
+url-function/article.md

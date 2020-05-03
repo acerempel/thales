@@ -14,7 +14,7 @@ import Data.DList (DList)
 import qualified Data.DList as DList
 import Development.Shake.FilePath
 
-import {-# SOURCE #-} DependencyMonad
+import DependencyMonad.Class
 import Bindings
 import Eval.Expr
 import Output

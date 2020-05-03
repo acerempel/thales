@@ -1,4 +1,4 @@
-module DependencyMonad ( DependencyMonad(..) ) where
+module DependencyMonad.Class ( DependencyMonad(..) ) where
 
 import Output (Output)
 import Syntax (Name)

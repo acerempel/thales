@@ -49,6 +49,7 @@ cliDescription =
 optionsParser =
   Options
     <$> inputDirectoryOption
+    <*> pure defaultTemplatePattern
     <*> outputDirectoryOption
     <*> rebuildOption
     <*> baseTemplateOption
@@ -58,7 +59,7 @@ optionsParser =
     <*> ephemeralOption
   where
     inputDirectoryOption =
-      fmap defaultThingToBuild . strOption $
+      strOption $
         metavar "DIRECTORY" <>
         long "input-directory" <>
         long "idir" <>

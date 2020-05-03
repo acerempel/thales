@@ -71,6 +71,7 @@ library core
   hs-source-dirs:  sources
   exposed-modules:
       DependencyMonad
+    , DependencyMonad.Class
     , Bindings
     , Configuration
     , Error

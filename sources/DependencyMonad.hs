@@ -16,6 +16,7 @@ import Data.Text.Prettyprint.Doc.Render.Terminal
 import qualified Data.Yaml as Yaml
 import Development.Shake
 import Development.Shake.Classes hiding (show)
+import Development.Shake.FilePath
 import Development.Shake.Rule
 import qualified Lucid
 import qualified System.Directory as System
@@ -24,6 +25,7 @@ import Text.Megaparsec
 import Text.MMark as MMark
 
 import Configuration
+import DependencyMonad.Class
 import Error
 import Eval
 import Eval.Problem
@@ -33,25 +35,34 @@ import Parse
 import Syntax
 import Value
 
-class Monad m => DependencyMonad m where
+newtype RebuildM a = Rebuild (ReaderT Env Action a)
+  deriving newtype ( Functor, Monad, Applicative, MonadIO )
 
-  listDirectory :: FilePath -> m [FilePath]
+data Env = RebuildEnv
+  { envSourceDirectory :: FilePath
+  }
 
-  lookupField :: FileType -> FilePath -> Text -> m (Maybe Value)
+runRebuild :: FilePath -> RebuildM a -> Action a
+runRebuild sourceDir (Rebuild r) =
+  runReaderT r (RebuildEnv sourceDir)
 
-  listFields :: FileType -> FilePath -> m [Name]
+getSourceDirectory :: RebuildM FilePath
+getSourceDirectory = Rebuild (asks envSourceDirectory)
 
-  getBody :: FileType -> FilePath -> m Output
+liftAction :: Action a -> RebuildM a
+liftAction = Rebuild . lift
 
-instance DependencyMonad Action where
+instance DependencyMonad RebuildM where
 
-  listDirectory = getDirectoryContents
+  listDirectory dir = do
+    sourceDir <- getSourceDirectory
+    liftAction (getDirectoryContents (sourceDir </> dir))
 
-  lookupField ft path key = apply1 (FieldAccessQ (DocInfo ft path) key)
+  lookupField ft path key = liftAction $ apply1 (FieldAccessQ (DocInfo ft path) key)
 
-  listFields ft path = apply1 (FieldListQ (DocInfo ft path))
+  listFields ft path = liftAction $ apply1 (FieldListQ (DocInfo ft path))
 
-  getBody ft path = apply1 (GetBodyQ (DocInfo ft path))
+  getBody ft path = liftAction $ apply1 (GetBodyQ (DocInfo ft path))
 
 run :: Options -> IO ()
 run options = do
@@ -64,41 +75,45 @@ run options = do
 
 rules :: Options -> Rules ()
 rules options@Options{..} = do
-    thingsToBuild <- liftIO $ expand optTemplates
-    let specifiedThingsToBuild =
-          specify options thingsToBuild
-        targetToSourceMap =
-          createTargetToSourceMap specifiedThingsToBuild
     when (optVerbosity >= Info && optRebuildUnconditionally == Just Everything) $
       liftIO $ hPutStrLn stderr "Rebuilding all targets."
-    when (optVerbosity >= Verbose) $ liftIO $ do
-      hPrint stderr options
-      hPrint stderr targetToSourceMap
-    builtinRules
-    fileRules targetToSourceMap
-    want $ Map.keys targetToSourceMap
+    when (optVerbosity >= Verbose) $ liftIO $ hPrint stderr options
+    builtinRules optInputDirectory optDelimiters
+    fileRules options
 
-fileRules :: HashMap TargetPath (ThingToBuild Identity SourcePath) -> Rules ()
-fileRules targetToSourceMap = do
+fileRules :: Options -> Rules ()
+fileRules options@Options{..} = do
+    targetToSourceMap <- liftIO $ specify options
+    when (optVerbosity >= Verbose) $ liftIO $ hPrint stderr targetToSourceMap
+    want $ Map.keys targetToSourceMap
     (`Map.member` targetToSourceMap) ?> \targetPath -> do
       let thingToBuild = fromJust $ Map.lookup targetPath targetToSourceMap
-          templatePath = buildWhat thingToBuild
-          delimiters = runIdentity (buildDelimiters thingToBuild)
+          templatePath = buildSourceFile thingToBuild
       let addBaseTemplate base (tplf, tplpth) =
             let inner = LoadedDoc (DocInfo tplf tplpth)
-            in (TemplateFile delimiters (Map.singleton "content" inner), base)
-      outp <- uncurry getBody $ foldr
-        addBaseTemplate
-        (TemplateFile delimiters Map.empty, templatePath)
-        (buildBaseTemplates thingToBuild)
+            in (TemplateFile (Map.singleton "content" inner), base)
+      outp <-
+        runRebuild optInputDirectory $
+        uncurry getBody $
+        foldr
+          addBaseTemplate
+          (TemplateFile Map.empty, templatePath)
+          (buildBaseTemplates thingToBuild)
       absTarget <- liftIO $ System.makeAbsolute targetPath
       putInfo $ "Writing result of " <> templatePath <> " to " <> absTarget
       liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
         hSetBuffering hdl (BlockBuffering Nothing)
         Output.write hdl outp
 
-builtinRules :: Rules ()
-builtinRules = do
+data AskDelimiters = AskDelimiters
+  deriving stock ( Eq, Show, Generic )
+  deriving anyclass ( Hashable, NFData, Binary )
+
+type instance RuleResult AskDelimiters = Delimiters
+
+builtinRules :: FilePath -> Delimiters -> Rules ()
+builtinRules sourceDirectory delimiters = do
+    _ <- addOracle (\AskDelimiters -> pure delimiters)
     readTemplateCached <- newCache readTemplate
     readDocumentCached <- newCache (readDocument readTemplateCached)
     addBuiltinRule noLint noIdentity
@@ -108,17 +123,18 @@ builtinRules = do
     addBuiltinRule noLint noIdentity (getBodyRuleRun readDocumentCached)
 
   where
-    readDocument :: ((FilePath, Delimiters) -> Action ParsedTemplate) -> DocumentInfo -> Action Document
-    readDocument readTemplateCached DocInfo{..} = do
+    readDocument :: (FilePath -> Action ParsedTemplate) -> DocumentInfo -> Action Document
+    readDocument readTemplateCached DocInfo{docFileType, docFilePath = relativeDocFilePath} = do
+      let docFilePath = sourceDirectory </> relativeDocFilePath
       need [docFilePath]
       case docFileType of
         YamlFile ->
           readYaml docFilePath
         MarkdownFile ->
           readMarkdown docFilePath
-        TemplateFile delimiters bindings -> do
-          parsedTemplate <- readTemplateCached (docFilePath, delimiters)
-          execTemplate parsedTemplate bindings
+        TemplateFile bindings -> do
+          parsedTemplate <- readTemplateCached docFilePath
+          runRebuild sourceDirectory $ execTemplate parsedTemplate bindings
 
     readYaml path = do
       pathAbs <- liftIO $ System.makeAbsolute path
@@ -146,7 +162,8 @@ builtinRules = do
             mmark
       return $ Document (Just markdownOutput) record
 
-    readTemplate (templatePath, delimiters) = do
+    readTemplate templatePath = do
+      _delimiters <- askOracle AskDelimiters
       pathAbs <- liftIO $ System.makeAbsolute templatePath
       putInfo $ "Reading template from " <> pathAbs
       input <- liftIO $ Text.readFile templatePath

@@ -1,11 +1,11 @@
 module Configuration
   ( Options(..)
   , Verbosity(..)
-  , ThingToBuild(..), defaultThingToBuild
+  , ThingToBuild(..)
+  , defaultTemplatePattern
   , RebuildUnconditionally(..)
   , toShakeOptions
-  , specify, expand
-  , createTargetToSourceMap
+  , specify
   , SourcePath, TargetPath
   )
 where
@@ -19,7 +19,8 @@ import Syntax
 
 -- | The command-line options.
 data Options = Options
-  { optTemplates :: ThingToBuild Maybe FilePattern
+  { optInputDirectory :: FilePath
+  , optTemplatePattern :: FilePattern
   , optOutputDirectory :: FilePath
   , optRebuildUnconditionally :: Maybe RebuildUnconditionally
   , optBaseTemplate :: Maybe FilePath
@@ -66,59 +67,41 @@ instance Semigroup RebuildUnconditionally where
 -- filled in, @f@ changes to 'Identity'. The second type parameter is intended
 -- to be filled with a specification of what templates to build – e.g., a
 -- 'FilePath', a 'FilePattern', a list of either of those.
-data ThingToBuild f a = ThingToBuild
-  { buildWhat :: a
-  , buildOutputDirectory :: f FilePath
-  , buildDelimiters :: f Delimiters
+data ThingToBuild = ThingToBuild
+  { buildSourceFile :: SourcePath
+  -- ^ N.B. this is /relative/ to the source directory! Might want to encode
+  -- that in the type at some point.
   -- | Head applied last, i.e. outermost
-  , buildBaseTemplates :: [FilePath] }
-  deriving ( Functor )
-
-deriving instance ((forall b. Show b => Show (f b)), Show a) => Show (ThingToBuild f a)
+  , buildBaseTemplates :: [SourcePath] }
+  deriving ( Show )
 
 -- | For documentation purposes.
 type SourcePath = FilePath
 -- | For documentation purposes.
 type TargetPath = FilePath
 
-instance Foldable (ThingToBuild f) where
-  foldMap f ThingToBuild{buildWhat} = f buildWhat
+defaultTemplatePattern :: FilePattern
+defaultTemplatePattern =
+  "**" </> "*"
 
-instance Traversable (ThingToBuild f) where
-  traverse f ThingToBuild{buildWhat, ..} =
-    (\a -> ThingToBuild{buildWhat = a, ..}) <$> f buildWhat
-
-defaultThingToBuild :: a -> ThingToBuild Maybe a
-defaultThingToBuild a =
-  ThingToBuild a Nothing Nothing []
-
-expand :: ThingToBuild f FilePattern -> IO (ThingToBuild f [SourcePath])
-expand =
-    traverse expandPatterns
-  where
-    expandPatterns = \pattern ->
-      getDirectoryFilesIO "" [pattern]
-
-specify :: Options -> ThingToBuild Maybe a -> ThingToBuild Identity a
-specify Options{..} ThingToBuild{..} =
-  ThingToBuild
-    { buildWhat
-    , buildBaseTemplates = maybe id (:) optBaseTemplate buildBaseTemplates
-    , buildOutputDirectory = Identity $
-        -- N.B. We /prepend/ the top-level output dir!
-        optOutputDirectory </> ("." `fromMaybe` buildOutputDirectory)
-    , buildDelimiters = Identity $
-        optDelimiters `fromMaybe` buildDelimiters }
-
-deriveTargetPath :: ThingToBuild Identity SourcePath -> TargetPath
-deriveTargetPath ThingToBuild{..} =
-  normalise $ runIdentity buildOutputDirectory </> buildWhat
-
-createTargetToSourceMap :: ThingToBuild Identity [SourcePath] -> HashMap TargetPath (ThingToBuild Identity SourcePath)
-createTargetToSourceMap thingsToBuild =
-    Map.fromList $ explode thingsToBuild
-  where
-    explode :: ThingToBuild Identity [SourcePath] -> [(TargetPath, ThingToBuild Identity SourcePath)]
-    explode =
-      map (\thing -> (deriveTargetPath thing, thing)) . sequence
-
+specify :: Options -> IO (HashMap TargetPath ThingToBuild)
+specify Options{..} = do
+  sourceFilesUnfiltered <- getDirectoryFilesIO optInputDirectory [optTemplatePattern]
+  let sourceFiles = filter (not . isHiddenFileName . takeFileName) sourceFilesUnfiltered
+  return $ Map.fromList $ map createThingToBuildPair sourceFiles
+ where
+  createThingToBuildPair sourceFile =
+    (deriveTargetPath sourceFile, createThingToBuild sourceFile)
+  createThingToBuild sourceFile =
+    ThingToBuild
+      { buildSourceFile = sourceFile
+      , buildBaseTemplates = maybe [] one optBaseTemplate }
+  isHiddenFileName fn =
+    case fn of
+      hd : _ | hd == '.' || hd == '_' -> True
+      _ -> False
+  deriveTargetPath sourceFile =
+    optOutputDirectory </>
+      if "html" `isExtensionOf` sourceFile && takeFileName sourceFile /= "index.html"
+         then dropExtension sourceFile </> "index.html"
+         else sourceFile

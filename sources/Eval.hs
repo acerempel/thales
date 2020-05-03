@@ -11,9 +11,8 @@ import Data.DList (DList)
 import qualified Data.Text as Text
 import Data.Traversable
 import qualified Data.HashMap.Strict as Map
-import Development.Shake.FilePath
 
-import {-# SOURCE #-} DependencyMonad
+import DependencyMonad.Class
 import Bindings
 import Eval.Expr
 import Eval.Statement
@@ -103,20 +102,15 @@ evalExpr mContext expr =
             pure val
           Action act ->
             case act of
-              ListDirectory dir -> do
-                tplDir <- getTemplateDirectory
+              ListDirectory dir ->
                 lift $ Array . List.map (String . Text.pack) . List.fromList
-                  <$> listDirectory (tplDir </> dir)
-              LoadYaml fp -> do
-                tplDir <- getTemplateDirectory
-                pure $ LoadedDoc $ DocInfo YamlFile (tplDir </> fp)
-              LoadMarkdown fp -> do
-                tplDir <- getTemplateDirectory
-                pure $ LoadedDoc $ DocInfo MarkdownFile (tplDir </> fp)
+                  <$> listDirectory dir
+              LoadYaml fp ->
+                pure $ LoadedDoc $ DocInfo YamlFile fp
+              LoadMarkdown fp ->
+                pure $ LoadedDoc $ DocInfo MarkdownFile fp
               LoadTemplate fp binds -> do
-                tplDir <- getTemplateDirectory
-                delims <- getTemplateDelimiters
-                pure $ LoadedDoc $ DocInfo (TemplateFile delims binds) (tplDir </> fp)
+                pure $ LoadedDoc $ DocInfo (TemplateFile binds) fp
 
 literalToValue :: Literal -> Value
 literalToValue = \case

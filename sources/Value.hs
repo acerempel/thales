@@ -63,7 +63,7 @@ displayValue = \case
           FunctionCallE (Name loadYamlFunctionName) [String (Text.pack fp)]
         MarkdownFile ->
           FunctionCallE (Name loadMarkdownFunctionName) [String (Text.pack fp)]
-        TemplateFile _delims binds ->
+        TemplateFile binds ->
           FunctionCallE (Name loadTemplateFunctionName) [String (Text.pack fp), Record binds]
   Empty -> "empty"
 
@@ -201,7 +201,7 @@ data FileType
   -- the @include-body@ statement ('IncludeBodyS'). The second argument to this
   -- constructor represents the parameters given to the template. The template
   -- will be parsed with the 'Delimiters' provided as the first argument.
-  | TemplateFile Delimiters (HashMap Text Value)
+  | TemplateFile (HashMap Text Value)
   deriving stock ( Eq, Show, Generic )
   deriving anyclass ( Hashable, NFData, Typeable, Binary )
 
