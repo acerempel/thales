@@ -2,22 +2,24 @@
 
 ## Top priority
 
-- [ ] 'Empty' value.
 - [ ] Testing of error messages.
-- [x] Implement base templates. Not hard.
 - [ ] Implement YAML config.
 - [ ] Allow specifying extra template parameters in config (YAML or
       command line).
 
+## Would be cool
+
+- [ ] Renamer.
+
 ## Eventually, but essential
 
 - [ ] Array indexing
-- [ ] Be able to compare syntax trees for equality ignoring
-      SourcePos.
 - [ ] Framework for negative golden tests.
 
 ## Done
 
+- [x] 'Empty' value.
+- [x] Implement base templates. Not hard.
 - [x] Test out the error reporting a bit
 - [x] Record literals
 - [x] Getting environment from a yaml file.
