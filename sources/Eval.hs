@@ -272,4 +272,4 @@ evalStatement = \case
 
 evalTemplate :: DependencyMonad m => ParsedTemplate -> Bindings -> m (Either (DList StmtProblem) (Bindings, Output))
 evalTemplate ParsedTemplate{..} =
-  runStmtT (traverse_ evalStatement templateStatements) templatePath templateDelimiters
+  runStmtT (traverse_ evalStatement templateStatements) templatePath

@@ -32,8 +32,6 @@ data Env = Env
   -- ^ The bindings that are in scope when evaluating this expression.
   , envTemplatePath :: FilePath
   -- ^ The file from which we got the template we are evaluating.
-  , envTemplateDelimiters :: Delimiters
-  -- ^ The delimiters with which the template was parsed.
   }
 
 overBindings :: (Bindings -> Bindings) -> Env -> Env
@@ -51,9 +49,9 @@ instance Semigroup ResultAccum where
 instance Monoid ResultAccum where
   mempty = Result Bindings.empty mempty
 
-runStmtT :: Monad m => StmtT m () -> FilePath -> Delimiters -> Bindings -> m (Either (DList StmtProblem) (Bindings, Output))
-runStmtT stm path delimiters bindings =
-  let env = Env bindings path delimiters
+runStmtT :: Monad m => StmtT m () -> FilePath -> Bindings -> m (Either (DList StmtProblem) (Bindings, Output))
+runStmtT stm path bindings =
+  let env = Env bindings path
       massage ((), Result { tplBindings, tplOutput }) =
         (tplBindings, DList.foldr (<>) mempty tplOutput)
   in fmap (fmap massage) $ runValidationT (runWriterT (runReaderT (unStmtT stm) env))
@@ -87,7 +85,6 @@ liftExprT wrap expr =
   StmtT $ ReaderT $ \env ->
     let mE = runExprT expr
               (takeDirectory (envTemplatePath env))
-              (envTemplateDelimiters env)
               (envLocalBindings env)
         mD = fmap
                ( second (,mempty)

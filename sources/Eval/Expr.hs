@@ -4,7 +4,6 @@ module Eval.Expr
   , lookupName
   , getLocalNames
   , getTemplateDirectory
-  , getTemplateDelimiters
   , HasLocalBindings(..)
   )
 where
@@ -31,8 +30,6 @@ data Env = Env
   , envTemplateDirectory :: FilePath
   -- ^ The directory containing the file from which we got the template we are
   -- evaluating.
-  , envTemplateDelimiters :: Delimiters
-  -- ^ The delimiters with which the template was parsed.
   }
 
 overBindings :: (Bindings -> Bindings) -> Env -> Env
@@ -45,9 +42,9 @@ instance MonadTrans ExprT where
 instance MonadIO m => MonadIO (ExprT m) where
   liftIO = lift . liftIO
 
-runExprT :: ExprT m a -> FilePath -> Delimiters -> Bindings -> m (Either ExprProblemInContext a)
-runExprT (ExprT m) dir delims bindings =
-  runReaderT (runExceptT m) (Env bindings dir delims)
+runExprT :: ExprT m a -> FilePath -> Bindings -> m (Either ExprProblemInContext a)
+runExprT (ExprT m) dir bindings =
+  runReaderT (runExceptT m) (Env bindings dir)
 
 -- | Abort this evaluation with the given problem.
 exprProblem :: Monad m => ExprProblem -> ExprT m a
@@ -64,9 +61,6 @@ getLocalNames =
 -- | Get the directory of the file the template under evaluation came from.
 getTemplateDirectory :: Monad m => ExprT m FilePath
 getTemplateDirectory = ExprT $ lift $ asks envTemplateDirectory
-
-getTemplateDelimiters :: Monad m => ExprT m Delimiters
-getTemplateDelimiters = ExprT $ lift $ asks envTemplateDelimiters
 
 instance Applicative m => HasLocalBindings (ExprT m) where
   addLocalBindings binds (ExprT r) =
