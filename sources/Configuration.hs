@@ -60,13 +60,7 @@ instance Semigroup RebuildUnconditionally where
   _ <> Everything = Everything
   Everything <> _ = Everything
 
--- | A 'ThingToBuild' is a description of how to build a particular set of
--- templates. The first type parameter is a functor – in practise, it is
--- instanstiated to either 'Maybe' or 'Identity'. With 'Maybe', some fields can
--- be left unspecified, to be filled in with defaults later; with defaults
--- filled in, @f@ changes to 'Identity'. The second type parameter is intended
--- to be filled with a specification of what templates to build – e.g., a
--- 'FilePath', a 'FilePattern', a list of either of those.
+-- | A 'ThingToBuild' is a description of how to build a particular template.
 data ThingToBuild = ThingToBuild
   { buildSourceFile :: SourcePath
   -- ^ N.B. this is /relative/ to the source directory! Might want to encode
