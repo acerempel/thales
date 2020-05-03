@@ -3,7 +3,6 @@ module Eval.Expr
   , exprProblem, mapZut
   , lookupName
   , getLocalNames
-  , getTemplateDirectory
   , HasLocalBindings(..)
   )
 where
@@ -24,12 +23,9 @@ newtype ExprT m a = ExprT
   deriving newtype ( Monad, Functor, Applicative )
 
 -- | The environment for evaluation of a template expression.
-data Env = Env
+newtype Env = Env
   { envLocalBindings :: Bindings
   -- ^ The bindings that are in scope when evaluating this expression.
-  , envTemplateDirectory :: FilePath
-  -- ^ The directory containing the file from which we got the template we are
-  -- evaluating.
   }
 
 overBindings :: (Bindings -> Bindings) -> Env -> Env
@@ -42,9 +38,9 @@ instance MonadTrans ExprT where
 instance MonadIO m => MonadIO (ExprT m) where
   liftIO = lift . liftIO
 
-runExprT :: ExprT m a -> FilePath -> Bindings -> m (Either ExprProblemInContext a)
-runExprT (ExprT m) dir bindings =
-  runReaderT (runExceptT m) (Env bindings dir)
+runExprT :: ExprT m a -> Bindings -> m (Either ExprProblemInContext a)
+runExprT (ExprT m) bindings =
+  runReaderT (runExceptT m) (Env bindings)
 
 -- | Abort this evaluation with the given problem.
 exprProblem :: Monad m => ExprProblem -> ExprT m a
@@ -57,10 +53,6 @@ getLocalNames :: Monad m => ExprT m [Name]
 getLocalNames =
   ExprT $ lift $ asks $
     coerce . Map.keys . envLocalBindings
-
--- | Get the directory of the file the template under evaluation came from.
-getTemplateDirectory :: Monad m => ExprT m FilePath
-getTemplateDirectory = ExprT $ lift $ asks envTemplateDirectory
 
 instance Applicative m => HasLocalBindings (ExprT m) where
   addLocalBindings binds (ExprT r) =

@@ -12,7 +12,6 @@ import Control.Applicative.Trans.Validation
 import Control.Applicative.Trans.Writer
 import Data.DList (DList)
 import qualified Data.DList as DList
-import Development.Shake.FilePath
 
 import DependencyMonad.Class
 import Bindings
@@ -27,11 +26,9 @@ newtype StmtT m a = StmtT
   deriving newtype (Functor, Applicative, Alternative, Monad)
 
 -- | The environment for evaluation of a template statement.
-data Env = Env
+newtype Env = Env
   { envLocalBindings :: Bindings
   -- ^ The bindings that are in scope when evaluating this expression.
-  , envTemplatePath :: FilePath
-  -- ^ The file from which we got the template we are evaluating.
   }
 
 overBindings :: (Bindings -> Bindings) -> Env -> Env
@@ -49,9 +46,9 @@ instance Semigroup ResultAccum where
 instance Monoid ResultAccum where
   mempty = Result Bindings.empty mempty
 
-runStmtT :: Monad m => StmtT m () -> FilePath -> Bindings -> m (Either (DList StmtProblem) (Bindings, Output))
-runStmtT stm path bindings =
-  let env = Env bindings path
+runStmtT :: Monad m => StmtT m () -> Bindings -> m (Either (DList StmtProblem) (Bindings, Output))
+runStmtT stm bindings =
+  let env = Env bindings
       massage ((), Result { tplBindings, tplOutput }) =
         (tplBindings, DList.foldr (<>) mempty tplOutput)
   in fmap (fmap massage) $ runValidationT (runWriterT (runReaderT (unStmtT stm) env))
@@ -84,7 +81,6 @@ liftExprT :: DependencyMonad m => (ExprProblemInContext -> StmtProblem) -> ExprT
 liftExprT wrap expr =
   StmtT $ ReaderT $ \env ->
     let mE = runExprT expr
-              (takeDirectory (envTemplatePath env))
               (envLocalBindings env)
         mD = fmap
                ( second (,mempty)
