@@ -155,11 +155,13 @@ urlFunction =
  where
   getUrlText DocInfo{ docFilePath }
     | docFPText == "index.html"
-    = ""
-    | "/index.html" `Text.isSuffixOf` docFPText
-    = Text.init $ Text.dropWhileEnd (/= '/') docFPText
+      = ""
+    | Just prefix <- "/index.html" `Text.stripSuffix` docFPText
+      = prefix
+    | Just prefix <- ".html" `Text.stripSuffix` docFPText
+      = prefix
     | otherwise
-    = docFPText
+      = docFPText
     where docFPText = Text.pack docFilePath
 
 data FunctionResult
