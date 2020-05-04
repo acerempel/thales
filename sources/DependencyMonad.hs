@@ -19,7 +19,6 @@ import Development.Shake.Classes hiding (show)
 import Development.Shake.FilePath
 import Development.Shake.Rule
 import qualified Lucid
-import qualified System.Directory as System
 import System.IO hiding (print)
 import Text.Megaparsec
 import Text.MMark as MMark
@@ -99,8 +98,7 @@ fileRules options@Options{..} = do
           addBaseTemplate
           (TemplateFile Map.empty, templatePath)
           (buildBaseTemplates thingToBuild)
-      absTarget <- liftIO $ System.makeAbsolute targetPath
-      putInfo $ "Writing result of " <> templatePath <> " to " <> absTarget
+      putInfo $ "Writing result of " <> templatePath <> " to " <> targetPath
       liftIO $ withBinaryFile targetPath WriteMode $ \hdl -> do
         hSetBuffering hdl (BlockBuffering Nothing)
         Output.write hdl outp
@@ -137,14 +135,12 @@ builtinRules sourceDirectory delimiters = do
           runRebuild sourceDirectory $ execTemplate parsedTemplate bindings
 
     readYaml path = do
-      pathAbs <- liftIO $ System.makeAbsolute path
-      putInfo $ "Reading YAML from " <> pathAbs
+      putInfo $ "Reading YAML from " <> path
       -- TODO wrap this in our own exception type
       Document Nothing <$> Yaml.decodeFileThrow path
 
     readMarkdown path = do
-      pathAbs <- liftIO $ System.makeAbsolute path
-      putInfo $ "Reading Markdown from " <> pathAbs
+      putInfo $ "Reading Markdown from " <> path
       contents <- liftIO $ Text.readFile path
       mmark <-
         case MMark.parse path contents of
@@ -164,8 +160,7 @@ builtinRules sourceDirectory delimiters = do
 
     readTemplate templatePath = do
       _delimiters <- askOracle AskDelimiters
-      pathAbs <- liftIO $ System.makeAbsolute templatePath
-      putInfo $ "Reading template from " <> pathAbs
+      putInfo $ "Reading template from " <> templatePath
       input <- liftIO $ Text.readFile templatePath
       eitherThrow $
         first (TemplateParseError . errorBundlePretty) $
