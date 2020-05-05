@@ -25,6 +25,7 @@ import qualified Data.Text as Text
 import Text.Megaparsec hiding (parse, runParser)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (scientific)
+-- import Text.Megaparsec.Debug
 
 import qualified List
 import Syntax
@@ -259,9 +260,17 @@ numberP = NumberL <$> scientific <* space
 stringP :: Parser Literal
 stringP = do
   specialCharP '"'
-  str <- takeWhileP (Just "any character other than '\"'") (/= '"')
-  specialCharP '"'
-  return (StringL str)
+  StringL <$> stringContents
+ where
+  stringContents = do
+    str <- takeWhileP (Just "string contents") (\c -> c /= '"' && c /= '\\')
+    (specialCharP '"' >> return str)
+      <|> (single '\\' >> anySingle >>= \c -> ((str <> escaped c) <>) <$> stringContents)
+  escaped c =
+    case c of
+      '"' -> "\""
+      '\\' -> "\\"
+      _ -> Text.pack ['\\', c]
 
 betweenChars :: Char -> Char -> Parser a -> Parser a
 betweenChars before after =
@@ -274,3 +283,6 @@ dot = specialCharP '.'
 
 specialCharP :: Char -> Parser ()
 specialCharP c = single c >> space
+
+-- debug :: Show a => String -> Parser a -> Parser a
+-- debug lbl = Parser . dbg lbl . unParser
