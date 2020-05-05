@@ -61,8 +61,6 @@ displayValue = \case
         YamlFile ->
           -- TODO FilePath Value
           FunctionCallE (Name loadYamlFunctionName) [String (Text.pack fp)]
-        MarkdownFile ->
-          FunctionCallE (Name loadMarkdownFunctionName) [String (Text.pack fp)]
         TemplateFile binds ->
           FunctionCallE (Name loadTemplateFunctionName) [String (Text.pack fp), Record binds]
   Empty -> "empty"
@@ -194,9 +192,6 @@ data FileType
   -- | The YAML file is assumed to have an associative array at the top level
   -- with string keys.
   = YamlFile
-  -- | Any YAML front matter is treated as with 'YamlFile', and the document
-  -- body is available with @include-body@ ('IncludeBodyS').
-  | MarkdownFile
   -- | The output of executing the template is the document body, accessible via
   -- the @include-body@ statement ('IncludeBodyS'). The second argument to this
   -- constructor represents the parameters given to the template. The template

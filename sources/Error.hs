@@ -5,10 +5,7 @@ module Error
 where
 
 import Data.Text.Prettyprint.Doc
-import Data.Yaml (YamlException)
 import Development.Shake
-import Text.Megaparsec (ParseErrorBundle, errorBundlePretty)
-import Text.MMark (MMarkErr)
 
 import Eval.Problem
 import Value
@@ -16,9 +13,7 @@ import Value
 data ThalesException
   = TemplateEvalError [StmtProblem]
   | TemplateParseError String
-  | MarkdownParseError (ParseErrorBundle Text MMarkErr)
   | NotAnObject FileType FilePath
-  | MarkdownYamlParseError FilePath YamlException
   deriving Show
 
 instance Exception ThalesException
@@ -45,5 +40,3 @@ displayThalesException = \case
     pretty str <> line
   NotAnObject _ft fp ->
     "not an object: " <> pretty fp -- TODO
-  MarkdownParseError peb -> pretty (errorBundlePretty peb)
-  MarkdownYamlParseError fp _err -> pretty fp <> ": YAML error!"

@@ -18,10 +18,8 @@ import Development.Shake
 import Development.Shake.Classes hiding (show)
 import Development.Shake.FilePath
 import Development.Shake.Rule
-import qualified Lucid
 import System.IO hiding (print)
 import Text.Megaparsec
-import Text.MMark as MMark
 
 import Configuration
 import DependencyMonad.Class
@@ -128,8 +126,6 @@ builtinRules sourceDirectory delimiters = do
       case docFileType of
         YamlFile ->
           readYaml docFilePath
-        MarkdownFile ->
-          readMarkdown docFilePath
         TemplateFile bindings -> do
           parsedTemplate <- readTemplateCached docFilePath
           runRebuild sourceDirectory $ execTemplate parsedTemplate bindings
@@ -138,25 +134,6 @@ builtinRules sourceDirectory delimiters = do
       putInfo $ "Reading YAML from " <> path
       -- TODO wrap this in our own exception type
       Document Nothing <$> Yaml.decodeFileThrow path
-
-    readMarkdown path = do
-      putInfo $ "Reading Markdown from " <> path
-      contents <- liftIO $ Text.readFile path
-      mmark <-
-        case MMark.parse path contents of
-          Left err -> liftIO $ throwIO (MarkdownParseError err)
-          Right mmark -> return mmark
-      let yaml = fromMaybe (Yaml.Object Map.empty) (MMark.projectYaml mmark)
-      record <-
-        case Yaml.parseEither Yaml.parseJSON yaml of
-          Left err -> liftIO $ throwIO (MarkdownYamlParseError path (Yaml.YamlException err))
-          Right (Record hashmap) -> return hashmap
-          Right _ -> liftIO $ throwIO $ NotAnObject MarkdownFile path
-      let markdownOutput =
-            ( Output.fromBuilder . runIdentity
-            . Lucid.execHtmlT . MMark.render )
-            mmark
-      return $ Document (Just markdownOutput) record
 
     readTemplate templatePath = do
       _delimiters <- askOracle AskDelimiters

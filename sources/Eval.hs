@@ -107,8 +107,6 @@ evalExpr mContext expr =
                   <$> listDirectory dir
               LoadYaml fp ->
                 pure $ LoadedDoc $ DocInfo YamlFile fp
-              LoadMarkdown fp ->
-                pure $ LoadedDoc $ DocInfo MarkdownFile fp
               LoadTemplate fp binds -> do
                 pure $ LoadedDoc $ DocInfo (TemplateFile binds) fp
 
@@ -124,7 +122,6 @@ knownFunctions =
   [ ("concat", Pure <$> concatFunction)
   , ("list-directory", Action <$> listDirectoryFunction)
   , (Name loadYamlFunctionName, Action <$> loadYamlFunction)
-  , (Name loadMarkdownFunctionName, Action <$> loadMarkdownFunction)
   , (Name loadTemplateFunctionName, Action <$> loadTemplateFunction)
   , ("url", Pure <$> urlFunction)
   ]
@@ -143,9 +140,6 @@ listDirectoryFunction =
 
 loadYamlFunction =
     LoadYaml . Text.unpack <$> argument TextT
-
-loadMarkdownFunction =
-    LoadMarkdown . Text.unpack <$> argument TextT
 
 loadTemplateFunction =
     liftA2 LoadTemplate (Text.unpack <$> argument TextT) (orEmpty RecordT <|> pure Map.empty)
@@ -171,7 +165,6 @@ data FunctionResult
 data FunctionAction
   = ListDirectory FilePath
   | LoadYaml FilePath
-  | LoadMarkdown FilePath
   | LoadTemplate FilePath (HashMap Text Value)
 
 evalList ::
