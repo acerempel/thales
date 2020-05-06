@@ -78,6 +78,8 @@ defaultTemplatePattern :: FilePattern
 defaultTemplatePattern =
   "**" </> "*"
 
+{-# SCC specify #-}
+{-# NOINLINE specify #-}
 specify :: Options -> IO (HashMap TargetPath ThingToBuild)
 specify Options{..} = do
   sourceFilesUnfiltered <- getDirectoryFilesIO optInputDirectory [optTemplatePattern]

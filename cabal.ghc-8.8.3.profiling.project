@@ -1,0 +1,10 @@
+packages: thales.cabal
+
+optimization: 1
+profiling: True
+profiling-detail: none
+
+package thales
+  ghc-options: -fhide-source-paths -ferror-spans -fshow-warning-groups
+               -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
+               -Widentities -Wpartial-fields -Wmissing-export-lists

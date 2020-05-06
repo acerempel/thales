@@ -82,6 +82,7 @@ parseTemplate ::
   Either (ParseErrorBundle Text CustomError) ParsedTemplate
 parseTemplate delimiters path input =
   ParsedTemplate delimiters path <$> runParser templateP delimiters path input
+{-# SCC parseTemplate #-}
 
 {-| Run an arbitrary parser. Currently this module only exports two parsers,
 namely 'templateP' and 'exprP', for parsing an entire template and an
@@ -125,6 +126,7 @@ syntaxP inBlock =
     endP =
       -- TODO: I do not like this 'try'. Would be nice to remove it.
       if inBlock then try (withinDelims (keywordP "end") <?> "end of block") else eof
+{-# SCC syntaxP #-}
 
 statementP :: Parser Statement
 statementP = label "statement" $ do
@@ -141,6 +143,7 @@ statementP = label "statement" $ do
       continuation <$> blockP
     StandaloneS stat ->
       return stat
+{-# SCC statementP #-}
 
 withinDelims :: Parser a -> Parser a
 withinDelims innerP = do
@@ -231,6 +234,7 @@ exprP = label "an expression" $ do
   fields <- many (dot *> liftA2 (,) nameP (optional (specialCharP '?')))
   return (foldl' (\e (fieldName, isOptional) ->
     FieldAccessE fieldName (IsOptional (isJust isOptional)) (Rec e)) expr fields)
+{-# SCC exprP #-}
 
 parensP = betweenChars '(' ')'
 bracketsP = betweenChars '[' ']'
@@ -256,6 +260,7 @@ keywords = Set.fromList ["let", "in", "provide", "optionally", "for", "include-b
 
 numberP :: Parser Literal
 numberP = NumberL <$> scientific <* space
+{-# SCC numberP #-}
 
 stringP :: Parser Literal
 stringP = do
@@ -271,6 +276,7 @@ stringP = do
       '"' -> "\""
       '\\' -> "\\"
       _ -> Text.pack ['\\', c]
+{-# SCC stringP #-}
 
 betweenChars :: Char -> Char -> Parser a -> Parser a
 betweenChars before after =

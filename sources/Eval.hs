@@ -32,6 +32,7 @@ evalSubExpr f = evalExpr (Just f)
 evalTopExpr :: DependencyMonad m => Expr -> ExprT m Value
 evalTopExpr = evalExpr Nothing
 
+{-# SCC evalExpr #-}
 evalExpr :: DependencyMonad m => Maybe AddProblemContext -> Expr -> ExprT m Value
 evalExpr mContext expr =
  maybe id mapZut mContext $ case expr of
@@ -191,6 +192,7 @@ evalBinding bind =
   expandBinding (FieldAssignment name (Rec expr)) =
     (name, expr)
 
+{-# SCC evalStatement #-}
 evalStatement :: forall m. DependencyMonad m => Statement -> StmtT m ()
 evalStatement = \case
 

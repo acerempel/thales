@@ -13,7 +13,8 @@ import DependencyMonad hiding (listDirectory)
 import Syntax
 
 main =
-  run =<< customExecParser cliPrefs cli
+  run =<< {-# SCC "parse_options" #-} (customExecParser cliPrefs cli)
+{-# SCC main #-}
 
 cli =
   info (optionsParser <**> helper) $

@@ -122,6 +122,7 @@ data SigState = SigState
   , didConsume :: Bool
   }
 
+{-# SCC applySignature #-}
 applySignature :: Signature a -> [Value] -> Either FunctionCallProblem a
 applySignature sig args =
   let validated = runStateT (go sig) (SigState 0 args False)

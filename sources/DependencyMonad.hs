@@ -54,21 +54,28 @@ instance DependencyMonad RebuildM where
   listDirectory dir = do
     sourceDir <- getSourceDirectory
     liftAction (getDirectoryContents (sourceDir </> dir))
+  {-# SCC listDirectory #-}
 
   lookupField ft path key = liftAction $ apply1 (FieldAccessQ (DocInfo ft path) key)
+  {-# SCC lookupField #-}
 
   listFields ft path = liftAction $ apply1 (FieldListQ (DocInfo ft path))
+  {-# SCC listFields #-}
 
   getBody ft path = liftAction $ apply1 (GetBodyQ (DocInfo ft path))
+  {-# SCC getBody #-}
 
 run :: Options -> IO ()
 run options = do
-  let runRules = shake (toShakeOptions options) $ rules options
-  runRules `catch` \exc@ShakeException{} -> do
+  let runRules = ({-# SCC shake #-} shake) (toShakeOptions options) $ rules options
+  runRules `catch` printException
+ where
+  printException exc@ShakeException{} = do
     let layout = LayoutOptions (AvailablePerLine 80 0.7)
         doc = fuse Shallow $ displayShakeException exc
         docStream = reAnnotateS markupToAnsi $ layoutPretty layout doc
     renderIO stderr docStream
+  {-# SCC printException #-}
 
 rules :: Options -> Rules ()
 rules options@Options{..} = do
@@ -77,6 +84,7 @@ rules options@Options{..} = do
     when (optVerbosity >= Verbose) $ liftIO $ hPrint stderr options
     builtinRules optInputDirectory optDelimiters
     fileRules options
+{-# SCC rules #-}
 
 fileRules :: Options -> Rules ()
 fileRules options@Options{..} = do
@@ -107,11 +115,18 @@ data AskDelimiters = AskDelimiters
 
 type instance RuleResult AskDelimiters = Delimiters
 
+createCache :: (Eq k, Hashable k) => (k -> Action v) -> Rules (k -> Action v)
+createCache = newCache
+{-# SCC createCache #-}
+
+readTextFile = Text.readFile
+{-# SCC readTextFile #-}
+
 builtinRules :: FilePath -> Delimiters -> Rules ()
 builtinRules sourceDirectory delimiters = do
     _ <- addOracle (\AskDelimiters -> pure delimiters)
-    readTemplateCached <- newCache readTemplate
-    readDocumentCached <- newCache (readDocument readTemplateCached)
+    readTemplateCached <- createCache readTemplate
+    readDocumentCached <- createCache (readDocument readTemplateCached)
     addBuiltinRule noLint noIdentity
       (fieldAccessRuleRun readDocumentCached)
     addBuiltinRule noLint noIdentity
@@ -134,11 +149,12 @@ builtinRules sourceDirectory delimiters = do
       putInfo $ "Reading YAML from " <> path
       -- TODO wrap this in our own exception type
       Document Nothing <$> Yaml.decodeFileThrow path
+    {-# SCC readYaml #-}
 
     readTemplate templatePath = do
       _delimiters <- askOracle AskDelimiters
       putInfo $ "Reading template from " <> templatePath
-      input <- liftIO $ Text.readFile templatePath
+      input <- liftIO $ readTextFile templatePath
       eitherThrow $
         first (TemplateParseError . errorBundlePretty) $
         parseTemplate delimiters templatePath input
