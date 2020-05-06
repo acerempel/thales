@@ -10,6 +10,8 @@ where
 import Control.Applicative
 import Control.Applicative.Trans.Class
 import Control.Monad
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
 import Data.Bifunctor
 import Data.Functor.Identity
 
@@ -21,6 +23,9 @@ type Validation e = ValidationT e Identity
 instance ApplicativeTrans (ValidationT e) where
   liftApplicative = ValidationT . fmap Right
   {-# INLINE liftApplicative #-}
+
+instance MonadTrans (ValidationT e) where
+  lift = liftApplicative
 
 -- | The same as 'pure'; provided for symmetry with 'failure'.
 success :: Applicative f => a -> ValidationT e f a
@@ -95,3 +100,6 @@ instance (Monad m, Monoid e) => Monad (ValidationT e m) where
           Left e ->
             return (Left e)
   {-# INLINE (>>=) #-}
+
+instance (Functor m, MonadIO m, Monoid e) => MonadIO (ValidationT e m) where
+  liftIO a = ValidationT (fmap Right (liftIO a))

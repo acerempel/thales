@@ -65,7 +65,8 @@ data Statement
   | OptionallyS SourcePos Expr (Maybe Name) [Statement]
   -- | Evaluate some expressions, bind the result of each to the respective
   -- 'Name', and evaluate the 'Statement's with those names in scope.
-  | LetS SourcePos [(Name, Expr)] [Statement]
+  | LetInS SourcePos [(Name, Expr)] [Statement]
+  | LetS SourcePos [(Name, Expr)]
   -- | Evaluate the given bindings and provide them as part of the result of
   -- executing the template, as an associative array.
   | ExportS SourcePos [RecordBinding (Rec ExprF)]

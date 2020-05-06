@@ -237,7 +237,14 @@ evalStatement = \case
         maybe id (`addLocalBinding` val) mb_var $
         evalStatement stmt
 
-  LetS sp binds body -> do
+  LetS sp binds -> do
+    eval'd_binds <-
+      for binds $ \(name, expr) -> liftExprT
+        (\prob -> LetProblem sp [(name, prob)]) $ -- TODO correct context
+        (name,) <$> (evalTopExpr expr :: ExprT m Value)
+    addTopBindings eval'd_binds
+
+  LetInS sp binds body -> do
     eval'd_binds <-
       for binds $ \(name, expr) -> liftExprT
         (\prob -> LetProblem sp [(name, prob)]) $ -- TODO correct context

@@ -4,7 +4,7 @@ import Output (Output)
 import Syntax (Name)
 import Value
 
-class Monad m => DependencyMonad m where
+class (Monad m, MonadIO m) => DependencyMonad m where
 
   listDirectory :: FilePath -> m [FilePath]
 

@@ -200,8 +200,10 @@ letP :: SourcePos -> Parser PartialStatement
 letP sp = do
   keywordP "let"
   bindings <- sepEndBy binding comma
-  keywordP "in"
-  return (BlockS $ LetS sp bindings)
+  in_mb <- optional $ keywordP "in"
+  if isJust in_mb
+     then return (BlockS $ LetInS sp bindings)
+     else return (StandaloneS $ LetS sp bindings)
  where
   binding =
     (,) <$> (nameP <* equals) <*> exprP

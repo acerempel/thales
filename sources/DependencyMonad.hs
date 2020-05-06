@@ -119,6 +119,7 @@ createCache :: (Eq k, Hashable k) => (k -> Action v) -> Rules (k -> Action v)
 createCache = newCache
 {-# SCC createCache #-}
 
+readTextFile :: FilePath -> IO Text
 readTextFile = Text.readFile
 {-# SCC readTextFile #-}
 
