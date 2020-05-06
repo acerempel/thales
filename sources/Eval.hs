@@ -208,6 +208,10 @@ evalStatement = \case
           return (Output.fromText text)
         Empty ->
           return mempty
+        LoadedDoc (DocInfo filetype filepath) -> do
+          liftExprT
+            (ExprProblem sp)
+            (lift (getBody filetype filepath))
         _ ->
           stmtProblem (ExprIsNotOutputable sp expr val)
     addOutput text
@@ -259,20 +263,8 @@ evalStatement = \case
         first Name <$> evalBinding bind :: StmtT m (Name, Value)
     addBindings eval'd_binds
 
-  IncludeBodyS sp expr -> do
-    val <- liftExprT
-      (IncludeBodyProblem sp . IncludeBodyExprProblem)
-      (evalTopExpr expr :: ExprT m Value)
-    case val of
-      LoadedDoc (DocInfo filetype filepath) -> do
-        -- TODO instance MonadTrans StmtT, ValidationT
-        addOutput =<< liftExprT
-          (IncludeBodyProblem sp . IncludeBodyExprProblem)
-          (lift (getBody filetype filepath))
-      Empty ->
-        return ()
-      _ ->
-        stmtProblem (IncludeBodyProblem sp (IncludeBodyNotADocument expr val))
+  IncludeBodyS sp expr ->
+    evalStatement (ExprS sp expr)
 
 evalTemplate :: DependencyMonad m => ParsedTemplate -> Bindings -> m (Either (DList StmtProblem) (Bindings, Output))
 evalTemplate ParsedTemplate{..} =
